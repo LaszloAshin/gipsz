@@ -1,0 +1,11 @@
+// model tube
+
+name = 1;
+source = "model_generator";
+model_type = "static";
+clip = 0;
+gravity = 0;
+
+load() {
+  modelCreateTube(8.0, 64.0, 16);
+}

@@ -1,0 +1,18 @@
+- bump mapping on walls
+- level mechanics (doors, elevators, etc)
+- object behavior scripting facility
+- lightmaps on walls
+- sound subsystem
+- internal control computer system
+- visible outer space (through the windows of the spaceship)
+- particle systems for modeling smoke of weapons (rocket)
+- boneing for models (with spring systems)
+- clothes with spring systems
+- air flows
+- handle collision with objects
+- weapons and ammunition
+- health points, damage, armor
+- level changing mechanism
+- teleports
+- planet surfaces (nature? :])
+- loading screen

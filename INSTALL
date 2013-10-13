@@ -1,0 +1,9 @@
+./configure.sh
+make
+
+An executable called "sdl" will be generated in the directory.
+Run it to start the game.
+Have Fun!
+
+Laszlo Ashin 2006
+al651@hszk.bme.hu
