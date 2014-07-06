@@ -79,9 +79,9 @@ float at(float dy, float dx) {
   if (dx > 0)
     return atanf(dy / dx);
   else if (dx < 0)
-    return ((dy > 0) ? PI : -PI) - atanf(dy / -dx);
+    return ((dy > 0) ? M_PI : -M_PI) - atanf(dy / -dx);
   else
-    return (dy > 0) ? PI/2 : -PI/2;
+    return (dy > 0) ? M_PI/2 : -M_PI/2;
 }
 
 /* function to handle point-bsptree collision */

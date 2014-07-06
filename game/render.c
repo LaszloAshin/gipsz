@@ -241,10 +241,10 @@ void rBuildFrame() {
   glCullFace(GL_BACK);*/
   glMatrixMode(GL_PROJECTION);
   glLoadIdentity();
-  d = tanf(curfov / 360.0 * PI);
+  d = tanf(curfov / 360.0 * M_PI);
   glFrustum(-d, d, -d, d, 1.0, 10000.0);
-  glRotatef(270.0 + cam.b / PI * 180.0, 1.0, 0.0, 0.0);
-  glRotatef(cam.a / PI * 180.0, 0.0, 0.0, 1.0);
+  glRotatef(270.0 + cam.b / M_PI * 180.0, 1.0, 0.0, 0.0);
+  glRotatef(cam.a / M_PI * 180.0, 0.0, 0.0, 1.0);
   glTranslatef(-cam.x, -cam.y, -cam.z);
   glEnable(GL_ALPHA_TEST);
   glAlphaFunc(GL_GREATER, 0.0);

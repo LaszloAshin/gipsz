@@ -3,8 +3,6 @@
 
 #include "bbox.h"
 
-#define PI 3.141592654
-
 typedef struct {
   float x, y, z;
 } vec3d_t;

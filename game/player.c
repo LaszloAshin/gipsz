@@ -9,19 +9,17 @@
 
 cam_t cam;
 
-#define PI 3.141592654
-
 static void plRotateCam(float a, float b) {
   float beta;
   float fov2;
   vec3d_t v[4];
 
   a += cam.a;
-  while (a >= 2 * PI) a -= 2 * PI;
-  while (a < 0.0) a += 2 * PI;
+  while (a >= 2 * M_PI) a -= 2 * M_PI;
+  while (a < 0.0) a += 2 * M_PI;
   b += cam.b;
-  if (b > PI / 2) b = PI / 2;
-  if (b < -PI / 2) b = -PI / 2;
+  if (b > M_PI / 2) b = M_PI / 2;
+  if (b < -M_PI / 2) b = -M_PI / 2;
   cam.a = a;
   cam.b = b;
   cam.d2x = sin(a);
@@ -29,7 +27,7 @@ static void plRotateCam(float a, float b) {
   cam.dx = cam.d2x * cos(b);
   cam.dy = cam.d2y * cos(b);
   cam.dz = -sin(b);
-  fov2 = curfov / 360.0 * PI;
+  fov2 = curfov / 360.0 * M_PI;
   beta = b - fov2;
   v[0].x = cos(beta) * sin(a) + sin(-fov2) * cos(a);
   v[0].y = cos(beta) * cos(a) - sin(-fov2) * sin(a);
@@ -72,10 +70,10 @@ static void plRotateCam(float a, float b) {
   cam.cps[3].z = v[3].x * v[0].y - v[3].y * v[0].x;
 }
 
-#define CAM_DA_MIN (PI/3000)
-#define CAM_DA_MAX (PI/100)
-#define CAM_DA_INC (PI/1200)
-#define CAM_DA_DEC (PI/2000)
+#define CAM_DA_MIN (M_PI/3000)
+#define CAM_DA_MAX (M_PI/100)
+#define CAM_DA_INC (M_PI/1200)
+#define CAM_DA_DEC (M_PI/2000)
 #define CAM_V_MIN 0.001
 #define CAM_V_MAX 3.0
 #define CAM_V_INC 0.2
