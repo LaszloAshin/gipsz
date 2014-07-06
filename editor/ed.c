@@ -403,10 +403,12 @@ void edKeyboard(int key) {
       edScreen();
       break;
     case SDLK_KP_PLUS:
+    case SDLK_HOME:
       zoom += 1;
       edScreen();
       break;
     case SDLK_KP_MINUS:
+    case SDLK_END:
       if (zoom > 1) {
         zoom -= 1;
         edScreen();
