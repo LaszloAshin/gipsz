@@ -183,41 +183,40 @@ void bspCollideTree(float x, float y, float z, float *dx, float *dy, float *dz, 
   if (root != NULL) bspCollideNode(&pr, root);
 }
 
-node_t *bspGetNodeForCoords(float x, float y, float z) {
-  node_t *nod = NULL;
-  int bo, i;
-  line_t *l;
-  vertex_t *a, *b;
-  float dx1, dy1, dx2, dy2;
-
-  void bspGetNodeForCoordsSub(node_t *n) {
-    if (n->l == NULL && n->r == NULL && n->n && n->s->f < n->s->c && bbInside(&n->bb, x, y, z, 0.0)) {
-      bo = 0;
-      b = vc.p + n->p[0].a;
-      for (i = n->n, l = n->p; i; --i, ++l) {
-        a = b;
-        b = vc.p + l->b;
-        dx1 = b->x - a->x;
-        dy1 = b->y - a->y;
-        dx2 = b->x - x;
-        dy2 = b->y - y;
-        if (dx1 * dy2 > dy1 * dx2) {
-          ++bo;
-          break;
-        }
-      }
-      if (!bo) {
-        nod = n;
-        return;
+static node_t *
+bspGetNodeForCoordsSub(node_t *n, float x, float y, float z)
+{
+  if (n->l == NULL && n->r == NULL && n->n && n->s->f < n->s->c && bbInside(&n->bb, x, y, z, 0.0)) {
+    int bo = 0;
+    vertex_t *b = vc.p + n->p[0].a;
+    for (line_t *l = n->p; l < n->p + n->n; ++l) {
+      vertex_t *a = b;
+      b = vc.p + l->b;
+      const float dx1 = b->x - a->x;
+      const float dy1 = b->y - a->y;
+      const float dx2 = b->x - x;
+      const float dy2 = b->y - y;
+      if (dx1 * dy2 > dy1 * dx2) {
+        ++bo;
+        break;
       }
     }
-    if (n->l != NULL) bspGetNodeForCoordsSub(n->l);
-    if (nod != NULL) return;
-    if (n->r != NULL) bspGetNodeForCoordsSub(n->r);
+    if (!bo) {
+      return n;
+    }
   }
+  if (n->l != NULL) {
+    node_t *result = bspGetNodeForCoordsSub(n->l, x, y, z);
+    if (result) return result;
+  }
+  if (n->r != NULL) {
+    return bspGetNodeForCoordsSub(n->r, x, y, z);
+  }
+  return 0;
+}
 
-  if (root != NULL) bspGetNodeForCoordsSub(root);
-  return nod;
+node_t *bspGetNodeForCoords(float x, float y, float z) {
+  return root ? bspGetNodeForCoordsSub(root, x, y, z) : 0;
 }
 
 static node_t *bspGetNodeForLine(unsigned a, unsigned b) {
