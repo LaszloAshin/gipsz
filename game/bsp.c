@@ -241,16 +241,6 @@ bspGetNodeForLine(unsigned a, unsigned b)
   return root ? bspGetNodeForLineSub(root, a, b) : 0;
 }
 
-typedef struct {
-  short a : 16;
-  short b : 16;
-  unsigned char flags : 8;
-  unsigned short u1 : 16;
-  unsigned short u2 : 16;
-  unsigned short v : 16;
-  unsigned int t : 32;
-} __attribute__((packed)) fline_t;
-
 static line_t *linepool = NULL;
 
 static void bspFreeTree() {
@@ -273,26 +263,42 @@ static void bspFreeTree() {
 static int
 bspReadVertex(vertex_t *v, FILE *f)
 {
-  unsigned char buf[2 + 2];
+  unsigned char buf[2 + 2], *p = buf;
   const size_t rd = fread(buf, 1, sizeof(buf), f);
   if (rd != sizeof(buf)) return -1;
-  v->x = *(short *)(buf);
-  v->y = *(short *)(buf + 2);
+  v->x = *(short *)p;
+  v->y = *(short *)(p + 2);
+  return 0;
+}
+
+static int
+bspReadLine(line_t *l, FILE *f)
+{
+  unsigned char buf[2 + 2 + 1 + 2 + 2 + 2 + 4], *p = buf;
+  const size_t rd = fread(buf, 1, sizeof(buf), f);
+  if (rd != sizeof(buf)) return -1;
+  l->a = *(short *)p;
+  l->b = *(short *)(p + 2);
+  l->flags = p[4];
+  l->u1 = (double)(*(unsigned short *)(p + 5)) * 1.0f / 64.0f;
+  l->u2 = (double)(*(unsigned short *)(p + 7)) * 1.0f / 64.0f;
+  l->v = *(unsigned short *)(p + 9);
+  l->t = *(unsigned *)(p + 11);
+  l->nn = 0;
   return 0;
 }
 
 static int bspLoadTree(FILE *f) {
-  fline_t fl;
-  int i, j;
-  int rn, rl;
+  unsigned rn, rl;
   int err = 0;
   node_t *np;
   line_t *lp;
   float x, y, l;
 
   node_t *bspLoadNode() {
-    if (!fread(&i, sizeof(int), 1, f)) { ++err; return NULL; }
-    if (!i) return NULL;
+    unsigned lineCount;
+    if (!fread(&lineCount, sizeof(unsigned), 1, f)) { ++err; return NULL; }
+    if (!lineCount) return NULL;
     if (!rn) {
       cmsg(MLERR, "bspLoadNode: out of preallocated nodes");
       ++err;
@@ -300,14 +306,16 @@ static int bspLoadTree(FILE *f) {
     }
     --rn;
     node_t *n = np++;
-    n->n = i - 1;
-    if (!fread(&i, sizeof(int), 1, f)) { ++err; return n; }
-    if (i) {
-      n->s = sc.p + i;
+    n->n = lineCount - 1;
+    unsigned someCount;
+    if (!fread(&someCount, sizeof(unsigned), 1, f)) { ++err; return n; }
+    if (someCount) {
+      n->s = sc.p + someCount;
       texLoadTexture(GET_TEXTURE(n->s->t, 0), 0);
       texLoadTexture(GET_TEXTURE(n->s->t, 1), 0);
-    } else
+    } else {
       n->s = NULL;
+    }
     n->p = NULL;
     if (n->n) {
       if (n->n > rl) {
@@ -318,21 +326,13 @@ static int bspLoadTree(FILE *f) {
       rl -= n->n;
       n->p = lp;
       lp += n->n;
-      for (i = 0; i < n->n; ++i) {
-        if (!fread(&fl, sizeof(fline_t), 1, f)) { ++err; return n; }
-        n->p[i].a = fl.a;
-        n->p[i].b = fl.b;
-        n->p[i].u1 = (double)fl.u1 * 0.015625;
-        n->p[i].u2 = (double)fl.u2 * 0.015625;
-        n->p[i].v = fl.v;
-        n->p[i].flags = fl.flags;
-        n->p[i].nn = NULL;
-        n->p[i].t = fl.t;
-        texLoadTexture(GET_TEXTURE(fl.t, 0), 0);
-        texLoadTexture(GET_TEXTURE(fl.t, 1), 0);
-        texLoadTexture(GET_TEXTURE(fl.t, 2), 0);
+      for (unsigned i = 0; i < n->n; ++i) {
+        if (bspReadLine(n->p + i, f)) { ++err; return n; }
+        texLoadTexture(GET_TEXTURE(n->p[i].t, 0), 0);
+        texLoadTexture(GET_TEXTURE(n->p[i].t, 1), 0);
+        texLoadTexture(GET_TEXTURE(n->p[i].t, 2), 0);
       }
-      for (i = 0; i < n->n; ++i) {
+      for (unsigned i = 0; i < n->n; ++i) {
         x = vc.p[n->p[i].a].y - vc.p[n->p[i].b].y;
         y = vc.p[n->p[i].b].x - vc.p[n->p[i].a].x;
         l = 1 / sqrtf(x * x + y * y);
@@ -344,7 +344,7 @@ static int bspLoadTree(FILE *f) {
     n->l = bspLoadNode();
     n->r = bspLoadNode();
     n->ow = NULL;
-    j = 0;
+    int j = 0;
     if (n->l != NULL) {
       n->bb.x1 = n->l->bb.x1;
       n->bb.y1 = n->l->bb.y1;
@@ -375,7 +375,7 @@ static int bspLoadTree(FILE *f) {
         }
         /* intentionally no break here */
       case 2:
-        for (i = 0; i < n->n; ++i) {
+        for (unsigned i = 0; i < n->n; ++i) {
           bbAdd(&n->bb, vc.p[n->p[i].a].x, vc.p[n->p[i].a].y, n->s->f);
           bbAdd(&n->bb, vc.p[n->p[i].a].x, vc.p[n->p[i].a].y, n->s->c);
         }
@@ -388,21 +388,22 @@ static int bspLoadTree(FILE *f) {
   }
 
   void bspNeighSub(node_t *n) {
-    for (i = 0; i < n->n; ++i)
-      if ((n->p[i].flags & LF_TWOSIDED) && n->p[i].nn == NULL)
+    for (unsigned i = 0; i < n->n; ++i) {
+      if ((n->p[i].flags & LF_TWOSIDED) && n->p[i].nn == NULL) {
         n->p[i].nn = bspGetNodeForLine(n->p[i].b, n->p[i].a);
+      }
+    }
     if (n->l != NULL) bspNeighSub(n->l);
     if (n->r != NULL) bspNeighSub(n->r);
   }
 
   node_t *bspGetContainerNode(node_t *m) {
     node_t *r = NULL;
-    int i;
 
     void bspGetContSub(node_t *n) {
       if (n->s != NULL) {
         if (n->s->f > n->s->c) return;
-        for (i = 0; i < m->n; ++i) {
+        for (unsigned i = 0; i < m->n; ++i) {
           if (bbInside(&n->bb, vc.p[m->p[i].a].x, vc.p[m->p[i].a].y, m->s->c, 0.0) ||
               bbInside(&n->bb, vc.p[m->p[i].a].x, vc.p[m->p[i].a].y, m->s->f, 0.0)) {
             r = n;
@@ -432,12 +433,12 @@ static int bspLoadTree(FILE *f) {
   if (!fread(&vc.n, sizeof(int), 1, f)) return 0;
   vc.p = (vertex_t *)mmAlloc(vc.n * sizeof(vertex_t));
   if (vc.p == NULL) return 0;
-  for (i = 0; i < vc.n; ++i) {
+  for (unsigned i = 0; i < vc.n; ++i) {
     if (bspReadVertex(&vc.p[i], f)) return 0;
   }
   cmsg(MLINFO, "%d verteces", vc.n);
-  if (!fread(&rn, sizeof(int), 1, f)) return 0;
-  if (!fread(&rl, sizeof(int), 1, f)) return 0;
+  if (!fread(&rn, sizeof(unsigned), 1, f)) return 0;
+  if (!fread(&rl, sizeof(unsigned), 1, f)) return 0;
   np = root = (node_t *)mmAlloc(rn * sizeof(node_t));
   if (root == NULL) return 0;
   lp = linepool = (line_t *)mmAlloc(rl * sizeof(line_t));
@@ -468,15 +469,15 @@ void bspFreeMap() {
 static int
 bspLoadSector(sector_t *s, FILE *fp)
 {
-  unsigned char buf[2 + 2 + 1 + 2 + 2 + 4];
+  unsigned char buf[2 + 2 + 1 + 2 + 2 + 4], *p = buf;
   const size_t rd = fread(buf, 1, sizeof(buf), fp);
   if (rd != sizeof(buf)) return -1;
-  s->f = *(short *)(buf);
-  s->c = *(short *)(buf + 2);
-  s->l = buf[4];
-  s->u = *(short *)(buf + 5);
-  s->v = *(short *)(buf + 7);
-  s->t = *(unsigned *)(buf + 9);
+  s->f = *(short *)p;
+  s->c = *(short *)(p + 2);
+  s->l = p[4];
+  s->u = *(short *)(p + 5);
+  s->v = *(short *)(p + 7);
+  s->t = *(unsigned *)(p + 9);
   return 0;
 }
 
@@ -492,7 +493,7 @@ int bspLoadMap(const char *fname) {
   if (!fread(&sc.n, sizeof(int), 1, f)) goto end;
   sc.p = (sector_t *)mmAlloc(sc.n * sizeof(sector_t));
   if (sc.p == NULL) goto end;
-  for (int i = 0; i < sc.n; ++i) {
+  for (unsigned i = 0; i < sc.n; ++i) {
     if (bspLoadSector(sc.p + i, f)) goto end;
   }
   cmsg(MLINFO, "%d sectors", sc.n);
@@ -527,7 +528,11 @@ int cmd_map(int argc, char **argv) {
   return 0;
 }
 
-int cmd_leavemap(int argc, char **argv) {
+static int
+cmd_leavemap(int argc, char **argv)
+{
+  (void)argc;
+  (void)argv;
   bspFreeMap();
   return 0;
 }
