@@ -1,3 +1,6 @@
+0.07 alpha - 2014.07.06. 15:14
+  # reorganize files
+
 0.06 alpha - 2006.10.05. 16:25
   + added: store objects in bsp file
   + added: tx2 uses display lists
