@@ -219,23 +219,26 @@ node_t *bspGetNodeForCoords(float x, float y, float z) {
   return root ? bspGetNodeForCoordsSub(root, x, y, z) : 0;
 }
 
-static node_t *bspGetNodeForLine(unsigned a, unsigned b) {
-  node_t *nod = NULL;
-  int i;
-
-  void bspGetNodeForLineSub(node_t *n) {
-    for (i = 0; i < n->n; ++i)
-      if ((n->p[i].flags & LF_TWOSIDED) && n->p[i].a == a && n->p[i].b == b) {
-        nod = n;
-        return;
-      }
-    if (n->l != NULL) bspGetNodeForLineSub(n->l);
-    if (nod != NULL) return;
-    if (n->r != NULL) bspGetNodeForLineSub(n->r);
+static node_t *
+bspGetNodeForLineSub(node_t *n, unsigned a, unsigned b)
+{
+  for (line_t *l = n->p; l < n->p + n->n; ++l) {
+    if ((l->flags & LF_TWOSIDED) && l->a == a && l->b == b) {
+      return n;
+    }
   }
+  if (n->l != NULL) {
+    node_t *result = bspGetNodeForLineSub(n->l, a, b);
+    if (result) return result;
+  }
+  if (n->r != NULL) return bspGetNodeForLineSub(n->r, a, b);
+  return 0;
+}
 
-  if (root != NULL) bspGetNodeForLineSub(root);
-  return nod;
+static node_t *
+bspGetNodeForLine(unsigned a, unsigned b)
+{
+  return root ? bspGetNodeForLineSub(root, a, b) : 0;
 }
 
 typedef struct {
