@@ -448,6 +448,21 @@ void bspFreeMap() {
   gDisable();
 }
 
+static int
+bspLoadSector(sector_t *s, FILE *fp)
+{
+  unsigned char buf[2 + 2 + 1 + 2 + 2 + 4];
+  const size_t rd = fread(buf, 1, sizeof(buf), fp);
+  if (rd != sizeof(buf)) return -1;
+  s->f = *(short *)(buf);
+  s->c = *(short *)(buf + 2);
+  s->l = buf[4];
+  s->u = *(short *)(buf + 5);
+  s->v = *(short *)(buf + 7);
+  s->t = *(unsigned *)(buf + 9);
+  return 0;
+}
+
 int bspLoadMap(const char *fname) {
   int ret = 0;
   FILE *f = fopen(fname, "rb");
@@ -460,7 +475,9 @@ int bspLoadMap(const char *fname) {
   if (!fread(&sc.n, sizeof(int), 1, f)) goto end;
   sc.p = (sector_t *)mmAlloc(sc.n * sizeof(sector_t));
   if (sc.p == NULL) goto end;
-  if (fread(sc.p, sizeof(sector_t), sc.n, f) != sc.n) goto end;
+  for (int i = 0; i < sc.n; ++i) {
+    if (bspLoadSector(sc.p + i, f)) goto end;
+  }
   cmsg(MLINFO, "%d sectors", sc.n);
   if (!bspLoadTree(f)) goto end;
   if (!objLoad(f)) goto end;
