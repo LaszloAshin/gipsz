@@ -84,91 +84,103 @@ float at(float dy, float dx) {
     return (dy > 0) ? M_PI/2 : -M_PI/2;
 }
 
-/* function to handle point-bsptree collision */
-void bspCollideTree(float x, float y, float z, float *dx, float *dy, float *dz, int hard) {
-  unsigned i, j = 0;
-  vertex_t p, f;
-  float q, pz;
-  line_t *l;
-  float dx1, dy1, dx2, dy2;
-  sector_t *ns;
-  int front, in;
+struct collide_param_rec {
+  float x, y, z;
+  float *dx, *dy, *dz;
+  int hard;
+  int j;
+};
 
-  void bspCollideNode(node_t *n) {
-    if (n == NULL || !bbInside(&n->bb, x, y, z, 48.0)) return;
-    bspCollideNode(n->l);
-    bspCollideNode(n->r);
-    if (n->s == NULL || !n->n) return;
-    p.x = x + *dx;
-    p.y = y + *dy;
-    pz  = z + *dz;
-    in = 1;
-    for (i = n->n, l = n->p; i; --i, ++l) {
-      dx1 = vc.p[l->b].x - vc.p[l->a].x;
-      dy1 = vc.p[l->b].y - vc.p[l->a].y;
-      dx2 = vc.p[l->b].x - x;
-      dy2 = vc.p[l->b].y - y;
-      front = dx1 * dy2 < dy1 * dx2;
-      if (!front) in = 0;
-      if (n->s->f < n->s->c) {
-        if (pz < n->s->f - 16 - 8 || pz > n->s->c + 48 + 8) continue;
-      } else {
-        if (pz < n->s->c - 16 - 8 || pz > n->s->f + 48 + 8) continue;
-      }
-      if (pszt(vc.p[l->a], vc.p[l->b], p, &f) > 256.0) continue;
-      in = 0;
-      if (pz > n->s->f && pz < n->s->f + 48) {
-        *dz = (n->s->f + 48 - z) * 0.1;
-        pz  = z + *dz;
-      }
-      if (pz < n->s->c && pz > n->s->c - 16) {
-        *dz = (n->s->c - 16 - z) * 0.1;
-        pz  = z + *dz;
-      }
-      ns = (l->nn != NULL) ? l->nn->s : NULL;
-      if (ns != NULL) {
-        if (n->s->f < n->s->c) {
-          dx1 = n->s->f;
-          if (ns->f > dx1) dx1 = ns->f;
-          dx2 = n->s->c;
-          if (ns->c < dx2) dx2 = ns->c;
-          if (dx2 - dx1 > 64 && ns->f < pz - 48 + 24 && ns->c > pz + 16) continue;
-        } else {
-          if (ns->f <= pz - 48 + 24 || ns->c >= pz + 16) continue;
-        }
-      } else if (n->s->f > n->s->c) {
-        if (pz > n->s->f + 48 - 8 || pz < n->s->c - 16 + 8) continue;
-      }
-      q = sqrtf(f.x * f.x + f.y * f.y);
-      f.x /= q;  f.y /= q;
-      if (hard) {
-        if (j) {
-          *dx += f.x;
-          *dy += f.y;
-        } else {
-          *dx = f.x;
-          *dy = f.y;
-        }
-        ++j;
-        continue;
-      }
-      q = cosf(at(f.x, -f.y) - at(*dy, *dx)) * sqrtf(*dx * *dx + *dy * *dy);
-      *dx = -f.y * q;
-      *dy = f.x * q;
+static void
+bspCollideNode(struct collide_param_rec *pr, node_t *n)
+{
+  if (n == NULL || !bbInside(&n->bb, pr->x, pr->y, pr->z, 48.0)) return;
+  bspCollideNode(pr, n->l);
+  bspCollideNode(pr, n->r);
+  if (n->s == NULL || !n->n) return;
+  vertex_t p;
+  p.x = pr->x + *pr->dx;
+  p.y = pr->y + *pr->dy;
+  float pz = pr->z + *pr->dz;
+  int in = 1;
+  for (line_t *l = n->p; l < n->p + n->n; ++l) {
+    float dx1 = vc.p[l->b].x - vc.p[l->a].x;
+    const float dy1 = vc.p[l->b].y - vc.p[l->a].y;
+    float dx2 = vc.p[l->b].x - pr->x;
+    const float dy2 = vc.p[l->b].y - pr->y;
+    const int front = dx1 * dy2 < dy1 * dx2;
+    if (!front) in = 0;
+    if (n->s->f < n->s->c) {
+      if (pz < n->s->f - 16 - 8 || pz > n->s->c + 48 + 8) continue;
+    } else {
+      if (pz < n->s->c - 16 - 8 || pz > n->s->f + 48 + 8) continue;
     }
-    if (in) {
-      if (pz > n->s->f && pz < n->s->f + 48) {
-        *dz = (n->s->f + 48 - z) * 0.1;
-        pz  = z + *dz;
+    vertex_t f = { 0, 0 };
+    if (pszt(vc.p[l->a], vc.p[l->b], p, &f) > 256.0) continue;
+    in = 0;
+    if (pz > n->s->f && pz < n->s->f + 48) {
+      *pr->dz = (n->s->f + 48 - pr->z) * 0.1;
+      pz = pr->z + *pr->dz;
+    }
+    if (pz < n->s->c && pz > n->s->c - 16) {
+      *pr->dz = (n->s->c - 16 - pr->z) * 0.1;
+      pz = pr->z + *pr->dz;
+    }
+    const sector_t *ns = (l->nn != NULL) ? l->nn->s : NULL;
+    if (ns != NULL) {
+      if (n->s->f < n->s->c) {
+        dx1 = n->s->f;
+        if (ns->f > dx1) dx1 = ns->f;
+        dx2 = n->s->c;
+        if (ns->c < dx2) dx2 = ns->c;
+        if (dx2 - dx1 > 64 && ns->f < pz - 48 + 24 && ns->c > pz + 16) continue;
+      } else {
+        if (ns->f <= pz - 48 + 24 || ns->c >= pz + 16) continue;
       }
-      if (pz < n->s->c && pz > n->s->c - 16) {
-        *dz = (n->s->c - 16 - z) * 0.1;
-        pz  = z + *dz;
+    } else if (n->s->f > n->s->c) {
+      if (pz > n->s->f + 48 - 8 || pz < n->s->c - 16 + 8) continue;
+    }
+    const float q = sqrtf(f.x * f.x + f.y * f.y);
+    f.x /= q;  f.y /= q;
+    if (pr->hard) {
+      if (pr->j) {
+        *pr->dx += f.x;
+        *pr->dy += f.y;
+      } else {
+        *pr->dx = f.x;
+        *pr->dy = f.y;
       }
+      ++pr->j;
+      continue;
+    }
+    const float q2 = cosf(at(f.x, -f.y) - at(*pr->dy, *pr->dx)) * sqrtf(*pr->dx * *pr->dx + *pr->dy * *pr->dy);
+    *pr->dx = -f.y * q2;
+    *pr->dy = f.x * q2;
+  }
+  if (in) {
+    if (pz > n->s->f && pz < n->s->f + 48) {
+      *pr->dz = (n->s->f + 48 - pr->z) * 0.1;
+      pz = pr->z + *pr->dz;
+    }
+    if (pz < n->s->c && pz > n->s->c - 16) {
+      *pr->dz = (n->s->c - 16 - pr->z) * 0.1;
+      pz = pr->z + *pr->dz;
     }
   }
+}
 
-  if (root != NULL) bspCollideNode(root);
+/* function to handle point-bsptree collision */
+void bspCollideTree(float x, float y, float z, float *dx, float *dy, float *dz, int hard) {
+  struct collide_param_rec pr;
+  pr.x = x;
+  pr.y = y;
+  pr.z = z;
+  pr.dx = dx;
+  pr.dy = dy;
+  pr.dz = dz;
+  pr.hard = hard;
+  pr.j = 0;
+  if (root != NULL) bspCollideNode(&pr, root);
 }
 
 node_t *bspGetNodeForCoords(float x, float y, float z) {
