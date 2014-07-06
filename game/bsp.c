@@ -242,11 +242,6 @@ bspGetNodeForLine(unsigned a, unsigned b)
 }
 
 typedef struct {
-  short x : 16;
-  short y : 16;
-} __attribute__((packed)) fvertex_t;
-
-typedef struct {
   short a : 16;
   short b : 16;
   unsigned char flags : 8;
@@ -275,8 +270,18 @@ static void bspFreeTree() {
   vc.n = 0;
 }
 
+static int
+bspReadVertex(vertex_t *v, FILE *f)
+{
+  unsigned char buf[2 + 2];
+  const size_t rd = fread(buf, 1, sizeof(buf), f);
+  if (rd != sizeof(buf)) return -1;
+  v->x = *(short *)(buf);
+  v->y = *(short *)(buf + 2);
+  return 0;
+}
+
 static int bspLoadTree(FILE *f) {
-  fvertex_t fv;
   fline_t fl;
   int i, j;
   int rn, rl;
@@ -428,9 +433,7 @@ static int bspLoadTree(FILE *f) {
   vc.p = (vertex_t *)mmAlloc(vc.n * sizeof(vertex_t));
   if (vc.p == NULL) return 0;
   for (i = 0; i < vc.n; ++i) {
-    if (!fread(&fv, sizeof(fvertex_t), 1, f)) return 0;
-    vc.p[i].x = fv.x;
-    vc.p[i].y = fv.y;
+    if (bspReadVertex(&vc.p[i], f)) return 0;
   }
   cmsg(MLINFO, "%d verteces", vc.n);
   if (!fread(&rn, sizeof(int), 1, f)) return 0;
