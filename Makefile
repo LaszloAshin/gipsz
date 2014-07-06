@@ -4,6 +4,8 @@ O := $Rout/
 .PHONY: all
 all: $Ogame $Oeditor
 
+CFLAGS := -std=c99
+CXXFLAGS := -std=c++98
 CPPFLAGS := -Wall -Wextra -pedantic
 CPPFLAGS += -O2 -g
 CPPFLAGS += -MD
