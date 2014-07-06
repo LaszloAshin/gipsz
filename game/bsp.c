@@ -424,7 +424,7 @@ static int bspLoadTree(FILE *f) {
     }
   }
 
-  if (!fread(&vc.n, sizeof(fvertex_t), 1, f)) return 0;
+  if (!fread(&vc.n, sizeof(int), 1, f)) return 0;
   vc.p = (vertex_t *)mmAlloc(vc.n * sizeof(vertex_t));
   if (vc.p == NULL) return 0;
   for (i = 0; i < vc.n; ++i) {
