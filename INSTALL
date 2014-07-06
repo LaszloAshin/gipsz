@@ -1,9 +1,11 @@
-./configure.sh
 make
 
-An executable called "sdl" will be generated in the directory.
-Run it to start the game.
+Executable called "game" and "editor" will be generated in the "out" directory.
+Run "out/game" to start the game.
 Have Fun!
 
 Laszlo Ashin 2006
 al651@hszk.bme.hu
+
+Laszlo Ashin 2014
+laszlo@ashin.hu
