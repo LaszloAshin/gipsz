@@ -29,17 +29,17 @@ sdl_SOURCES := \
 	tga.c \
 	tx2.c
 
-sdl_OBJECTS := $(addprefix build/,$(addsuffix .o,$(basename $(sdl_SOURCES))))
+sdl_OBJECTS := $(addprefix build/sdl.d/,$(addsuffix .o,$(basename $(sdl_SOURCES))))
 -include $(addsuffix .d,$(basename $(sdl_OBJECTS)))
 
 build/sdl: $(sdl_OBJECTS)
 	mkdir -p $(@D)
 	$(CC) $(LDFLAGS) $(LDLIBS) $(LOADLIBES) $^ $(OUTPUT_OPTION)
 
-build/%.o: src/%.c
+build/sdl.d/%.o: src/%.c
 	mkdir -p $(@D)
 	$(CC) -c $< $(CPPFLAGS) $(CFLAGS) $(OUTPUT_OPTION)
 
 .PHONY: clean
 clean:
-	rm -rf build
+	rm -rf build/sdl*
