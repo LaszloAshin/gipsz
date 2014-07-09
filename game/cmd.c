@@ -134,6 +134,8 @@ void cmdFree() {
 }
 
 static int cmd_cmdlist(int argc, char **argv) {
+  (void)argc;
+  (void)argv;
   cmd_t *p;
   int i = 0;
   for (p = firstcmd; p != NULL; p = p->next, ++i)
@@ -177,7 +179,7 @@ static void cmdPrintVar(cvar_t *p) {
     case CVT_LIST: {
       const cvlistitem_t *l;
       for (l = p->list; l->name != NULL; ++l)
-        if (l->val == *(int *)p->addr) {
+        if (l->val == *(unsigned *)p->addr) {
           if (p->rw)
             cmsg(MLINFO, " %s %s", p->name, l->name);
           else
@@ -192,6 +194,8 @@ static void cmdPrintVar(cvar_t *p) {
 }
 
 static int cmd_varlist(int argc, char **argv) {
+  (void)argc;
+  (void)argv;
   cvar_t *p;
   int i = 0;
   for (p = firstvar; p != NULL; p = p->next, ++i)
@@ -343,7 +347,11 @@ static int cmd_exec(int argc, char **argv) {
   return 0;
 }
 
-int cmd_null(int argc, char **argv) { return 0; }
+int cmd_null(int argc, char **argv) {
+  (void)argc;
+  (void)argv;
+  return 0;
+}
 
 void cmdInit() {
   cmdAddCommand("cmdlist", cmd_cmdlist);

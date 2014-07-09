@@ -26,7 +26,7 @@ static unsigned conCurPos = 0;
 static int curBlank = 0;
 static int retval = 0;
 static int echo = 1;
-static int verbosity = MLDBG;
+static msglev_t verbosity = MLDBG;
 static const cvlistitem_t verblevs[] = {
   { MLINFO, "MLINFO" },
   { MLHINT, "MLHINT" },
@@ -472,6 +472,7 @@ void conSetSize(unsigned w, unsigned h) {
 }
 
 static void conToggle(void *addr) {
+  (void)addr;
   switch (conState) {
     case CON_INACTIVE:
       conOpen();
@@ -493,7 +494,7 @@ void conInit() {
   cmdAddBool("console", NULL, 1);
   cmdSetAccessFuncs("console", NULL, conToggle);
   cmdAddBool("echo", &echo, !0);
-  cmdAddList("verbosity", &verbosity, verblevs, 1);
+  cmdAddList("verbosity", (int *)&verbosity, verblevs, 1);
 }
 
 void conDone() {

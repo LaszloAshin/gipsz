@@ -165,8 +165,7 @@ static struct {
 } ac;
 
 static void iRemoveBinding(int keyidx) {
-  int i;
-  for (i = 0; i < ac.n; ++i)
+  for (unsigned i = 0; i < ac.n; ++i)
     if (ac.p[i].keyidx == keyidx) {
       mmFree(ac.p[i].action);
       ac.p[i] = ac.p[--ac.n];
@@ -179,8 +178,8 @@ static int cmd_unbind(int argc, char **argv) {
     cmsg(MLERR, "usage: %s <key>", argv[0]);
     return !0;
   }
-  int i, keyidx = -1;
-  for (i = 0; i < sizeof(ikey) / sizeof(ikey_t); ++i)
+  int keyidx = -1;
+  for (unsigned i = 0; i < sizeof(ikey) / sizeof(ikey_t); ++i)
     if (!strcmp(argv[1], ikey[i].name)) {
       keyidx = i;
       break;
@@ -194,16 +193,16 @@ static int cmd_unbind(int argc, char **argv) {
 }
 
 static void iAddBinding(int keyidx, ipushtype_t push, char *action) {
-  int i, na;
+  int na;
 
-  for (i = 0; i < ac.n; ++i)
+  for (unsigned i = 0; i < ac.n; ++i)
     if (ac.p[i].keyidx == keyidx && !strcmp(ac.p[i].action, action))
       return;
   if (ac.n == ac.alloc) {
     na = ac.alloc * 2;
     assoc_t *p = (assoc_t *)mmAlloc(na * sizeof(assoc_t));
     if (p == NULL) return;
-    for (i = 0; i < ac.n; ++i) p[i] = ac.p[i];
+    for (unsigned i = 0; i < ac.n; ++i) p[i] = ac.p[i];
     mmFree(ac.p);
     ac.p = p;
     ac.alloc = na;
@@ -221,8 +220,8 @@ static int cmd_bind(int argc, char **argv) {
     cmsg(MLERR, "usage: %s <key> <action> [push|release]", argv[0]);
     return !0;
   }
-  int i, keyidx = -1;
-  for (i = 0; i < sizeof(ikey) / sizeof(ikey_t); ++i)
+  int keyidx = -1;
+  for (unsigned i = 0; i < sizeof(ikey) / sizeof(ikey_t); ++i)
     if (!strcmp(argv[1], ikey[i].name)) {
       keyidx = i;
       break;
@@ -244,13 +243,14 @@ static int cmd_bind(int argc, char **argv) {
 }
 
 void iFlushBindings() {
-  int i;
-  for (i = 0; i < ac.n; ++i)
+  for (unsigned i = 0; i < ac.n; ++i)
     mmFree(ac.p[i].action);
   ac.n = 0;
 }
 
 static int cmd_unbindall(int argc, char **argv) {
+  (void)argc;
+  (void)argv;
   iFlushBindings();
   return 0;
 }
@@ -294,9 +294,9 @@ void iGetActions(ipushtype_t push, int pkey) {
 }
 
 static int cmd_bindlist(int argc, char **argv) {
-  int i;
-
-  for (i = 0; i < ac.n; ++i) {
+  (void)argc;
+  (void)argv;
+  for (unsigned i = 0; i < ac.n; ++i) {
     char *s = NULL;
     switch (ac.p[i].push) {
       case PT_HOLD:
@@ -329,9 +329,7 @@ int iInit() {
 }
 
 void iDone() {
-  int i;
-
-  for (i = 0; i < ac.n; ++i) mmFree(ac.p[i].action);
+  for (unsigned i = 0; i < ac.n; ++i) mmFree(ac.p[i].action);
   if (ac.p != NULL) {
     mmFree(ac.p);
     ac.p = NULL;
