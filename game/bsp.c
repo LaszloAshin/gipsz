@@ -288,148 +288,163 @@ bspReadLine(line_t *l, FILE *f)
   return 0;
 }
 
-static int bspLoadTree(FILE *f) {
+struct bsp_load_ctx {
+  FILE *f;
   unsigned rn, rl;
-  int err = 0;
+  int err;
   node_t *np;
   line_t *lp;
-  float x, y, l;
+};
 
-  node_t *bspLoadNode() {
-    unsigned lineCount;
-    if (!fread(&lineCount, sizeof(unsigned), 1, f)) { ++err; return NULL; }
-    if (!lineCount) return NULL;
-    if (!rn) {
-      cmsg(MLERR, "bspLoadNode: out of preallocated nodes");
-      ++err;
-      return NULL;
+static node_t *
+bspLoadNode(struct bsp_load_ctx * const blc)
+{
+  unsigned lineCount;
+  if (!fread(&lineCount, sizeof(unsigned), 1, blc->f)) { ++blc->err; return NULL; }
+  if (!lineCount) return NULL;
+  if (!blc->rn) {
+    cmsg(MLERR, "bspLoadNode: out of preallocated nodes");
+    ++blc->err;
+    return NULL;
+  }
+  --blc->rn;
+  node_t *n = blc->np++;
+  n->n = lineCount - 1;
+  unsigned someCount;
+  if (!fread(&someCount, sizeof(unsigned), 1, blc->f)) { ++blc->err; return n; }
+  if (someCount) {
+    n->s = sc.p + someCount;
+    texLoadTexture(GET_TEXTURE(n->s->t, 0), 0);
+    texLoadTexture(GET_TEXTURE(n->s->t, 1), 0);
+  } else {
+    n->s = NULL;
+  }
+  n->p = NULL;
+  if (n->n) {
+    if (n->n > blc->rl) {
+      cmsg(MLERR, "bspLoadNode: out of preallocated lines");
+      ++blc->err;
+      return n;
     }
-    --rn;
-    node_t *n = np++;
-    n->n = lineCount - 1;
-    unsigned someCount;
-    if (!fread(&someCount, sizeof(unsigned), 1, f)) { ++err; return n; }
-    if (someCount) {
-      n->s = sc.p + someCount;
-      texLoadTexture(GET_TEXTURE(n->s->t, 0), 0);
-      texLoadTexture(GET_TEXTURE(n->s->t, 1), 0);
-    } else {
-      n->s = NULL;
+    blc->rl -= n->n;
+    n->p = blc->lp;
+    blc->lp += n->n;
+    for (unsigned i = 0; i < n->n; ++i) {
+      if (bspReadLine(n->p + i, blc->f)) { ++blc->err; return n; }
+      texLoadTexture(GET_TEXTURE(n->p[i].t, 0), 0);
+      texLoadTexture(GET_TEXTURE(n->p[i].t, 1), 0);
+      texLoadTexture(GET_TEXTURE(n->p[i].t, 2), 0);
     }
-    n->p = NULL;
-    if (n->n) {
-      if (n->n > rl) {
-        cmsg(MLERR, "bspLoadNode: out of preallocated lines");
-        ++err;
+    for (unsigned i = 0; i < n->n; ++i) {
+      const float x = vc.p[n->p[i].a].y - vc.p[n->p[i].b].y;
+      const float y = vc.p[n->p[i].b].x - vc.p[n->p[i].a].x;
+      float l = 1 / sqrtf(x * x + y * y);
+      if (n->s->c < n->s->f) l = -l;
+      n->p[i].nx = x * l;
+      n->p[i].ny = y * l;
+    }
+  }
+  n->l = bspLoadNode(blc);
+  n->r = bspLoadNode(blc);
+  n->ow = NULL;
+  int j = 0;
+  if (n->l != NULL) {
+    n->bb.x1 = n->l->bb.x1;
+    n->bb.y1 = n->l->bb.y1;
+    n->bb.z1 = n->l->bb.z1;
+    n->bb.x2 = n->l->bb.x2;
+    n->bb.y2 = n->l->bb.y2;
+    n->bb.z2 = n->l->bb.z2;
+    j = 1;
+  } else if (n->r != NULL) {
+    n->bb.x1 = n->r->bb.x1;
+    n->bb.y1 = n->r->bb.y1;
+    n->bb.z1 = n->r->bb.z1;
+    n->bb.x2 = n->r->bb.x2;
+    n->bb.y2 = n->r->bb.y2;
+    n->bb.z2 = n->r->bb.z2;
+    j = 2;
+  } else if (n->n) {
+    n->bb.x1 = n->bb.x2 = vc.p[n->p[0].a].x;
+    n->bb.y1 = n->bb.y2 = vc.p[n->p[0].a].y;
+    n->bb.z1 = n->bb.z2 = n->s->f;
+    j = 2;
+  }
+  switch (j) {
+    case 1:
+      if (n->r != NULL) {
+        bbAdd(&n->bb, n->r->bb.x1, n->r->bb.y1, n->r->bb.z1);
+        bbAdd(&n->bb, n->r->bb.x2, n->r->bb.y2, n->r->bb.z2);
+      }
+      /* intentionally no break here */
+    case 2:
+      for (unsigned i = 0; i < n->n; ++i) {
+        bbAdd(&n->bb, vc.p[n->p[i].a].x, vc.p[n->p[i].a].y, n->s->f);
+        bbAdd(&n->bb, vc.p[n->p[i].a].x, vc.p[n->p[i].a].y, n->s->c);
+      }
+      break;
+    default:
+      cmsg(MLERR, "bspLoadNode: unable to initialize bounding boxes");
+      break;
+  }
+  return n;
+}
+
+static void
+bspNeighSub(struct bsp_load_ctx * const blc, node_t *n)
+{
+  for (unsigned i = 0; i < n->n; ++i) {
+    if ((n->p[i].flags & LF_TWOSIDED) && n->p[i].nn == NULL) {
+      n->p[i].nn = bspGetNodeForLine(n->p[i].b, n->p[i].a);
+    }
+  }
+  if (n->l != NULL) bspNeighSub(blc, n->l);
+  if (n->r != NULL) bspNeighSub(blc, n->r);
+}
+
+static node_t *
+bspGetContSub(struct bsp_load_ctx * const blc, node_t *n, node_t *m)
+{
+  if (n->s != NULL) {
+    if (n->s->f > n->s->c) return 0;
+    for (unsigned i = 0; i < m->n; ++i) {
+      if (bbInside(&n->bb, vc.p[m->p[i].a].x, vc.p[m->p[i].a].y, m->s->c, 0.0) ||
+          bbInside(&n->bb, vc.p[m->p[i].a].x, vc.p[m->p[i].a].y, m->s->f, 0.0)) {
         return n;
       }
-      rl -= n->n;
-      n->p = lp;
-      lp += n->n;
-      for (unsigned i = 0; i < n->n; ++i) {
-        if (bspReadLine(n->p + i, f)) { ++err; return n; }
-        texLoadTexture(GET_TEXTURE(n->p[i].t, 0), 0);
-        texLoadTexture(GET_TEXTURE(n->p[i].t, 1), 0);
-        texLoadTexture(GET_TEXTURE(n->p[i].t, 2), 0);
-      }
-      for (unsigned i = 0; i < n->n; ++i) {
-        x = vc.p[n->p[i].a].y - vc.p[n->p[i].b].y;
-        y = vc.p[n->p[i].b].x - vc.p[n->p[i].a].x;
-        l = 1 / sqrtf(x * x + y * y);
-        if (n->s->c < n->s->f) l = -l;
-        n->p[i].nx = x * l;
-        n->p[i].ny = y * l;
-      }
-    }
-    n->l = bspLoadNode();
-    n->r = bspLoadNode();
-    n->ow = NULL;
-    int j = 0;
-    if (n->l != NULL) {
-      n->bb.x1 = n->l->bb.x1;
-      n->bb.y1 = n->l->bb.y1;
-      n->bb.z1 = n->l->bb.z1;
-      n->bb.x2 = n->l->bb.x2;
-      n->bb.y2 = n->l->bb.y2;
-      n->bb.z2 = n->l->bb.z2;
-      j = 1;
-    } else if (n->r != NULL) {
-      n->bb.x1 = n->r->bb.x1;
-      n->bb.y1 = n->r->bb.y1;
-      n->bb.z1 = n->r->bb.z1;
-      n->bb.x2 = n->r->bb.x2;
-      n->bb.y2 = n->r->bb.y2;
-      n->bb.z2 = n->r->bb.z2;
-      j = 2;
-    } else if (n->n) {
-      n->bb.x1 = n->bb.x2 = vc.p[n->p[0].a].x;
-      n->bb.y1 = n->bb.y2 = vc.p[n->p[0].a].y;
-      n->bb.z1 = n->bb.z2 = n->s->f;
-      j = 2;
-    }
-    switch (j) {
-      case 1:
-        if (n->r != NULL) {
-          bbAdd(&n->bb, n->r->bb.x1, n->r->bb.y1, n->r->bb.z1);
-          bbAdd(&n->bb, n->r->bb.x2, n->r->bb.y2, n->r->bb.z2);
-        }
-        /* intentionally no break here */
-      case 2:
-        for (unsigned i = 0; i < n->n; ++i) {
-          bbAdd(&n->bb, vc.p[n->p[i].a].x, vc.p[n->p[i].a].y, n->s->f);
-          bbAdd(&n->bb, vc.p[n->p[i].a].x, vc.p[n->p[i].a].y, n->s->c);
-        }
-        break;
-      default:
-        cmsg(MLERR, "bspLoadNode: unable to initialize bounding boxes");
-        break;
-    }
-    return n;
-  }
-
-  void bspNeighSub(node_t *n) {
-    for (unsigned i = 0; i < n->n; ++i) {
-      if ((n->p[i].flags & LF_TWOSIDED) && n->p[i].nn == NULL) {
-        n->p[i].nn = bspGetNodeForLine(n->p[i].b, n->p[i].a);
-      }
-    }
-    if (n->l != NULL) bspNeighSub(n->l);
-    if (n->r != NULL) bspNeighSub(n->r);
-  }
-
-  node_t *bspGetContainerNode(node_t *m) {
-    node_t *r = NULL;
-
-    void bspGetContSub(node_t *n) {
-      if (n->s != NULL) {
-        if (n->s->f > n->s->c) return;
-        for (unsigned i = 0; i < m->n; ++i) {
-          if (bbInside(&n->bb, vc.p[m->p[i].a].x, vc.p[m->p[i].a].y, m->s->c, 0.0) ||
-              bbInside(&n->bb, vc.p[m->p[i].a].x, vc.p[m->p[i].a].y, m->s->f, 0.0)) {
-            r = n;
-            return;
-          }
-        }
-      }
-      if (n->l != NULL) bspGetContSub(n->l);
-      if (r != NULL) return;
-      if (n->r != NULL) bspGetContSub(n->r);
-    }
-
-    if (root != NULL) bspGetContSub(root);
-    return r;
-  }
-
-  void bspSearchOutsiders(node_t *n) {
-    if (n->s != NULL && n->s->f < n->s->c) return;
-    if (n->l != NULL) bspSearchOutsiders(n->l);
-    if (n->r != NULL) bspSearchOutsiders(n->r);
-    if (n->n) {
-      n->ow = bspGetContainerNode(n);
-//      cmsg(MLINFO, "outsider! %d %d", n->ow->s - sc.p, n->ow->n);
     }
   }
+  if (n->l != NULL) {
+    node_t *result = bspGetContSub(blc, n->l, m);
+    if (result) return result;
+  }
+  if (n->r != NULL) return bspGetContSub(blc, n->r, m);
+  return 0;
+}
 
+static node_t *
+bspGetContainerNode(struct bsp_load_ctx * const blc, node_t *m)
+{
+  return root ? bspGetContSub(blc, root, m) : 0;
+}
+
+static void
+bspSearchOutsiders(struct bsp_load_ctx * const blc, node_t *n)
+{
+  if (n->s != NULL && n->s->f < n->s->c) return;
+  if (n->l != NULL) bspSearchOutsiders(blc, n->l);
+  if (n->r != NULL) bspSearchOutsiders(blc, n->r);
+  if (n->n) {
+    n->ow = bspGetContainerNode(blc, n);
+//    cmsg(MLINFO, "outsider! %d %d", n->ow->s - sc.p, n->ow->n);
+  }
+}
+
+static int
+bspLoadTree(FILE *f) {
+  struct bsp_load_ctx blc;
+  blc.f = f;
+  blc.err = 0;
   if (!fread(&vc.n, sizeof(int), 1, f)) return 0;
   vc.p = (vertex_t *)mmAlloc(vc.n * sizeof(vertex_t));
   if (vc.p == NULL) return 0;
@@ -437,17 +452,17 @@ static int bspLoadTree(FILE *f) {
     if (bspReadVertex(&vc.p[i], f)) return 0;
   }
   cmsg(MLINFO, "%d verteces", vc.n);
-  if (!fread(&rn, sizeof(unsigned), 1, f)) return 0;
-  if (!fread(&rl, sizeof(unsigned), 1, f)) return 0;
-  np = root = (node_t *)mmAlloc(rn * sizeof(node_t));
+  if (!fread(&blc.rn, sizeof(unsigned), 1, f)) return 0;
+  if (!fread(&blc.rl, sizeof(unsigned), 1, f)) return 0;
+  blc.np = root = (node_t *)mmAlloc(blc.rn * sizeof(node_t));
   if (root == NULL) return 0;
-  lp = linepool = (line_t *)mmAlloc(rl * sizeof(line_t));
+  blc.lp = linepool = (line_t *)mmAlloc(blc.rl * sizeof(line_t));
   if (linepool == NULL) return 0;
-  bspLoadNode();
-  cmsg(MLINFO, "%d nodes, %d lines", np - root, lp - linepool);
+  bspLoadNode(&blc);
+  cmsg(MLINFO, "%d nodes, %d lines", blc.np - root, blc.lp - linepool);
   cmsg(MLINFO, "%d textures", texGetNofTextures());
-  bspNeighSub(root);
-  bspSearchOutsiders(root);
+  bspNeighSub(&blc, root);
+  bspSearchOutsiders(&blc, root);
   return !0;
 }
 
