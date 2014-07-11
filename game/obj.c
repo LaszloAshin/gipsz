@@ -6,6 +6,8 @@
 #include "player.h"
 #include "console.h"
 
+#include <math.h>
+
 typedef struct {
   int name;
   float x, y, z;
@@ -108,34 +110,47 @@ void objDone() {
   oc.alloc = 0;
 }
 
-typedef struct {
-  short type : 16;
-  short x, y, z : 16;
-  short rot : 16;
-} __attribute__((packed)) fobject_t;
+struct fobject {
+  int type;
+  int x, y, z;
+  float ra, rb, rc;
+};
+
+int
+loadObject(struct fobject *fo, FILE *fp)
+{
+  char buf[2 + 3 * 2 + 2], *p = buf;
+  const size_t rd = fread(buf, 1, sizeof(buf), fp);
+  if (rd != sizeof(buf)) return -1;
+  fo->type = *(short *)p;
+  fo->x = *(short *)(p + 2);
+  fo->y = *(short *)(p + 4);
+  fo->z = *(short *)(p + 6);
+  const unsigned rot = *(short *)(p + 8);
+  fo->ra = (rot & 7) * M_PI / 4.0f;
+  fo->rb = ((rot >> 3) & 7) * M_PI / 4.0f;
+  fo->rc = ((rot >> 6) & 7) * M_PI / 4.0f;
+  return 0;
+}
 
 int objLoad(FILE *fp) {
-  fobject_t fo;
-  int i, n;
-  obj_t *o;
-  float alpha, beta, gamma;
+  unsigned n;
 
   objFlush();
-  if (fread(&n, sizeof(int), 1, fp) != 1) return 0;
-  for (i = 0; i < n; ++i) {
-    if (fread(&fo, sizeof(fobject_t), 1, fp) != 1) return 0;
-    alpha =  (fo.rot & 7) * 0.7854;
-    beta  = ((fo.rot >> 3) & 7) * 0.7854;
-    gamma = ((fo.rot >> 6) & 7) * 0.7854;
+  if (fread(&n, sizeof(unsigned), 1, fp) != 1) return 0;
+  for (unsigned i = 0; i < n; ++i) {
+    struct fobject fo;
+    if (loadObject(&fo, fp)) return 0;
     switch (fo.type) {
       case 0:
-        plSetPosition(fo.x, fo.y, fo.z, gamma + 1.5708);
+        plSetPosition(fo.x, fo.y, fo.z, fo.rc + M_PI / 2.0f);
         break;
-      default:
-        o = objAdd(i + 1, fo.type, fo.x, fo.y, fo.z);
+      default: {
+        obj_t *o = objAdd(i + 1, fo.type, fo.x, fo.y, fo.z);
         if (o == NULL) return 0;
-        modelSetStatAngle(o->stat, alpha, beta, gamma);
+        modelSetStatAngle(o->stat, fo.ra, fo.rb, fo.rc);
         break;
+      }
     }
   }
   return !0;

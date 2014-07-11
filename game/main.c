@@ -17,6 +17,8 @@
 static char version[] = "0.06 alpha";
 
 static int cmd_version(int argc, char **argv) {
+  (void)argc;
+  (void)argv;
   cmsg(MLINFO, "version %s", version);
   return 0;
 }
@@ -43,6 +45,8 @@ void postQuit() {
 }
 
 int cmd_quit(int argc, char **argv) {
+  (void)argc;
+  (void)argv;
   postQuit();
   return 0;
 }
@@ -154,7 +158,7 @@ static void InitVideo() {
   SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 5);
   SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 5);*/
   SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-  if (SDL_SetVideoMode(scrWidth, scrHeight, scrbpp, vf) < 0) {
+  if (!SDL_SetVideoMode(scrWidth, scrHeight, scrbpp, vf)) {
     cmsg(MLERR, "SDL_SetVideoMode: %s", SDL_GetError());
     quit(1);
   }
@@ -250,11 +254,11 @@ static void Init() {
 }
 
 static void Run() {
-  int i, t, quit;
+  int t, quit;
   static Uint32 ft[1200/FRAMETIME];
 
   t = SDL_GetTicks();
-  for (i = 0; i < sizeof(ft) / sizeof(ft[0]); ++i) {
+  for (unsigned i = 0; i < sizeof(ft) / sizeof(ft[0]); ++i) {
     ft[i] = t;
   }
   t = 0;
@@ -264,7 +268,7 @@ static void Run() {
     if (t > 0) {
       Uint32 dt = SDL_GetTicks();
       Draw();
-      for (i = (sizeof(ft) / sizeof(ft[0])) - 1; i; --i) {
+      for (unsigned i = (sizeof(ft) / sizeof(ft[0])) - 1; i; --i) {
         ft[i] = ft[i-1];
       }
       ft[0] = SDL_GetTicks();
@@ -298,6 +302,8 @@ static void Done() {
 }
 
 int main(int argc, char **argv) {
+  (void)argc;
+  (void)argv;
   Init();
   Run();
   Done();

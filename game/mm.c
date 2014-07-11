@@ -9,13 +9,13 @@
 #define MAX_BLOCKS 8192
 
 typedef struct {
-  void *p;
+  char *p;
   int size;
 } block_t;
 
 static block_t bs[MAX_BLOCKS];
 static int nb;
-static void *pgs[MAX_PAGES];
+static char *pgs[MAX_PAGES];
 static int inited = 0;
 
 static void mmCheck() {
@@ -44,7 +44,7 @@ static void mmCheck() {
   }
 }
 
-static unsigned mmGetPos(void *p) {
+static unsigned mmGetPos(char *p) {
   int m = 0, l = 0, r = nb - 1;
   while (l <= r) {
     m = (l + r) / 2;
@@ -62,7 +62,7 @@ static unsigned mmGetPos(void *p) {
   return r;
 }
 
-static int mmGetExactPos(void *p) {
+static int mmGetExactPos(char *p) {
   int m = 0, l = 0, r = nb - 1;
   while (l <= r) {
     m = (l + r) / 2;
@@ -78,7 +78,7 @@ static int mmGetExactPos(void *p) {
   return -1;
 }
 
-static int mmGetPageForPtr(void *p) {
+static int mmGetPageForPtr(char *p) {
   int i;
   for (i = 0; i < MAX_PAGES && pgs[i] != NULL; ++i)
     if (p >= pgs[i] && p < pgs[i] + PAGE_SIZE) return i;
@@ -106,7 +106,7 @@ static void *mmPageAlloc() {
     cmsg(MLERR, "mmPageAlloc: out of pages");
     return NULL; /* no more pages */
   }
-  void *p = malloc(PAGE_SIZE);
+  char *p = malloc(PAGE_SIZE);
   if (p == NULL) {
     cmsg(MLERR, "malloc failed to alloc %d bytes", PAGE_SIZE);
     return NULL; /* no more memory */
@@ -140,7 +140,7 @@ void *mmAlloc(int size) {
     mmPageAlloc();
     if (pgs[0] == NULL) return NULL;
   }
-  void *p = pgs[0];
+  char *p = pgs[0];
   for (i = 0; i < nb; ++i) {
     if (p + size <= bs[i].p) {
       j = mmGetPageForPtr(p);
@@ -175,7 +175,7 @@ void mmFree(void *p) {
 //  printf("mmFree(%08x);\n", (int)p);
   int i = mmGetExactPos(p);
   if (i < 0 || !bs[i].size) {
-    cmsg(MLERR, "mmFree: given pointer doesnt address an allocated zone (%08x)\n", (int)p);
+    cmsg(MLERR, "mmFree: given pointer doesnt address an allocated zone (%p)\n", p);
     return;
   }
   memset(bs[i].p, 0, bs[i].size);
@@ -202,7 +202,7 @@ void mmDone() {
       cmsg(MLDBG, "mmDone: unfreed blocks:");
       ++bo;
     }
-    cmsg(MLDBG, " 0x%08x %d", (int)bs[i].p, bs[i].size);
+    cmsg(MLDBG, " %p %d", bs[i].p, bs[i].size);
   }
   for (i = 0; i < MAX_PAGES; ++i)
     if (pgs[i] != NULL) {
@@ -214,6 +214,8 @@ void mmDone() {
 }
 
 static int cmd_meminfo(int argc, char **argv) {
+  (void)argc;
+  (void)argv;
   cmsg(MLINFO, "limits:");
   cmsg(MLINFO, " MAX_PAGES: %d", MAX_PAGES);
   cmsg(MLINFO, " PAGE_SIZE: %d Bytes", PAGE_SIZE);
@@ -252,13 +254,12 @@ void mmInitCmd() {
 }
 
 void mmShow() {
-  int i;
   printf("[blocks]\n");
-  for (i = 0; i < nb; ++i) printf("[%08x %x]\n", (int)bs[i].p, bs[i].size);
+  for (int i = 0; i < nb; ++i) printf("[%p %x]\n", bs[i].p, bs[i].size);
   printf("[end]\n");
   printf("[pages]\n");
-  for (i = 0; i < MAX_PAGES && pgs[i] != NULL; ++i)
-    printf("[%08x]\n", (int)pgs[i]);
+  for (unsigned i = 0; i < MAX_PAGES && pgs[i] != NULL; ++i)
+    printf("[%p]\n", pgs[i]);
   printf("[end]\n");
 }
 

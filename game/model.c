@@ -188,6 +188,7 @@ void *modelAdd(int name) {
 }
 
 void *modelInitStat(void *mp) {
+  (void)mp;
   int s = sizeof(stat_t);
   stat_t *p = mmAlloc(s);
   if (p == NULL) return p;
@@ -204,6 +205,8 @@ void modelSetStatAngle(void *sp, float a, float b, float c) {
 }
 
 void modelUpdate(void *mp, void *sp) {
+  (void)mp;
+  (void)sp;
 /*  model_t *m = mp;
   stat_t *s = sp;
 
