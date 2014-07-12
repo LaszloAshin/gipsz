@@ -140,9 +140,9 @@ int tgaRead(tgaimage_t *im, const char *fname) {
   return ret;
 }
 
-static void bgr2rgb(char *a, int length, int bytes) {
+static void bgr2rgb(unsigned char *a, int length, int bytes) {
   int i;
-  char *b, c;
+  unsigned char *b, c;
 
   b = a + 2;
   for (i = length; i; --i) {
@@ -154,9 +154,9 @@ static void bgr2rgb(char *a, int length, int bytes) {
   }
 }
 
-static void upsample(char *p, int length, int alpha) {
+static void upsample(unsigned char *p, int length, int alpha) {
   int destbytes, i;
-  char *s, *d, s0, s1;
+  unsigned char *s, *d, s0, s1;
 
   destbytes = (alpha) ? 4 : 3;
   s = p + (length - 1) * 2;
@@ -180,7 +180,7 @@ static void upsample(char *p, int length, int alpha) {
   }
 }
 
-static void unmap(char *p, int length, int alpha, char *cmap, int cms) {
+static void unmap(unsigned char *p, int length, int alpha, unsigned char *cmap, int cms) {
   unsigned char *s, *d, *c;
   int i, j, destbytes;
 
@@ -197,7 +197,7 @@ static void unmap(char *p, int length, int alpha, char *cmap, int cms) {
 }
 
 /* taken almost unchanged from tga.h of gimp */
-static int rle_read(char *buf, int width, int bytes, FILE *fp) {
+static int rle_read(unsigned char *buf, int width, int bytes, FILE *fp) {
   static int repeat = 0;
   static int direct = 0;
   static unsigned char sample[4];
@@ -235,7 +235,7 @@ static int rle_read(char *buf, int width, int bytes, FILE *fp) {
   return 0;
 }
 
-static void ReadLine(FILE *fp, tga_info_t *info, char *row, char *cmap) {
+static void ReadLine(FILE *fp, tga_info_t *info, unsigned char *row, unsigned char *cmap) {
   switch (info->imageCompression) {
     case TGA_COMP_NONE:
       fread(row, info->width, info->bytes, fp);
@@ -268,7 +268,7 @@ static void *ReadImage(FILE *fp, tga_info_t *info, const char *fname) {
   int destbytes;
   int cmap_bytes;
   unsigned char cmap[4 * 256];
-  void *img, *row;
+  unsigned char *img, *row;
   int i;
 
   if (info->colorMapType == 1) {
@@ -341,7 +341,7 @@ int tgaScale(tgaimage_t *d, tgaimage_t *s) {
   if (s->data == NULL) return 0;
   if (d->data != NULL) mmFree(d->data);
   unsigned size = d->width * d->height * s->bytes;
-  d->data = (char *)mmAlloc(size);
+  d->data = (unsigned char *)mmAlloc(size);
   if (d->data == NULL) return 0;
   d->bytes = s->bytes;
   int x, y, x1, y1, x2, y2, bx, by;
@@ -349,7 +349,7 @@ int tgaScale(tgaimage_t *d, tgaimage_t *s) {
   int dy = 65536 * s->height / d->height;
   int sx, sy = dy;
   unsigned char *p = d->data;
-  int c, n, k;
+  int c, n;
   y2 = 0;
   for (y = d->height; y; --y, sy += dy) {
     y1 = y2;
@@ -359,7 +359,7 @@ int tgaScale(tgaimage_t *d, tgaimage_t *s) {
     for (x = d->width; x; --x, sx += dx) {
       x1 = x2;
       x2 = sx / 65536;
-      for (k = 0; k < d->bytes; ++k) {
+      for (unsigned k = 0; k < d->bytes; ++k) {
         n = c = 0;
         for (by = y1; by < y2; ++by)
           for (bx = x1; bx < x2; ++bx) {
