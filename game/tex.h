@@ -5,7 +5,7 @@
 
 void texFreeTexture(unsigned id);
 int texLoadTexture(unsigned id, int force);
-int texSelectTexture(unsigned id);
+int texSelectTexture(int id);
 int texInit();
 void texFlush();
 void texDone();

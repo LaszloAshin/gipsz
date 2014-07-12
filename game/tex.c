@@ -28,7 +28,7 @@ static const cvlistitem_t texFilterList[] = {
   { GL_LINEAR_MIPMAP_LINEAR, "GL_LINEAR_MIPMAP_LINEAR" },
   { 0, NULL }
 };
-static int texFilter = GL_LINEAR_MIPMAP_LINEAR;
+static unsigned texFilter = GL_LINEAR_MIPMAP_LINEAR;
 static const cvlistitem_t texDetailList[] = {
   { 512, "SUPER" },
   { 128, "HIGH" },
@@ -61,14 +61,13 @@ static void texSetGLFilters(int min) {
 }
 
 static void texFilterChange(void *addr) {
-  int i;
-
-  for (i = 0; texFilterList[i].name != NULL; ++i)
+  (void)addr;
+  for (unsigned i = 0; texFilterList[i].name != NULL; ++i)
     if (texFilterList[i].val == texFilter) {
       cmsg(MLHINT, "setting texture filter %s", texFilterList[i].name);
       break;
     }
-  for (i = 0; i < tc.n; ++i) {
+  for (unsigned i = 0; i < tc.n; ++i) {
     if (!tc.p[i].textureName) continue;
     glBindTexture(GL_TEXTURE_2D, tc.p[i].textureName);
     texSetGLFilters(texFilter);
@@ -88,7 +87,7 @@ static unsigned texGetPos(unsigned id) {
       l = m + 1;
   }
   if (r < 0) r = 0;
-  for (; r < tc.n && tc.p[r].id < id; ++r);
+  for (; r < (int)tc.n && tc.p[r].id < id; ++r);
   return r;
 }
 
@@ -179,7 +178,7 @@ int texLoadTexture(unsigned id, int force) {
     texFreeTexture(id);
     return 0;
   }
-  int w, h;
+  unsigned w, h;
   GLint internalFormat;
   GLenum format;
   w = h = texDetail;
@@ -252,7 +251,7 @@ int texLoadTexture(unsigned id, int force) {
   return !0;
 }
 
-int texSelectTexture(unsigned id) {
+int texSelectTexture(int id) {
   if (id == selected) return !0;
   selected = id;
   if (!id) {
@@ -271,8 +270,7 @@ int texSelectTexture(unsigned id) {
 void texUpdate() {
   if (texReload) {
     glBindTexture(GL_TEXTURE_2D, 0);
-    int i;
-    for (i = 0; i < tc.n; ++i) texLoadTexture(tc.p[i].id, !0);
+    for (unsigned i = 0; i < tc.n; ++i) texLoadTexture(tc.p[i].id, !0);
 /*    for (i = 0; i < tc.n; ++i) printf(" %d-%d", tc.p[i].id, tc.p[i].textureName);
     printf("\n");*/
     texReload = 0;
@@ -281,6 +279,7 @@ void texUpdate() {
 }
 
 static void texDetailChange(void *addr) {
+  (void)addr;
   texReload = 1;
 }
 
@@ -288,7 +287,7 @@ int texInit() {
   tc.alloc = 8;
   tc.p = (tex_t *)mmAlloc(tc.alloc * sizeof(tex_t));
   tc.n = 0;
-  cmdAddList("texFilter", &texFilter, texFilterList, 1);
+  cmdAddList("texFilter", (int *)&texFilter, texFilterList, 1);
   cmdSetAccessFuncs("texFilter", NULL, texFilterChange);
   cmdAddList("texDetail", &texDetail, texDetailList, 1);
   cmdSetAccessFuncs("texDetail", NULL, texDetailChange);
