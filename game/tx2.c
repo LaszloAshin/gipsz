@@ -52,11 +52,10 @@ int tx2Init() {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    char *p;
     for (i = 0; i < 128; ++i) {
       int w;
       for (w = 16; w; --w) {
-        p = im.data + ((i & 15) << 4) + ((i >> 4) << 13) + w - 1;
+        unsigned char *p = im.data + ((i & 15) << 4) + ((i >> 4) << 13) + w - 1;
         int y;
         for (y = 32; y; --y, p += 256) if (*p) break;
         if (y) break;
