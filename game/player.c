@@ -162,6 +162,8 @@ static int cmd_turn(int argc, char **argv) {
 }
 
 static int cmd_zoom(int argc, char **argv) {
+  (void)argc;
+  (void)argv;
   if (conGetState() != CON_INACTIVE) return 0;
   curfov -= FOVDEC;
   return 0;

@@ -46,7 +46,7 @@ static void oglPrintExtUsage() {
 
 void oglInitProcs() {
   int i;
-  const char *exts = glGetString(GL_EXTENSIONS), *last = NULL;
+  const char *exts = (char *)glGetString(GL_EXTENSIONS), *last = NULL;
   int lastvalid = 0;
   void **p = (void *)&gl;
   for (i = 0; extfuncs[i].ext != NULL; ++i, ++p) {
@@ -62,7 +62,7 @@ void oglInitProcs() {
           oglDisableExt(last);
           lastvalid = 0;
         }
-      } else *p = NULL + 1;
+      } else *p = NULL;
     } else *p = NULL;
   }
   oglPrintExtUsage();
