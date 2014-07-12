@@ -14,65 +14,69 @@ float curfov = 90.0;
 static int r_clear = 0;
 static int r_drawwalls = 1;
 
+static void
+rSetVisible(node_t *n, nodeflag_t vis)
+{
+  n->flags = (n->flags & ~NF_VISIBLE) | (vis & NF_VISIBLE);
+  if (n->l != NULL) rSetVisible(n->l, vis);
+  if (n->r != NULL) rSetVisible(n->r, vis);
+}
+
+static int
+rSeeThrough(node_t *n, int i)
+{
+  sector_t *s = n->s;
+  sector_t *ns = n->p[i].nn->s;
+  if (s == NULL || ns == NULL) return 0;
+  int f = s->f;
+  if (ns->f > f) f = ns->f;
+  int c = s->c;
+  if (ns->c < c) c = ns->c;
+  return f < c;
+}
+
+static void
+rTraceNode(node_t *n)
+{
+  n->flags |= NF_VISIBLE;
+  for (unsigned i = 0; i < n->n; ++i) {
+    vertex_t a = vc.p[n->p[i].a];
+    vertex_t b = vc.p[n->p[i].b];
+    a.x -= cam.x; a.y -= cam.y;
+    b.x -= cam.x; b.y -= cam.y;
+    const float dx = b.x - a.x;
+    const float dy = b.y - a.y;
+    if (dx * a.y > dy * a.x) continue;
+    if (n->p[i].nn != NULL && rSeeThrough(n, i) && !(n->p[i].nn->flags & NF_VISIBLE))
+      rTraceNode(n->p[i].nn);
+  }
+}
+
+static void
+rSearchOutsiders(node_t *n)
+{
+  if (n->s != NULL && n->s->f < n->s->c) return;
+  if (n->l != NULL) rSearchOutsiders(n->l);
+  if (n->r != NULL) rSearchOutsiders(n->r);
+  if (n->ow != NULL && n->ow->flags & NF_VISIBLE) n->flags |= NF_VISIBLE;
+}
+
+static void
+rSpreadVisibility(node_t *n)
+{
+  if (n->l != NULL) rSpreadVisibility(n->l);
+  if (n->r != NULL) rSpreadVisibility(n->r);
+  if ((n->l != NULL && (n->l->flags & NF_VISIBLE)) ||
+      (n->r != NULL && (n->r->flags & NF_VISIBLE))) {
+    n->flags |= NF_VISIBLE;
+  }
+}
+
 static void rTraceTreeForVisibles() {
   nodeflag_t vis = NF_NOTHING;
-  sector_t *s, *ns;
-  int f, c;
-  vertex_t a, b;
-  float dx, dy;
-
-  void rSetVisible(node_t *n) {
-    n->flags = (n->flags & ~NF_VISIBLE) | (vis & NF_VISIBLE);
-    if (n->l != NULL) rSetVisible(n->l);
-    if (n->r != NULL) rSetVisible(n->r);
-  }
-
-  int rSeeThrough(node_t *n, int i) {
-    s = n->s;
-    ns = n->p[i].nn->s;
-    if (s == NULL || ns == NULL) return 0;
-    f = s->f;
-    if (ns->f > f) f = ns->f;
-    c = s->c;
-    if (ns->c < c) c = ns->c;
-    return f < c;
-  }
-
-  void rTraceNode(node_t *n) {
-    n->flags |= NF_VISIBLE;
-    int i; /* lokalis bazmeg!! */
-    for (i = 0; i < n->n; ++i) {
-      a = vc.p[n->p[i].a];
-      b = vc.p[n->p[i].b];
-      a.x -= cam.x; a.y -= cam.y;
-      b.x -= cam.x; b.y -= cam.y;
-      dx = b.x - a.x;
-      dy = b.y - a.y;
-      if (dx * a.y > dy * a.x) continue;
-      if (n->p[i].nn != NULL && rSeeThrough(n, i) && !(n->p[i].nn->flags & NF_VISIBLE))
-        rTraceNode(n->p[i].nn);
-    }
-  }
-
-  void rSearchOutsiders(node_t *n) {
-    if (n->s != NULL && n->s->f < n->s->c) return;
-    if (n->l != NULL) rSearchOutsiders(n->l);
-    if (n->r != NULL) rSearchOutsiders(n->r);
-    if (n->ow != NULL && n->ow->flags & NF_VISIBLE) n->flags |= NF_VISIBLE;
-  }
-
-  void rSpreadVisibility(node_t *n) {
-    if (n->l != NULL) rSpreadVisibility(n->l);
-    if (n->r != NULL) rSpreadVisibility(n->r);
-    if ((n->l != NULL && (n->l->flags & NF_VISIBLE)) ||
-        (n->r != NULL && (n->r->flags & NF_VISIBLE))) {
-      n->flags |= NF_VISIBLE;
-    }
-  }
-
   if (root == NULL) return;
   if (cn == NULL) vis = NF_VISIBLE;
-  rSetVisible(root);
+  rSetVisible(root, vis);
   if (vis & NF_VISIBLE) return;
   rTraceNode(cn);
   /* spread visibility upwards in the tree and search outsiders */
@@ -82,146 +86,152 @@ static void rTraceTreeForVisibles() {
 
 static int visfaces, visnodes;
 
-static void rDrawTree() {
-  unsigned i, t;
-  float x, y, u, v;
-  line_t *l;
-  vertex_t *a, *b;
-  sector_t *ns;
+static void
+rDrawWall(vertex_t *a, vertex_t *b, float f, float c, line_t *l, unsigned t)
+{
+  float v = (l->v - c) * 0.015625;
+  texSelectTexture(t);
+/*  glActiveTexture(GL_TEXTURE1);
+  texSelectTexture(0xc);
+  glActiveTexture(GL_TEXTURE0);*/
+  glBegin(GL_QUADS);
+  glNormal3f(l->nx, l->ny, 0.0);
+  glTexCoord2f(l->u1, v);
+//  glMultiTexCoord2f(GL_TEXTURE1, 0.0, 0.0);
+  glVertex3f(a->x, a->y, c);
 
-  void rDrawWall(vertex_t *a, vertex_t *b, float f, float c, line_t *l) {
-    v = (l->v - c) * 0.015625;
+  glTexCoord2f(l->u2, v);
+//  glMultiTexCoord2f(GL_TEXTURE1, 1.0, 0.0);
+  glVertex3f(b->x, b->y, c);
+  v = (l->v - f) * 0.015625;
+  glTexCoord2f(l->u2, v);
+//  glMultiTexCoord2f(GL_TEXTURE1, 1.0, 1.0);
+  glVertex3f(b->x, b->y, f);
+
+  glTexCoord2f(l->u1, v);
+//  glMultiTexCoord2f(GL_TEXTURE1, 0.0, 1.0);
+  glVertex3f(a->x, a->y, f);
+  glEnd();
+  ++visfaces;
+}
+
+static void
+rDrawWalls(node_t *n)
+{
+  for (line_t *l = n->p; l < n->p + n->n; ++l) {
+    vertex_t *a = vc.p + l->a;
+    vertex_t *b = vc.p + l->b;
+    sector_t *ns = (l->nn != NULL) ? l->nn->s : NULL;
+    unsigned t;
+    if (n->s->f < n->s->c) {
+      if ((b->x - a->x) * (b->y - cam.y) > (b->y - a->y) * (b->x - cam.x)) continue;
+      if (ns != NULL) {
+        if (ns->f > n->s->f && (t = GET_TEXTURE(l->t, 0))) {
+          rDrawWall(a, b, n->s->f, ns->f, l, t);
+        }
+        if (ns->c < n->s->c && (t = GET_TEXTURE(l->t, 2))) {
+          rDrawWall(a, b, ns->c, n->s->c, l, t);
+        }
+      }
+      t = GET_TEXTURE(l->t, 1);
+      if (t) {
+        float x = n->s->f;
+        float y = n->s->c;
+        if (ns != NULL) {
+          if (ns->f > x) x = ns->f;
+          if (ns->c < y) y = ns->c;
+        }
+        rDrawWall(a, b, x, y, l, t);
+      }
+    } else {
+      if ((b->x - a->x) * (b->y - cam.y) < (b->y - a->y) * (b->x - cam.x)) continue;
+      if (ns != NULL) {
+        if (ns->c > n->s->c && (t = GET_TEXTURE(l->t, 0))) {
+          rDrawWall(b, a, n->s->c, ns->c, l, t);
+        }
+        if (ns->f < n->s->f && (t = GET_TEXTURE(l->t, 2))) {
+          rDrawWall(b, a, ns->f, n->s->f, l, t);
+        }
+      }
+      t = GET_TEXTURE(l->t, 1);
+      if (t) {
+        float x = n->s->c;
+        float y = n->s->f;
+        if (ns != NULL) {
+          if (ns->c > x) x = ns->c;
+          if (ns->f < y) y = ns->f;
+        }
+        rDrawWall(b, a, x, y, l, t);
+      }
+    }
+  }
+}
+
+static void
+rDrawPlanes(node_t *n)
+{
+  if (n->n < 3) return;
+  unsigned t;
+  if (n->s->f < cam.z && (t = GET_TEXTURE(n->s->t, 0))) {
     texSelectTexture(t);
-/*    glActiveTexture(GL_TEXTURE1);
-    texSelectTexture(0xc);
-    glActiveTexture(GL_TEXTURE0);*/
-    glBegin(GL_QUADS);
-    glNormal3f(l->nx, l->ny, 0.0);
-    glTexCoord2f(l->u1, v);
-//    glMultiTexCoord2f(GL_TEXTURE1, 0.0, 0.0);
-    glVertex3f(a->x, a->y, c);
-
-    glTexCoord2f(l->u2, v);
-//    glMultiTexCoord2f(GL_TEXTURE1, 1.0, 0.0);
-    glVertex3f(b->x, b->y, c);
-    v = (l->v - f) * 0.015625;
-    glTexCoord2f(l->u2, v);
-//    glMultiTexCoord2f(GL_TEXTURE1, 1.0, 1.0);
-    glVertex3f(b->x, b->y, f);
-
-    glTexCoord2f(l->u1, v);
-//    glMultiTexCoord2f(GL_TEXTURE1, 0.0, 1.0);
-    glVertex3f(a->x, a->y, f);
+    glBegin(GL_POLYGON);
+    glNormal3f(0.0, 0.0, 1.0);
+    for (line_t *l = n->p; l < n->p + n->n; ++l) {
+      const float x = vc.p[l->a].x;
+      const float y = vc.p[l->a].y;
+//      const float u = (x - n->bb.x1) / (n->bb.x2 - n->bb.x1);
+//      const float v = (y - n->bb.y1) / (n->bb.y2 - n->bb.y1);
+      glTexCoord2f((x + n->s->u) * 0.015625, (y + n->s->v) * 0.015625);
+//      glMultiTexCoord2f(GL_TEXTURE1, u, v);
+      glVertex3f(x, y, n->s->f);
+    }
     glEnd();
     ++visfaces;
   }
-
-  void rDrawWalls(node_t *n) {
-    for (i = n->n, l = n->p; i; --i, ++l) {
-      a = vc.p + l->a;
-      b = vc.p + l->b;
-      ns = (l->nn != NULL) ? l->nn->s : NULL;
-      if (n->s->f < n->s->c) {
-        if ((b->x - a->x) * (b->y - cam.y) > (b->y - a->y) * (b->x - cam.x)) continue;
-        if (ns != NULL) {
-          if (ns->f > n->s->f && (t = GET_TEXTURE(l->t, 0))) {
-            rDrawWall(a, b, n->s->f, ns->f, l);
-          }
-          if (ns->c < n->s->c && (t = GET_TEXTURE(l->t, 2))) {
-            rDrawWall(a, b, ns->c, n->s->c, l);
-          }
-        }
-        t = GET_TEXTURE(l->t, 1);
-        if (t) {
-          x = n->s->f;
-          y = n->s->c;
-          if (ns != NULL) {
-            if (ns->f > x) x = ns->f;
-            if (ns->c < y) y = ns->c;
-          }
-          rDrawWall(a, b, x, y, l);
-        }
-      } else {
-        if ((b->x - a->x) * (b->y - cam.y) < (b->y - a->y) * (b->x - cam.x)) continue;
-        if (ns != NULL) {
-          if (ns->c > n->s->c && (t = GET_TEXTURE(l->t, 0))) {
-            rDrawWall(b, a, n->s->c, ns->c, l);
-          }
-          if (ns->f < n->s->f && (t = GET_TEXTURE(l->t, 2))) {
-            rDrawWall(b, a, ns->f, n->s->f, l);
-          }
-        }
-        t = GET_TEXTURE(l->t, 1);
-        if (t) {
-          x = n->s->c;
-          y = n->s->f;
-          if (ns != NULL) {
-            if (ns->c > x) x = ns->c;
-            if (ns->f < y) y = ns->f;
-          }
-          rDrawWall(b, a, x, y, l);
-        }
-      }
+  if (n->s->c > cam.z && (t = GET_TEXTURE(n->s->t, 1))) {
+    texSelectTexture(t);
+    glBegin(GL_POLYGON);
+    glNormal3f(0.0, 0.0, -1.0);
+    for (line_t *l = n->p + n->n - 1; l >= n->p; --l) {
+      const float x = vc.p[l->a].x;
+      const float y = vc.p[l->a].y;
+//      const float u = (x - n->bb.x1) / (n->bb.x2 - n->bb.x1);
+//      const float v = (y - n->bb.y1) / (n->bb.y2 - n->bb.y1);
+      glTexCoord2f((x + n->s->u) * 0.015625, (y + n->s->v) * 0.015625);
+//      glMultiTexCoord2f(GL_TEXTURE1, u, v);
+      glVertex3f(x, y, n->s->c);
     }
+    glEnd();
+    ++visfaces;
   }
+}
 
-  void rDrawPlanes(node_t *n) {
-    if (n->n < 3) return;
-    if (n->s->f < cam.z && (t = GET_TEXTURE(n->s->t, 0))) {
-      texSelectTexture(t);
-      glBegin(GL_POLYGON);
-      glNormal3f(0.0, 0.0, 1.0);
-      for (i = n->n, l = n->p; i; --i, ++l) {
-        x = vc.p[l->a].x;
-        y = vc.p[l->a].y;
-        u = (x - n->bb.x1) / (n->bb.x2 - n->bb.x1);
-        v = (y - n->bb.y1) / (n->bb.y2 - n->bb.y1);
-        glTexCoord2f((x + n->s->u) * 0.015625, (y + n->s->v) * 0.015625);
-//        glMultiTexCoord2f(GL_TEXTURE1, u, v);
-        glVertex3f(x, y, n->s->f);
-      }
-      glEnd();
-      ++visfaces;
-    }
-    if (n->s->c > cam.z && (t = GET_TEXTURE(n->s->t, 1))) {
-      texSelectTexture(t);
-      glBegin(GL_POLYGON);
-      glNormal3f(0.0, 0.0, -1.0);
-      for (i = n->n, l = n->p + n->n - 1; i; --i, --l) {
-        x = vc.p[l->a].x;
-        y = vc.p[l->a].y;
-        u = (x - n->bb.x1) / (n->bb.x2 - n->bb.x1);
-        v = (y - n->bb.y1) / (n->bb.y2 - n->bb.y1);
-        glTexCoord2f((x + n->s->u) * 0.015625, (y + n->s->v) * 0.015625);
-//        glMultiTexCoord2f(GL_TEXTURE1, u, v);
-        glVertex3f(x, y, n->s->c);
-      }
-      glEnd();
-      ++visfaces;
-    }
-  }
+static void
+rDrawNode(node_t *n)
+{
+  if (!bbVisible(&n->bb)) return;
+  if (n->l != NULL) rDrawNode(n->l);
+  if (n->r != NULL) rDrawNode(n->r);
+  if (!(n->flags & NF_VISIBLE) || n->s == NULL || !n->n) return;
+  glColor3ub(n->s->l, n->s->l, n->s->l);
+//  glColor3f(1.0, 1.0, 1.0);
+/*  texLoadTexture(0xc, 0);
+  glActiveTexture(GL_TEXTURE1);
+  glEnable(GL_TEXTURE_2D);
+  texSelectTexture(0xc);
+  glActiveTexture(GL_TEXTURE0);*/
+  glDisable(GL_POLYGON_SMOOTH);
+  if (r_drawwalls) rDrawWalls(n);
+  rDrawPlanes(n);
+/*  glActiveTexture(GL_TEXTURE1);
+  glDisable(GL_TEXTURE_2D);
+  glActiveTexture(GL_TEXTURE0);*/
+  ++visnodes;
+}
 
-  void rDrawNode(node_t *n) {
-    if (!bbVisible(&n->bb)) return;
-    if (n->l != NULL) rDrawNode(n->l);
-    if (n->r != NULL) rDrawNode(n->r);
-    if (!(n->flags & NF_VISIBLE) || n->s == NULL || !n->n) return;
-    glColor3ub(n->s->l, n->s->l, n->s->l);
-//    glColor3f(1.0, 1.0, 1.0);
-/*    texLoadTexture(0xc, 0);
-    glActiveTexture(GL_TEXTURE1);
-    glEnable(GL_TEXTURE_2D);
-    texSelectTexture(0xc);
-    glActiveTexture(GL_TEXTURE0);*/
-    glDisable(GL_POLYGON_SMOOTH);
-    if (r_drawwalls) rDrawWalls(n);
-    rDrawPlanes(n);
-/*    glActiveTexture(GL_TEXTURE1);
-    glDisable(GL_TEXTURE_2D);
-    glActiveTexture(GL_TEXTURE0);*/
-    ++visnodes;
-  }
-
+static void
+rDrawTree()
+{
   if (root != NULL) rDrawNode(root);
 }
 
@@ -267,8 +277,8 @@ void rBuildFrame() {
   glDisable(GL_TEXTURE_2D);
 //  glEnable(GL_NORMALIZE);
   float fv[4];
-  float white[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
-  float black[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+  const float white[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
+  const float black[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
   fv[0] = 0.0;//cam.x;
   fv[1] = 0.0;//cam.y;
   fv[2] = 0.0;//cam.z;
