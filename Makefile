@@ -1,6 +1,10 @@
 R := ./
 O := $Rout/
 
+ifndef V
+Q := @
+endif
+
 .PHONY: all
 all: $Ogame $Oeditor
 
@@ -37,13 +41,23 @@ game_OBJECTS := $(addprefix $Ogame.d/,$(addsuffix .o,$(basename $(game_SOURCES))
 
 $Ogame: LDLIBS += -lGL
 
+define compile-c-steps
+	$(if $Q,@echo "  CC    $@")
+	$Qmkdir -p $(@D)
+	$Q$(CC) -c $< $(CPPFLAGS) $(CFLAGS) $(OUTPUT_OPTION)
+endef
+
+define link-executable-steps
+	$(if $Q,@echo "  LINK  $@")
+	$Qmkdir -p $(@D)
+	$Q$(CC) $(LDFLAGS) $(LDLIBS) $(LOADLIBES) $^ $(OUTPUT_OPTION)
+endef
+
 $Ogame: $(game_OBJECTS)
-	mkdir -p $(@D)
-	$(CC) $(LDFLAGS) $(LDLIBS) $(LOADLIBES) $^ $(OUTPUT_OPTION)
+	$(call link-executable-steps)
 
 $Ogame.d/%.o: game/%.c
-	mkdir -p $(@D)
-	$(CC) -c $< $(CPPFLAGS) $(CFLAGS) $(OUTPUT_OPTION)
+	$(call compile-c-steps)
 
 editor_SOURCES := \
 	bsp.c \
@@ -61,13 +75,12 @@ editor_OBJECTS := $(addprefix $Oeditor.d/,$(addsuffix .o,$(basename $(editor_SOU
 -include $(addsuffix .d,$(basename $(editor_OBJECTS)))
 
 $Oeditor: $(editor_OBJECTS)
-	mkdir -p $(@D)
-	$(CC) $(LDFLAGS) $(LDLIBS) $(LOADLIBES) $^ $(OUTPUT_OPTION)
+	$(call link-executable-steps)
 
 $Oeditor.d/%.o: editor/%.c
-	mkdir -p $(@D)
-	$(CC) -c $< $(CPPFLAGS) $(CFLAGS) $(OUTPUT_OPTION)
+	$(call compile-c-steps)
 
 .PHONY: clean
 clean:
-	rm -rf $Ogame* $Oeditor*
+	$(if $Q,@echo "  CLEAN")
+	$Qrm -rf $Ogame* $Oeditor*
