@@ -336,7 +336,6 @@ void bspCleanTree() {
 //int bspLoad(FILE *f);
 
 void bspBuildTree() {
-  int j, l, e, r, f, t;
   bspvertex_t v;
   node_t *ne;
   bspline_t tl;
@@ -349,7 +348,7 @@ void bspBuildTree() {
       n->p[i].l = n->p[i].r = n->p[i].n = 0;
       const int dx1 = vc.p[n->p[i].b].x - vc.p[n->p[i].a].x;
       const int dy1 = vc.p[n->p[i].b].y - vc.p[n->p[i].a].y;
-      for (j = 0; j < n->n; ++j) {
+      for (unsigned j = 0; j < n->n; ++j) {
         const int dx2a = vc.p[n->p[j].a].x - vc.p[n->p[i].a].x;
         const int dy2a = vc.p[n->p[j].a].y - vc.p[n->p[i].a].y;
         const int da = dy1 * dx2a - dy2a * dx1;
@@ -364,7 +363,7 @@ void bspBuildTree() {
         if (db < 0) ++n->p[i].r; else if (db > 0) ++n->p[i].l;
       }
     }
-    j = 0;
+    int j = 0;
     for (unsigned i = 1; i < n->n; ++i) {
 //      printf("nodeline candidate: %d r=%d l=%d\n", i, n->p[i].r, n->p[i].l);
       if (!n->p[j].r || !n->p[j].l) {
@@ -378,7 +377,10 @@ void bspBuildTree() {
 //    printf("nodeline: %d r=%d l=%d\n", j, n->p[j].r, n->p[j].l);
     const int dx1 = vc.p[n->p[j].b].x - vc.p[n->p[j].a].x;
     const int dy1 = vc.p[n->p[j].b].y - vc.p[n->p[j].a].y;
-    l = e = r = f = 0;
+    int l = 0;
+    int e = 0;
+    int r = 0;
+    int f = 0;
     for (unsigned i = 0; i < vc.n; ++i) vc.p[i].s = 0;
     int mina = 0;
 	int maxa = 0;
@@ -480,14 +482,13 @@ void bspBuildTree() {
       if ((e = bspGetVertex(v.x, v.y)) == -1) e = bspAddVertex(v.x, v.y);
       vc.p[e].s = 1;
       ne = n->p[i].neigh;
-      t = (ne != NULL) ? bspGetPair(n, i) : -1;
+      int t = (ne != NULL) ? bspGetPair(n, i) : -1;
       if (t >= 0) {
         /* make sure we have enough space on the neigh node */
         if (ne->p[t].a != e && ne->p[t].b != e && ne->n == ne->alloc) {
           ne->alloc *= 2;
           bspline_t *p = (bspline_t *)malloc(ne->alloc * sizeof(bspline_t));
-          unsigned j;
-          for (j = 0; j < ne->n; ++j) p[j] = ne->p[j];
+          for (unsigned j = 0; j < ne->n; ++j) p[j] = ne->p[j];
           free(ne->p);
           ne->p = p;
         }
@@ -625,15 +626,15 @@ void bspBuildTree() {
     n->r->n = r;
     n->l->n = l;
 
-    int p[f];
-    t = 0;
+    unsigned p[f];
+    int t = 0;
     for (unsigned i = 0; i < vc.n; ++i) if (vc.p[i].s) p[t++] = i;
     bspSortVerteces(p, t);
     const int dx2 = vc.p[p[0]].x - vc.p[p[t-1]].x;
     const int dy2 = vc.p[p[0]].y - vc.p[p[t-1]].y;
     --t;
     {
-      unsigned i = 0;
+      int i = 0;
       if (dy1 * dy2 + dx1 * dx2 > 0) {
         do {
           const int da = bspALine(n->r, p[i]);
@@ -716,7 +717,7 @@ void bspBuildTree() {
       if (n->l != NULL) bspBuildSearch(n->l);
       if (n->r != NULL) bspBuildSearch(n->r);
     } else {
-      e = rand() | 3;
+      int e = rand() | 3;
       for (unsigned i = 0; i < n->n; ++i) n->p[i].c = e;
       bspBuildSub(n);
     }
