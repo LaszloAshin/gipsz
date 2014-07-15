@@ -67,7 +67,6 @@ editor_SOURCES := \
 	main.c \
 	object.c \
 	sector.c \
-	st2.c \
 	st.c \
 	vertex.c
 
