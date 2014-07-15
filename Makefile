@@ -42,13 +42,13 @@ game_OBJECTS := $(addprefix $Ogame.d/,$(addsuffix .o,$(basename $(game_SOURCES))
 $Ogame: LDLIBS += -lGL
 
 define compile-c-steps
-	$(if $Q,@echo "  CC    $@")
+	$(if $Q,@echo "  CC    $(subst $(abspath $O)/,,$(abspath $@))")
 	$Qmkdir -p $(@D)
 	$Q$(CC) -c $< $(CPPFLAGS) $(CFLAGS) $(OUTPUT_OPTION)
 endef
 
 define link-executable-steps
-	$(if $Q,@echo "  LINK  $@")
+	$(if $Q,@echo "  LINK  $(subst $(abspath $O)/,,$(abspath $@))")
 	$Qmkdir -p $(@D)
 	$Q$(CC) $(LDFLAGS) $(LDLIBS) $(LOADLIBES) $^ $(OUTPUT_OPTION)
 endef
