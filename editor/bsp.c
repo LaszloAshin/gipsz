@@ -15,7 +15,7 @@ typedef struct {
 struct node_s;
 
 typedef struct line_s {
-  unsigned a, b;
+  int a, b;
   int c, l, r, n;
   int pd;
   int u1, u2, v;
@@ -259,7 +259,7 @@ static void bspSortVerteces(unsigned *p, unsigned n) {
   }
 }
 
-static int bspMayConnect(node_t *n, unsigned a, unsigned b) {
+static int bspMayConnect(node_t *n, int a, int b) {
   for (unsigned i = 0; i < n->n; ++i) {
     if ((n->p[i].a == a && n->p[i].b == b))
       return 0;
@@ -268,10 +268,10 @@ static int bspMayConnect(node_t *n, unsigned a, unsigned b) {
   return !0;
 }
 
-static int bspALine(node_t *n, unsigned a) {
-  int i, j = 0;
+static int bspALine(node_t *n, int a) {
+  unsigned j = 0;
   int bo;
-  for (i = 0; i < n->n; ++i)
+  for (unsigned i = 0; i < n->n; ++i)
     if (n->p[i].a == a) {
       bo = 0;
       for (; j < n->n; ++j)
@@ -285,10 +285,10 @@ static int bspALine(node_t *n, unsigned a) {
   return 0;
 }
 
-static int bspBLine(node_t *n, unsigned b) {
-  int i, j = 0;
+static int bspBLine(node_t *n, int b) {
+  unsigned j = 0;
   int bo;
-  for (i = 0; i < n->n; ++i)
+  for (unsigned i = 0; i < n->n; ++i)
     if (n->p[i].b == b) {
       bo = 0;
       for (; j < n->n; ++j)
@@ -318,24 +318,25 @@ static void bspNoticePair(node_t *n, unsigned l, node_t *p) {
   if (i != -1) n->p[l].neigh->p[i].neigh = p;
 }
 
-void bspCleanTree() {
-  void bspCleanSub(node_t **n) {
-    if ((*n)->l != NULL) bspCleanSub(&(*n)->l);
-    if ((*n)->r != NULL) bspCleanSub(&(*n)->r);
-    if ((*n)->l == NULL && (*n)->r == NULL && !(*n)->n) {
-      free(*n);
-      *n = NULL;
-    }
+static void
+bspCleanSub(node_t **n)
+{
+  if ((*n)->l != NULL) bspCleanSub(&(*n)->l);
+  if ((*n)->r != NULL) bspCleanSub(&(*n)->r);
+  if ((*n)->l == NULL && (*n)->r == NULL && !(*n)->n) {
+    free(*n);
+    *n = NULL;
   }
+}
 
+void bspCleanTree() {
   if (root != NULL) bspCleanSub(&root);
 }
 
 //int bspLoad(FILE *f);
 
 void bspBuildTree() {
-  int i, j, l, e, r, f, t;
-  int dx1, dy1, dx2, dy2, da, db, mina, maxa;
+  int j, l, e, r, f, t;
   bspvertex_t v;
   node_t *ne;
   bspline_t tl;
@@ -344,17 +345,17 @@ void bspBuildTree() {
     if (n == NULL || n->n < 3) return;
 //    if (n->s != 31) return;
 //    printf("bspBuildSub(): %d\n", n->n);
-    for (i = 0; i < n->n; ++i) {
+    for (unsigned i = 0; i < n->n; ++i) {
       n->p[i].l = n->p[i].r = n->p[i].n = 0;
-      dx1 = vc.p[n->p[i].b].x - vc.p[n->p[i].a].x;
-      dy1 = vc.p[n->p[i].b].y - vc.p[n->p[i].a].y;
+      const int dx1 = vc.p[n->p[i].b].x - vc.p[n->p[i].a].x;
+      const int dy1 = vc.p[n->p[i].b].y - vc.p[n->p[i].a].y;
       for (j = 0; j < n->n; ++j) {
-        dx2 = vc.p[n->p[j].a].x - vc.p[n->p[i].a].x;
-        dy2 = vc.p[n->p[j].a].y - vc.p[n->p[i].a].y;
-        da = dy1 * dx2 - dy2 * dx1;
-        dx2 = vc.p[n->p[j].b].x - vc.p[n->p[i].a].x;
-        dy2 = vc.p[n->p[j].b].y - vc.p[n->p[i].a].y;
-        db = dy1 * dx2 - dy2 * dx1;
+        const int dx2a = vc.p[n->p[j].a].x - vc.p[n->p[i].a].x;
+        const int dy2a = vc.p[n->p[j].a].y - vc.p[n->p[i].a].y;
+        const int da = dy1 * dx2a - dy2a * dx1;
+        const int dx2b = vc.p[n->p[j].b].x - vc.p[n->p[i].a].x;
+        const int dy2b = vc.p[n->p[j].b].y - vc.p[n->p[i].a].y;
+        const int db = dy1 * dx2b - dy2b * dx1;
         if ((da < 0 && db > 0) || (da > 0 && db < 0)) {
           ++n->p[i].n;
           continue;
@@ -364,30 +365,31 @@ void bspBuildTree() {
       }
     }
     j = 0;
-    for (i = 1; i < n->n; ++i) {
+    for (unsigned i = 1; i < n->n; ++i) {
 //      printf("nodeline candidate: %d r=%d l=%d\n", i, n->p[i].r, n->p[i].l);
       if (!n->p[j].r || !n->p[j].l) {
         j = i;
         continue;
       }
-      da = abs(n->p[i].r - n->p[i].l);
-      db = abs(n->p[j].r - n->p[j].l);
+      const int da = abs(n->p[i].r - n->p[i].l);
+      const int db = abs(n->p[j].r - n->p[j].l);
       if ((n->p[i].l || n->p[i].n) && ((da < db) || ((da == db) && (n->p[i].n < n->p[j].n)))) j = i;
     }
 //    printf("nodeline: %d r=%d l=%d\n", j, n->p[j].r, n->p[j].l);
-    dx1 = vc.p[n->p[j].b].x - vc.p[n->p[j].a].x;
-    dy1 = vc.p[n->p[j].b].y - vc.p[n->p[j].a].y;
+    const int dx1 = vc.p[n->p[j].b].x - vc.p[n->p[j].a].x;
+    const int dy1 = vc.p[n->p[j].b].y - vc.p[n->p[j].a].y;
     l = e = r = f = 0;
-    for (i = 0; i < vc.n; ++i) vc.p[i].s = 0;
-    mina = maxa = 0;
-    for (i = 0; i < n->n; ++i) {
+    for (unsigned i = 0; i < vc.n; ++i) vc.p[i].s = 0;
+    int mina = 0;
+	int maxa = 0;
+    for (unsigned i = 0; i < n->n; ++i) {
       n->p[i].l = n->p[i].r = 0;
-      dx2 = vc.p[n->p[i].a].x - vc.p[n->p[j].a].x;
-      dy2 = vc.p[n->p[i].a].y - vc.p[n->p[j].a].y;
-      da = dy1 * dx2 - dy2 * dx1;
-      dx2 = vc.p[n->p[i].b].x - vc.p[n->p[j].a].x;
-      dy2 = vc.p[n->p[i].b].y - vc.p[n->p[j].a].y;
-      db = dy1 * dx2 - dy2 * dx1;
+      const int dx2a = vc.p[n->p[i].a].x - vc.p[n->p[j].a].x;
+      const int dy2a = vc.p[n->p[i].a].y - vc.p[n->p[j].a].y;
+      int da = dy1 * dx2a - dy2a * dx1;
+      const int dx2b = vc.p[n->p[i].b].x - vc.p[n->p[j].a].x;
+      const int dy2b = vc.p[n->p[i].b].y - vc.p[n->p[j].a].y;
+      const int db = dy1 * dx2b - dy2b * dx1;
       if (da < mina) mina = da;
       if (db < mina) mina = db;
       if (da > maxa) maxa = da;
@@ -401,8 +403,8 @@ void bspBuildTree() {
         ++vc.p[n->p[i].b].s;
       }
       if (!da && !db) {
-        dx2 = vc.p[n->p[i].a].x - vc.p[n->p[i].b].x;
-        dy2 = vc.p[n->p[i].a].y - vc.p[n->p[i].b].y;
+        const int dx2 = vc.p[n->p[i].a].x - vc.p[n->p[i].b].x;
+        const int dy2 = vc.p[n->p[i].a].y - vc.p[n->p[i].b].y;
         da = dy1 * dy2 + dx1 * dx2;
       }
       if ((da < 0 && db <= 0) || (da <= 0 && db < 0)) {
@@ -459,7 +461,7 @@ void bspBuildTree() {
     n->r->s = n->l->s = n->s;
 
     l = r = 0;
-    for (i = 0; i < n->n; ++i) {
+    for (unsigned i = 0; i < n->n; ++i) {
       if (n->p[i].r) {
         n->r->p[r++] = n->p[i];
         if (n->p[i].neigh != NULL) bspNoticePair(n, i, n->r);
@@ -470,9 +472,9 @@ void bspBuildTree() {
         if (n->p[i].neigh != NULL) bspNoticePair(n, i, n->l);
         continue;
       }
-      dx2 = vc.p[n->p[i].a].x - vc.p[n->p[j].a].x;
-      dy2 = vc.p[n->p[i].a].y - vc.p[n->p[j].a].y;
-      da = dy1 * dx2 - dy2 * dx1;
+      const int dx2a = vc.p[n->p[i].a].x - vc.p[n->p[j].a].x;
+      const int dy2a = vc.p[n->p[i].a].y - vc.p[n->p[j].a].y;
+      const int da = dy1 * dx2a - dy2a * dx1;
       /* this helps to find mistakes: */ v.x = v.y = 0;
       bspIntersect(vc.p[n->p[j].a], vc.p[n->p[j].b], vc.p[n->p[i].a], vc.p[n->p[i].b], &v);
       if ((e = bspGetVertex(v.x, v.y)) == -1) e = bspAddVertex(v.x, v.y);
@@ -494,6 +496,8 @@ void bspBuildTree() {
       }
       t = t != -1;
       if (da > 0) {
+	    int dx2 = 0;
+		int dy2 = 0;
         if (abs(vc.p[n->p[i].b].x - vc.p[n->p[i].a].x) > abs(vc.p[n->p[i].b].y - vc.p[n->p[i].a].y)) {
           dx2 = (n->p[i].u1 - n->p[i].u2) * (vc.p[n->p[i].b].x - v.x);
           dx2 = n->p[i].u2 + (dx2 / (vc.p[n->p[i].b].x - vc.p[n->p[i].a].x));
@@ -552,6 +556,8 @@ void bspBuildTree() {
           ++r;
         }
       } else {
+	    int dx2 = 0;
+		int dy2 = 0;
         if (abs(vc.p[n->p[i].b].x - vc.p[n->p[i].a].x) > abs(vc.p[n->p[i].b].y - vc.p[n->p[i].a].y)) {
           dx2 = (n->p[i].u1 - n->p[i].u2) * (vc.p[n->p[i].b].x - v.x);
           dx2 = n->p[i].u2 + (dx2 / (vc.p[n->p[i].b].x - vc.p[n->p[i].a].x));
@@ -621,78 +627,80 @@ void bspBuildTree() {
 
     int p[f];
     t = 0;
-    for (i = 0; i < vc.n; ++i) if (vc.p[i].s) p[t++] = i;
+    for (unsigned i = 0; i < vc.n; ++i) if (vc.p[i].s) p[t++] = i;
     bspSortVerteces(p, t);
-    dx2 = vc.p[p[0]].x - vc.p[p[t-1]].x;
-    dy2 = vc.p[p[0]].y - vc.p[p[t-1]].y;
+    const int dx2 = vc.p[p[0]].x - vc.p[p[t-1]].x;
+    const int dy2 = vc.p[p[0]].y - vc.p[p[t-1]].y;
     --t;
-    i = 0;
-    if (dy1 * dy2 + dx1 * dx2 > 0) {
-      do {
-        da = bspALine(n->r, p[i]);
-        db = bspBLine(n->l, p[i]);
-        ++i;
-        j = 0;
-        if (da && bspMayConnect(n->r, p[i], p[i-1])) {
-          n->r->p[n->r->n].a = p[i];
-          n->r->p[n->r->n].b = p[i-1];
-          n->r->p[n->r->n].neigh = NULL;
-          n->r->p[n->r->n].flags = LF_NOTHING; /* two sided will be set at save */
-          n->r->p[n->r->n].u1 = n->r->p[n->r->n].u2 = n->r->p[n->r->n].v = 0;
-          n->r->p[n->r->n].t = 0;
-          ++n->r->n;
-          ++j;
-        }
-        if (db && bspMayConnect(n->l, p[i-1], p[i])) {
-          n->l->p[n->l->n].a = p[i-1];
-          n->l->p[n->l->n].b = p[i];
-          n->l->p[n->l->n].flags = LF_NOTHING; /* two sided will be set at save */
-          n->l->p[n->l->n].u1 = n->l->p[n->l->n].u2 = n->l->p[n->l->n].v = 0;
-          n->l->p[n->l->n].t = 0;
-          if (j) {
-            n->r->p[n->r->n-1].neigh = n->l;
-            n->l->p[n->l->n].neigh = n->r;
-          } else
-            n->l->p[n->l->n].neigh = NULL;
-          ++n->l->n;
-        }
-      } while (i < t);
-    } else {
-      do {
-        da = bspALine(n->l, p[i]);
-        db = bspBLine(n->r, p[i]);
-        ++i;
-        j = 0;
-        if (da && bspMayConnect(n->l, p[i], p[i-1])) {
-          n->l->p[n->l->n].a = p[i];
-          n->l->p[n->l->n].b = p[i-1];
-          n->l->p[n->l->n].neigh = NULL;
-          n->l->p[n->l->n].flags = LF_NOTHING; /* two sided will be set at save */
-          n->l->p[n->l->n].u1 = n->l->p[n->l->n].u2 = n->l->p[n->l->n].v = 0;
-          n->l->p[n->l->n].t = 0;
-          ++n->l->n;
-          ++j;
-        }
-        if (db && bspMayConnect(n->r, p[i-1], p[i])) {
-          n->r->p[n->r->n].a = p[i-1];
-          n->r->p[n->r->n].b = p[i];
-          n->r->p[n->r->n].flags = LF_NOTHING; /* two sided will be set at save */
-          n->r->p[n->r->n].u1 = n->r->p[n->r->n].u2 = n->r->p[n->r->n].v = 0;
-          n->r->p[n->r->n].t = 0;
-          if (j) {
-            n->r->p[n->r->n].neigh = n->l;
-            n->l->p[n->l->n-1].neigh = n->r;
-          } else
+    {
+      unsigned i = 0;
+      if (dy1 * dy2 + dx1 * dx2 > 0) {
+        do {
+          const int da = bspALine(n->r, p[i]);
+          const int db = bspBLine(n->l, p[i]);
+          ++i;
+          j = 0;
+          if (da && bspMayConnect(n->r, p[i], p[i-1])) {
+            n->r->p[n->r->n].a = p[i];
+            n->r->p[n->r->n].b = p[i-1];
             n->r->p[n->r->n].neigh = NULL;
-          ++n->r->n;
-        }
-      } while (i < t);
+            n->r->p[n->r->n].flags = LF_NOTHING; /* two sided will be set at save */
+            n->r->p[n->r->n].u1 = n->r->p[n->r->n].u2 = n->r->p[n->r->n].v = 0;
+            n->r->p[n->r->n].t = 0;
+            ++n->r->n;
+            ++j;
+          }
+          if (db && bspMayConnect(n->l, p[i-1], p[i])) {
+            n->l->p[n->l->n].a = p[i-1];
+            n->l->p[n->l->n].b = p[i];
+            n->l->p[n->l->n].flags = LF_NOTHING; /* two sided will be set at save */
+            n->l->p[n->l->n].u1 = n->l->p[n->l->n].u2 = n->l->p[n->l->n].v = 0;
+            n->l->p[n->l->n].t = 0;
+            if (j) {
+              n->r->p[n->r->n-1].neigh = n->l;
+              n->l->p[n->l->n].neigh = n->r;
+            } else
+              n->l->p[n->l->n].neigh = NULL;
+            ++n->l->n;
+          }
+        } while (i < t);
+      } else {
+        do {
+          const int da = bspALine(n->l, p[i]);
+          const int db = bspBLine(n->r, p[i]);
+          ++i;
+          j = 0;
+          if (da && bspMayConnect(n->l, p[i], p[i-1])) {
+            n->l->p[n->l->n].a = p[i];
+            n->l->p[n->l->n].b = p[i-1];
+            n->l->p[n->l->n].neigh = NULL;
+            n->l->p[n->l->n].flags = LF_NOTHING; /* two sided will be set at save */
+            n->l->p[n->l->n].u1 = n->l->p[n->l->n].u2 = n->l->p[n->l->n].v = 0;
+            n->l->p[n->l->n].t = 0;
+            ++n->l->n;
+            ++j;
+          }
+          if (db && bspMayConnect(n->r, p[i-1], p[i])) {
+            n->r->p[n->r->n].a = p[i-1];
+            n->r->p[n->r->n].b = p[i];
+            n->r->p[n->r->n].flags = LF_NOTHING; /* two sided will be set at save */
+            n->r->p[n->r->n].u1 = n->r->p[n->r->n].u2 = n->r->p[n->r->n].v = 0;
+            n->r->p[n->r->n].t = 0;
+            if (j) {
+              n->r->p[n->r->n].neigh = n->l;
+              n->l->p[n->l->n-1].neigh = n->r;
+            } else
+              n->r->p[n->r->n].neigh = NULL;
+            ++n->r->n;
+          }
+        } while (i < t);
+      }
     }
 
     e = rand() | 3;
-    for (i = 0; i < n->r->n; ++i) n->r->p[i].c = e;
+    for (unsigned i = 0; i < n->r->n; ++i) n->r->p[i].c = e;
     e = rand() | 3;
-    for (i = 0; i < n->l->n; ++i) n->l->p[i].c = e;
+    for (unsigned i = 0; i < n->l->n; ++i) n->l->p[i].c = e;
 
     grBegin();
     bspShowSub(n);
@@ -709,7 +717,7 @@ void bspBuildTree() {
       if (n->r != NULL) bspBuildSearch(n->r);
     } else {
       e = rand() | 3;
-      for (i = 0; i < n->n; ++i) n->p[i].c = e;
+      for (unsigned i = 0; i < n->n; ++i) n->p[i].c = e;
       bspBuildSub(n);
     }
   }
