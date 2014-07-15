@@ -65,43 +65,43 @@ static void grExtendUpdateArea(int x, int y) {
 
 /* SetPixel */
 static void grSetPixel8(unsigned offs) {
-  char *p = sf->pixels + offs;
+  char *p = (char *)sf->pixels + offs;
   *p = grCurColor;
 }
 
 static void grSetPixel16(unsigned offs) {
-  short *p = sf->pixels + (offs << 1);
+  short *p = (short *)sf->pixels + offs;
   *p = grCurColor;
 }
 
 static void grSetPixel24(unsigned offs) {
-  char *p = sf->pixels + (offs * 3);
+  char *p = (char *)sf->pixels + (offs * 3);
   *p = grCurColor & 0xffffff;
 }
 
 static void grSetPixel32(unsigned offs) {
-  int *p = sf->pixels + (offs << 2);
+  int *p = (int *)sf->pixels + offs;
   *p = grCurColor;
 }
 
 /* XorPixel */
 static void grXorPixel8(unsigned offs) {
-  char *p = sf->pixels + offs;
+  char *p = (char *)sf->pixels + offs;
   *p ^= grCurColor;
 }
 
 static void grXorPixel16(unsigned offs) {
-  short *p = sf->pixels + (offs << 1);
+  short *p = (short *)sf->pixels + offs;
   *p ^= grCurColor;
 }
 
 static void grXorPixel24(unsigned offs) {
-  char *p = sf->pixels + (offs * 3);
+  char *p = (char *)sf->pixels + (offs * 3);
   *p ^= grCurColor & 0xffffff;
 }
 
 static void grXorPixel32(unsigned offs) {
-  int *p = sf->pixels + (offs << 2);
+  int *p = (int *)sf->pixels + offs;
   *p ^= grCurColor;
 }
 
@@ -120,7 +120,7 @@ static pixelmode_t grPixelMode = PMD_SET;
 
 void grSetPixelMode(pixelmode_t pm) {
   grPixelMode = pm;
-  if (grPixelMode < PMD_FIRST) grPixelMode = PMD_FIRST;
+//  if (grPixelMode < PMD_FIRST) grPixelMode = PMD_FIRST;
   if (grPixelMode >= PMD_LAST) grPixelMode = PMD_LAST - 1;
   if (sf == NULL) return;
   int nb = sf->format->BytesPerPixel - 1;

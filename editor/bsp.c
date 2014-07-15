@@ -15,7 +15,7 @@ typedef struct {
 struct node_s;
 
 typedef struct line_s {
-  int a, b;
+  unsigned a, b;
   int c, l, r, n;
   int pd;
   int u1, u2, v;
@@ -49,21 +49,22 @@ static struct {
 static node_t *root = NULL;
 
 static int bspGetVertex(int x, int y) {
-  int i;
-  for (i = 0; i < vc.n; ++i)
+  for (unsigned i = 0; i < vc.n; ++i)
     if (vc.p[i].x == x && vc.p[i].y == y)
       return i;
   return -1;
 }
 
 static int bspAddVertex(int x, int y) {
-  int i = bspGetVertex(x, y);
-  if (i >= 0) return i;
+  {
+    int i = bspGetVertex(x, y);
+    if (i >= 0) return i;
+  }
   if (vc.n == vc.alloc) {
     vc.alloc *= 2;
     bspvertex_t *p = (bspvertex_t *)malloc(vc.alloc * sizeof(bspvertex_t));
     if (p == NULL) return -1;
-    for (i = 0; i < vc.n; ++i) p[i] = vc.p[i];
+    for (unsigned i = 0; i < vc.n; ++i) p[i] = vc.p[i];
     free(vc.p);
     vc.p = p;
   }
@@ -77,8 +78,7 @@ static int bspAddSector() {
     sc.alloc *= 2;
     bspsector_t *p = (bspsector_t *)malloc(sc.alloc * sizeof(bspsector_t));
     if (p == NULL) return -1;
-    int i;
-    for (i = 0; i < sc.n; ++i) p[i] = sc.p[i];
+    for (unsigned i = 0; i < sc.n; ++i) p[i] = sc.p[i];
     free(sc.p);
     sc.p = p;
   }
@@ -87,33 +87,33 @@ static int bspAddSector() {
   return sc.n++;
 }
 
-static void bspDuplicateTree(node_t *n) {
-  int i;
-
-  void bspDuplicateNode(node_t *n, node_t **p) {
-    *p = (node_t *)malloc(sizeof(node_t));
-    if (*p == NULL) return;
-    if (n->l == NULL && n->r == NULL) {
-      if ((i = bspAddSector()) < 0) return;
-      sc.p[i].n = *p;
-    }
-    (*p)->alloc = (*p)->n = 0;
-    (*p)->p = NULL;
-    (*p)->s = 0;
-    if (n->l != NULL) bspDuplicateNode(n->l, &(*p)->l); else (*p)->l = NULL;
-    if (n->r != NULL) bspDuplicateNode(n->r, &(*p)->r); else (*p)->r = NULL;
+static void
+bspDuplicateNode(node_t *n, node_t **p)
+{
+  *p = (node_t *)malloc(sizeof(node_t));
+  if (*p == NULL) return;
+  if (n->l == NULL && n->r == NULL) {
+    int i;
+    if ((i = bspAddSector()) < 0) return;
+    sc.p[i].n = *p;
   }
+  (*p)->alloc = (*p)->n = 0;
+  (*p)->p = NULL;
+  (*p)->s = 0;
+  if (n->l != NULL) bspDuplicateNode(n->l, &(*p)->l); else (*p)->l = NULL;
+  if (n->r != NULL) bspDuplicateNode(n->r, &(*p)->r); else (*p)->r = NULL;
+}
 
+static void bspDuplicateTree(node_t *n) {
   bspDuplicateNode(n->l, &n->r);
 }
 
 static node_t *bspGetNodeForSector(int s) {
   if (!s) return NULL;
-  int i;
-  for (i = 0; i < sc.n; ++i)
+  for (unsigned i = 0; i < sc.n; ++i)
     if (sc.p[i].s == s)
       return sc.p[i].n;
-  for (i = 0; i < sc.n; ++i)
+  for (unsigned i = 0; i < sc.n; ++i)
     if (!sc.p[i].s) {
       sc.p[i].s = sc.p[i].n->s = s;
       return sc.p[i].n;
@@ -194,34 +194,41 @@ static int bspIntersect(bspvertex_t p1, bspvertex_t p2, bspvertex_t p3, bspverte
 }
 
 static void bspShowSub(node_t *n) {
-  static int i;
   if (n->l != NULL) bspShowSub(n->l);
   if (n->r != NULL) bspShowSub(n->r);
   if (n->p != NULL) {
     grSetColor((n->s * 343) | 3);
-    for (i = 0; i < n->n; ++i)
+    for (unsigned i = 0; i < n->n; ++i)
       edVector(vc.p[n->p[i].a].x, vc.p[n->p[i].a].y, vc.p[n->p[i].b].x, vc.p[n->p[i].b].y);
   }
 }
 
 void bspShow() {
-  int i;
-
   if (root != NULL) bspShowSub(root);
   grSetColor(255);
-  for (i = 0; i < vc.n; ++i) edVertex(vc.p[i].x, vc.p[i].y);
+  for (unsigned i = 0; i < vc.n; ++i) edVertex(vc.p[i].x, vc.p[i].y);
 }
 
-void bspCountNodes(int *nodes, int *lines) {
-  void bspCountNodesSub(node_t *n) {
-    ++*nodes;
-    *lines += n->n;
-    if (n->l != NULL) bspCountNodesSub(n->l);
-    if (n->r != NULL) bspCountNodesSub(n->r);
-  }
+struct bsp_count_result {
+  unsigned node_count;
+  unsigned line_count;
+};
 
-  *nodes = *lines = 0;
-  if (root != NULL) bspCountNodesSub(root);
+static void
+bspCountSub(node_t *n, struct bsp_count_result *result)
+{
+  ++result->node_count;
+  result->line_count += n->n;
+  if (n->l != NULL) bspCountSub(n->l, result);
+  if (n->r != NULL) bspCountSub(n->r, result);
+}
+
+static void
+bspCount(struct bsp_count_result *result)
+{
+  result->node_count = 0;
+  result->line_count = 0;
+  if (root != NULL) bspCountSub(root, result);
 }
 
 static void bspSortVerteces(unsigned *p, unsigned n) {
@@ -253,8 +260,7 @@ static void bspSortVerteces(unsigned *p, unsigned n) {
 }
 
 static int bspMayConnect(node_t *n, unsigned a, unsigned b) {
-  int i;
-  for (i = 0; i < n->n; ++i) {
+  for (unsigned i = 0; i < n->n; ++i) {
     if ((n->p[i].a == a && n->p[i].b == b))
       return 0;
     n->p[i].n = 0;
@@ -712,8 +718,9 @@ void bspBuildTree() {
   printf("bspBuildTree():\n vertex: %d\n", vc.n);
   if (root != NULL) bspBuildSearch(root);
   printf("bspBuildTree(): done\n");
-  bspCountNodes(&i, &j);
-  printf("nodes:%d lines:%d\n", i, j);
+  struct bsp_count_result counts;
+  bspCount(&counts);
+  printf("nodes:%u lines:%u\n", counts.node_count, counts.line_count);
 /*  FILE *fp = fopen("map.bsp", "rb");
   bspLoad(fp);
   fclose(fp);*/
@@ -845,10 +852,11 @@ int bspSave(FILE *f) {
     fv.y = vc.p[i].y;
     fwrite(&fv, sizeof(fbspvertex_t), 1, f);
   }
-  bspCountNodes(&i, &j);
+  struct bsp_count_result counts;
+  bspCount(&counts);
 //  bspPrintTree();
-  fwrite(&i, sizeof(int), 1, f);
-  fwrite(&j, sizeof(int), 1, f);
+  fwrite(&counts.node_count, sizeof(unsigned), 1, f);
+  fwrite(&counts.line_count, sizeof(unsigned), 1, f);
   bspSaveSub(root);
   return !0;
 }
