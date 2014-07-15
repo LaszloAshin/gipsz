@@ -7,6 +7,8 @@
 #include "gr.h"
 #include "line.h"
 
+#include <assert.h>
+
 typedef struct {
   int x, y;
   int s;
@@ -797,80 +799,82 @@ void bspPrintTree() {
   if (root != NULL) bspPrintTreeSub(root, 0);
 }
 
-typedef struct {
-  short x : 16;
-  short y : 16;
-} __attribute__((packed)) fbspvertex_t;
+static int
+bspSaveVertex(FILE *fp, bspvertex_t *v)
+{
+  unsigned char buf[2 * 2], *p = buf;
+  *(short *)p = v->x;
+  *(short *)(p + 2) = v->y;
+  return (fwrite(buf, 1, sizeof(buf), fp) == sizeof(buf)) ? 0 : -1;
+}
 
-typedef struct {
-  short a : 16;
-  short b : 16;
-  unsigned char flags : 8;
-  unsigned short u1 : 16;
-  unsigned short u2 : 16;
-  unsigned short v : 16;
-  unsigned int t : 32;
-} __attribute__((packed)) fbspline_t;
+static int
+bspSaveLine(FILE *fp, bspline_t *l)
+{
+  unsigned char buf[2 * 2 + 1 + 3 * 2 + 4], *p = buf;
+  *(short *)p = l->a;
+  *(short *)(p + 2) = l->b;
+  p[4] = l->neigh ? LF_TWOSIDED : LF_NOTHING;
+  *(unsigned short *)(p + 5) = l->u1;
+  *(unsigned short *)(p + 7) = l->u2;
+  *(unsigned short *)(p + 9) = l->v;
+  *(unsigned *)(p + 11) = l->t;
+  return (fwrite(buf, 1, sizeof(buf), fp) == sizeof(buf)) ? 0 : -1;
+}
+
+static void
+bspSaveSub(FILE *fp, node_t *n)
+{
+  if (n == NULL) {
+    unsigned i = 0;
+    fwrite(&i, sizeof(unsigned), 1, fp);
+    return;
+  }
+  {
+    unsigned i = n->n + 1;
+    fwrite(&i, sizeof(int), 1, fp);
+  }
+  fwrite(&n->s, sizeof(int), 1, fp);
+  if (n->n) {
+    int j = n->p[0].a;
+    for (unsigned i = 0; i < n->n; ++i) n->p[i].n = 0;
+    unsigned k = 0;
+    int last_good = -1;
+    for (unsigned i = 0; i < n->n; ++i) {
+      if (n->p[i].a == j && !n->p[i].n) {
+        bspSaveLine(fp, n->p + i);
+        last_good = i;
+        j = n->p[i].b;
+        ++n->p[i].n;
+        i = 0;
+        ++k;
+      }
+    }
+    if (k != n->n) {
+      printf("open sector!!! (%d) k=%d n->n=%d\n", n->s, k, n->n);
+      for (unsigned i = 0; i < n->n; ++i)
+        printf(" %d %d\n", n->p[i].a, n->p[i].b);
+      // halvany lila workaround ...
+      for (; k < n->n; ++k) {
+        assert(last_good >= 0);
+        bspSaveLine(fp, n->p + last_good);
+      }
+    }
+  }
+  bspSaveSub(fp, n->l);
+  bspSaveSub(fp, n->r);
+}
 
 int bspSave(FILE *f) {
-  unsigned i, j, k;
-  fbspvertex_t fv;
-  fbspline_t fl;
-
-  void bspSaveSub(node_t *n) {
-    if (n == NULL) {
-      i = 0;
-      fwrite(&i, sizeof(int), 1, f);
-      return;
-    }
-    i = n->n + 1;
-    fwrite(&i, sizeof(int), 1, f);
-    fwrite(&n->s, sizeof(int), 1, f);
-    if (n->n) {
-      j = n->p[0].a;
-      for (i = 0; i < n->n; ++i) n->p[i].n = 0;
-      k = 0;
-      for (i = 0; i < n->n; ++i) {
-        if (n->p[i].a == j && !n->p[i].n) {
-          fl.a = n->p[i].a;
-          fl.b = n->p[i].b;
-          fl.flags = LF_NOTHING;
-          if (n->p[i].neigh != NULL) fl.flags |= LF_TWOSIDED;
-          fl.u1 = n->p[i].u1;
-          fl.u2 = n->p[i].u2;
-          fl.v = n->p[i].v;
-          fl.t = n->p[i].t;
-          fwrite(&fl, sizeof(fbspline_t), 1, f);
-          j = n->p[i].b;
-          ++n->p[i].n;
-          i = 0;
-          ++k;
-        }
-      }
-      if (k != n->n) {
-        printf("open sector!!! (%d) k=%d n->n=%d\n", n->s, k, n->n);
-        for (i = 0; i < n->n; ++i)
-          printf(" %d %d\n", n->p[i].a, n->p[i].b);
-        // halvany lila workaround ...
-        for (; k < n->n; ++k)
-          fwrite(&fl, sizeof(fbspline_t), 1, f);
-      }
-    }
-    bspSaveSub(n->l);
-    bspSaveSub(n->r);
-  }
-
   fwrite(&vc.n, sizeof(int), 1, f);
-  for (i = 0; i < vc.n; ++i) {
-    fv.x = vc.p[i].x;
-    fv.y = vc.p[i].y;
-    fwrite(&fv, sizeof(fbspvertex_t), 1, f);
+  for (unsigned i = 0; i < vc.n; ++i) {
+    bspSaveVertex(f, vc.p + i);
   }
   struct bsp_count_result counts;
   bspCount(&counts);
 //  bspPrintTree();
   fwrite(&counts.node_count, sizeof(unsigned), 1, f);
   fwrite(&counts.line_count, sizeof(unsigned), 1, f);
-  bspSaveSub(root);
+  bspSaveSub(f, root);
   return !0;
 }
