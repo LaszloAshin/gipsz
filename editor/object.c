@@ -28,21 +28,18 @@ char *edGetObjectProperties(objtype_t wh, int *r, int *c) {
 }
 
 object_t *edGetObject(int x, int y) {
-  int i;
-  for (i = 0; i < oc.n; ++i)
+  for (unsigned i = 0; i < oc.n; ++i)
     if (oc.p[i].x == x && oc.p[i].y == y)
       return oc.p + i;
   return NULL;
 }
 
 int edAddObject(objtype_t wh, int x, int y, int z, int a, int b, int c) {
-  int i, na;
-
   if (oc.n == oc.alloc) {
-    na = oc.alloc * 2;
+    const unsigned na = oc.alloc * 2;
     object_t *p = (object_t *)malloc(na * sizeof(object_t));
     if (p == NULL) return -1;
-    for (i = 0; i < oc.n; ++i) p[i] = oc.p[i];
+    for (unsigned i = 0; i < oc.n; ++i) p[i] = oc.p[i];
     free(oc.p);
     oc.p = p;
     oc.alloc = na;
@@ -85,9 +82,11 @@ void edMouseButtonObject(int mx, int my, int button) {
 }
 
 void edMouseMotionObject(int mx, int my, int umx, int umy) {
-  int i, dx, dy;
+  (void)umx;
+  (void)umy;
+  int dx, dy;
   object_t *o;
-  int r, c;
+  int r = 8, c = 0;
   char *name = NULL;
 
   grBegin();
@@ -113,7 +112,7 @@ void edMouseMotionObject(int mx, int my, int umx, int umy) {
     }
   } else {
     o = NULL;
-    for (i = 0; i < oc.n; ++i) {
+    for (unsigned i = 0; i < oc.n; ++i) {
       dx = mx - oc.p[i].x;
       dy = my - oc.p[i].y;
       oc.p[i].md = dx * dx + dy * dy;
@@ -142,7 +141,7 @@ void edMouseMotionObject(int mx, int my, int umx, int umy) {
 }
 
 void edKeyboardObject(int key) {
-  int r, c;
+  int r = 8, c = 0;
   char *name;
   
   if (so != NULL) {
@@ -193,27 +192,22 @@ void edKeyboardObject(int key) {
   }
 }
 
-typedef struct {
-  short type : 16;
-  short x, y, z : 16;
-  short rot : 16;
-} __attribute__((packed)) fobject_t;
+static int
+edSaveObject(FILE *fp, object_t *o)
+{
+  unsigned char buf[2 + 3 * 2 + 2], *p = buf;
+  *(short *)p = o->what;
+  *(short *)(p + 2) = o->x;
+  *(short *)(p + 4) = o->y;
+  *(short *)(p + 6) = o->z;
+  *(short *)(p + 8) = (o->a & 7) | ((o->b & 7) << 3) | ((o->c & 7) << 6);
+  return (fwrite(buf, 1, sizeof(buf), fp) == sizeof(buf)) ? 0 : -1;
+}
 
 int edSaveObjects(FILE *fp) {
-  fobject_t fo;
-  object_t *o;
-  int i;
-
   fwrite(&oc.n, sizeof(int), 1, fp);
-  o = oc.p;
-  for (i = oc.n; i; --i, ++o) {
-    fo.type = o->what;
-    fo.x = o->x;
-    fo.y = o->y;
-    fo.z = o->z;
-    fo.rot = (o->a & 7) | ((o->b & 7) << 3) | ((o->c & 7) << 6);
-
-    if (fwrite(&fo, sizeof(fobject_t), 1, fp) != 1) return 0;
+  for (object_t *o = oc.p; o < oc.p + oc.n; ++o) {
+    if (edSaveObject(fp, o)) return 0;
   }
   return !0;
 }

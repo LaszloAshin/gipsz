@@ -9,8 +9,7 @@ lc_t lc;
 line_t *sl = NULL, tmpline;
 
 line_t *edGetLine(int a, int b) {
-  int i;
-  for (i = 0; i < lc.n; ++i)
+  for (unsigned i = 0; i < lc.n; ++i)
     if ((lc.p[i].a == a && lc.p[i].b == b) || (lc.p[i].a == b && lc.p[i].b == a))
       return lc.p + i;
   return NULL;
@@ -45,13 +44,15 @@ line_t *edAddLine(int a, int b, int sf, int sb, int u, int v, int flags, int tf,
 }
 
 void edDelLine(line_t *p) {
-  int i = p - lc.p;
-  if (p == NULL || i < 0 || i > lc.n) return;
+  unsigned i = p - lc.p;
+  if (p == NULL || i > lc.n) return;
   lc.p[i] = lc.p[--lc.n];
   sl = NULL;
 }
 
 void edMouseButtonLine(int mx, int my, int button) {
+  (void)mx;
+  (void)my;
   if (button == 1) {
     if (sv != NULL) {
       if (tmpline.a == -1) {
@@ -92,6 +93,8 @@ void edMouseButtonLine(int mx, int my, int button) {
 }
 
 void edMouseMotionLine(int mx, int my, int umx, int umy) {
+  (void)mx;
+  (void)my;
   if (tmpline.a != -1) {
     if (sv != NULL && edGetLine(tmpline.a, sv - vc.p) == NULL) {
       grBegin();
@@ -109,9 +112,8 @@ void edMouseMotionLine(int mx, int my, int umx, int umy) {
       grEnd();
     }
   } else {
-    int i;
     line_t *min = NULL;
-    for (i = 0; i < lc.n; ++i) {
+    for (unsigned i = 0; i < lc.n; ++i) {
       lc.p[i].md = pszt(vc.p[lc.p[i].a], vc.p[lc.p[i].b], umx, umy);
       if (min == NULL || lc.p[i].md < min->md) min = lc.p + i;
     }
@@ -131,9 +133,9 @@ void edMouseMotionLine(int mx, int my, int umx, int umy) {
       grEnd();
       edStBegin();
       if (min != NULL) {
-        int dx = vc.p[min->b].x - vc.p[min->a].x;
-        int dy = vc.p[min->b].y - vc.p[min->a].y;
-        i = min->u + sqrtf(dx * dx + dy * dy) + min->du;
+        const int dx = vc.p[min->b].x - vc.p[min->a].x;
+        const int dy = vc.p[min->b].y - vc.p[min->a].y;
+        const int i = min->u + sqrtf(dx * dx + dy * dy) + min->du;
         grprintf("line #%04d - u:%02d:%02d (%02d) v:%02d tf:%03x:%03x:%03x tb:%03x:%03x:%03x",
           min - lc.p, min->u, i, i & 0x3f, min->v,
           (min->tf >> 20) & 0x3ff, (min->tf >> 10) & 0x3ff, min->tf & 0x3ff,

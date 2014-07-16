@@ -119,7 +119,6 @@ void edStEnd() {
 }
 
 void edScreen() {
-  int i, j;
   int x, y, vx, vy, ix, iy;
   int bo;
   int r, c;
@@ -171,38 +170,40 @@ void edScreen() {
       break;
     case MD_SECTOR:
       grSetColor(255);
-      for (i = 0; i < vc.n; ++i)
+      for (unsigned i = 0; i < vc.n; ++i)
         edVertex(vc.p[i].x, vc.p[i].y);
       grSetColor(78);
-      for (i = 0; i < lc.n; ++i)
+      for (unsigned i = 0; i < lc.n; ++i)
         if (!lc.p[i].sf && !lc.p[i].sb)
           edLine(vc.p[lc.p[i].a].x, vc.p[lc.p[i].a].y, vc.p[lc.p[i].b].x, vc.p[lc.p[i].b].y);
-      i = 0;
-      for (j = 0; j < lc.n; ++j) {
-        if (lc.p[j].sf > i) i = lc.p[j].sf;
-        if (lc.p[j].sb > i) i = lc.p[j].sb;
+      {
+        int i = 0;
+        for (unsigned j = 0; j < lc.n; ++j) {
+          if (lc.p[j].sf > i) i = lc.p[j].sf;
+          if (lc.p[j].sb > i) i = lc.p[j].sb;
+        }
+        for (; i; --i) edSelectSector(i, 0);
       }
-      for (; i; --i) edSelectSector(i, 0);
       break;
     case MD_OBJECT:
       grSetColor(78);
-      for (i = 0; i < lc.n; ++i) {
+      for (unsigned i = 0; i < lc.n; ++i) {
         if (lc.p[i].sf && lc.p[i].sb) /* 2 sided */
           grSetColor(76);
         else
           grSetColor(255);
         edLine(vc.p[lc.p[i].a].x, vc.p[lc.p[i].a].y, vc.p[lc.p[i].b].x, vc.p[lc.p[i].b].y);
       }
-      for (i = 0; i < oc.n; ++i) {
+      for (unsigned i = 0; i < oc.n; ++i) {
         edGetObjectProperties(oc.p[i].what, &r, &c);
         edObject(oc.p[i].x, oc.p[i].y, oc.p[i].c, r, c);
       }
       break;
     default:
       grSetColor(255);
-      for (i = 0; i < vc.n; ++i)
+      for (unsigned i = 0; i < vc.n; ++i)
         edVertex(vc.p[i].x, vc.p[i].y);
-      for (i = 0; i < lc.n; ++i) {
+      for (unsigned i = 0; i < lc.n; ++i) {
         if (lc.p[i].sf && lc.p[i].sb) /* 2 sided */
           grSetColor(76);
         else
@@ -223,18 +224,16 @@ void edScreen() {
 }
 
 void edSave() {
-  int i;
   stOpen();
-  for (i = 0; i < vc.n; ++i) stPutVertex(vc.p + i);
-  for (i = 0; i < lc.n; ++i) stPutLine(lc.p + i);
-  for (i = 1; i < sc.alloc; ++i) stPutSector(i, sc.p + i);
-  for (i = 0; i < oc.n; ++i) stPutObject(oc.p + i);
+  for (unsigned i = 0; i < vc.n; ++i) stPutVertex(vc.p + i);
+  for (unsigned i = 0; i < lc.n; ++i) stPutLine(lc.p + i);
+  for (unsigned i = 1; i < sc.alloc; ++i) stPutSector(i, sc.p + i);
+  for (unsigned i = 0; i < oc.n; ++i) stPutObject(oc.p + i);
   stWrite("map.st");
   stClose();
 }
 
 void edLoad() {
-  int i;
   int n;
   vertex_t v;
   line_t l;
@@ -244,7 +243,7 @@ void edLoad() {
   stRead("map.st");
   vc.n = lc.n = 0;
   oc.n = 0;
-  for (i = 0; i < sc.alloc; ++i) {
+  for (unsigned i = 0; i < sc.alloc; ++i) {
     sc.p[i].c = sc.p[i].f = sc.p[i].l = 0;
   }
   while (stGetVertex(&v)) {
@@ -281,16 +280,15 @@ edSaveSector(FILE *fp, sector_t *s)
 }
 
 void edBuildBSP() {
-  int s = 0, i, j;
-  line_t *l;
   edSave();
   bspInit();
-  for (i = 0; i < lc.n; ++i) {
+  int s = 0;
+  for (unsigned i = 0; i < lc.n; ++i) {
     if (lc.p[i].sf > s) s = lc.p[i].sf;
     if (lc.p[i].sb > s) s = lc.p[i].sb;
   }
-  for (j = s; j; --j)
-    for (i = 0, l = lc.p; i < lc.n; ++i, ++l) {
+  for (int j = s; j; --j)
+    for (line_t *l = lc.p; l < lc.p + lc.n; ++l) {
       int in = sc.p[j].f < sc.p[j].c;
       if (l->sf == j)
         bspAddLine(j, vc.p[l->a].x, vc.p[l->a].y, vc.p[l->b].x, vc.p[l->b].y,
@@ -363,8 +361,7 @@ void edInit() {
 
   sc.alloc = 2;
   sc.p = (sector_t *)malloc(sc.alloc * sizeof(sector_t));
-  int i;
-  for (i = 0; i < sc.alloc; ++i) sc.p[i].f = sc.p[i].c = sc.p[i].l = 0;
+  for (unsigned i = 0; i < sc.alloc; ++i) sc.p[i].f = sc.p[i].c = sc.p[i].l = 0;
 
   oc.alloc = 8;
   oc.p = (object_t *)malloc(oc.alloc * sizeof(object_t));
@@ -462,6 +459,7 @@ void edMouseButton(int mx, int my, int button) {
 }
 
 void edMouseMotion(int mx, int my, int state) {
+  (void)state;
   static int delta = 0;
   grAlignMouse(&mx, &my);
   if (mx < 0 || my < 0) return;
@@ -479,11 +477,10 @@ void edMouseMotion(int mx, int my, int state) {
   }
 
   if (!moving && mode != MD_OBJECT) {
-    int i;
     vertex_t *min = NULL;
-    for (i = 0; i < vc.n; ++i) {
-      int dx = vc.p[i].x - umx;
-      int dy = vc.p[i].y - umy;
+    for (unsigned i = 0; i < vc.n; ++i) {
+      const int dx = vc.p[i].x - umx;
+      const int dy = vc.p[i].y - umy;
       vc.p[i].md = dx * dx + dy * dy;
       if (min == NULL || vc.p[i].md < min->md) min = vc.p + i;
     }
