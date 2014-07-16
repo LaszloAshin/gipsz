@@ -2,13 +2,13 @@
 #define _SECTOR_H 1
 
 typedef struct {
-  short f : 16;
-  short c : 16;
-  unsigned char l : 8;
-  short u : 16;
-  short v : 16;
-  unsigned t : 32;
-} __attribute__((packed)) sector_t;
+  short f;
+  short c;
+  unsigned char l;
+  short u;
+  short v;
+  unsigned t;
+} sector_t;
 
 typedef struct {
   sector_t *p;

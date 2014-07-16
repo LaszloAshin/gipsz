@@ -267,6 +267,19 @@ static void (*edMouseButtonMode)(int mx, int my, int button) = edMouseButtonVert
 static void (*edMouseMotionMode)(int mx, int my, int umx, int umy) = edMouseMotionVertex;
 static void (*edKeyboardMode)(int key) = edKeyboardVertex;
 
+static int
+edSaveSector(FILE *fp, sector_t *s)
+{
+  unsigned char buf[2 * 2 + 1 + 2 * 2 + 4], *p = buf;
+  *(short *)p = s->f;
+  *(short *)(p + 2) = s->c;
+  p[4] = s->l;
+  *(unsigned short *)(p + 5) = s->u;
+  *(unsigned short *)(p + 7) = s->v;
+  *(unsigned *)(p + 9) = s->t;
+  return (fwrite(buf, 1, sizeof(buf), fp) == sizeof(buf)) ? 0 : -1;
+}
+
 void edBuildBSP() {
   int s = 0, i, j;
   line_t *l;
@@ -290,7 +303,7 @@ void edBuildBSP() {
   FILE *f = fopen("map.bsp", "wb");
   ++s;
   fwrite(&s, sizeof(int), 1, f);
-  fwrite(sc.p, sizeof(sector_t), s, f);
+  for (sector_t *sp = sc.p; sp < sc.p + s; ++sp) edSaveSector(f, sp);
   bspSave(f);
   edSaveObjects(f);
   fclose(f);
