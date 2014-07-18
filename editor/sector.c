@@ -16,14 +16,13 @@ int edGetSector(unsigned s) {
 int edAddSector(unsigned s, int f, int c, int l, int u, int v, int t) {
   if (!s) return 0;
   if (s >= sc.alloc) {
-    int oa = sc.alloc;
+    unsigned oa = sc.alloc;
     sc.alloc *= 2;
     if (s >= sc.alloc) sc.alloc = s + 1;
     sector_t *p = (sector_t *)malloc(sc.alloc * sizeof(sector_t));
     if (p == NULL) return -1;
-    unsigned i;
-    for (i = 0; i < oa; ++i) p[i] = sc.p[i];
-    for (; i < sc.alloc; ++i) p[i].c = p[i].f = 0;
+    for (unsigned i = 0; i < oa; ++i) p[i] = sc.p[i];
+    for (unsigned i = oa; i < sc.alloc; ++i) p[i].c = p[i].f = 0;
     free(sc.p);
     sc.p = p;
   }
@@ -36,21 +35,20 @@ int edAddSector(unsigned s, int f, int c, int l, int u, int v, int t) {
   return s;
 }
 
-void edDelSector(unsigned s) {
-  unsigned i;
+void edDelSector(int s) {
   if (edGetSector(s)) sc.p[s].f = sc.p[s].c = sc.p[s].l = 0;
-  for (i = 0; i < lc.n; ++i) {
+  for (unsigned i = 0; i < lc.n; ++i) {
     if (lc.p[i].sf == s) lc.p[i].sf = 0;
     if (lc.p[i].sb == s) lc.p[i].sb = 0;
   }
 }
 
 int edAllocSector() {
-  int i, j = 0, bo;
+  int j = 0, bo;
   do {
     ++j;
     bo = 0;
-    for (i = 0; i < lc.n; ++i)
+    for (unsigned i = 0; i < lc.n; ++i)
       if (lc.p[i].sf == j || lc.p[i].sb == j) {
         ++bo;
         break;
@@ -60,8 +58,7 @@ int edAllocSector() {
 }
 
 void edSelectSector(int s, int o) {
-  int i;
-  for (i = 0; i < lc.n; ++i) {
+  for (unsigned i = 0; i < lc.n; ++i) {
     if (lc.p[i].sf == s) {
       if (o)
         grSetColor(253);
@@ -84,6 +81,8 @@ void edSelectSector(int s, int o) {
 }
 
 void edMouseButtonSector(int mx, int my, int button) {
+  (void)mx;
+  (void)my;
   if (button == 1) {
     if (sv != NULL) {
       if (tmpline.a == -1) {
@@ -145,6 +144,8 @@ void edMouseButtonSector(int mx, int my, int button) {
 }
 
 void edMouseMotionSector(int mx, int my, int umx, int umy) {
+  (void)mx;
+  (void)my;
   SDLMod m = SDL_GetModState();
   if (tmpline.a != -1) {
     if (sv != NULL && edGetLine(tmpline.a, sv - vc.p) != NULL) {
@@ -162,9 +163,9 @@ void edMouseMotionSector(int mx, int my, int umx, int umy) {
       grEnd();
     }
   } else if (!(m & KMOD_SHIFT)) {
-    int i, s;
+    int s;
     line_t *min = NULL;
-    for (i = 0; i < lc.n; ++i) {
+    for (unsigned i = 0; i < lc.n; ++i) {
       lc.p[i].md = pszt(vc.p[lc.p[i].a], vc.p[lc.p[i].b], umx, umy);
       if (min == NULL || lc.p[i].md < min->md) min = lc.p + i;
     }
@@ -181,6 +182,7 @@ void edMouseMotionSector(int mx, int my, int umx, int umy) {
           if (s) edSelectSector(s, 1);
           grEnd();
           edStBegin();
+		  int i;
           if (s && (i = edGetSector(s)) > 0)
             grprintf("sector #%04d - f:%03d c:%03d l:0x%02x u:0x%02x v:0x%02x tc:%03x tf:%03x",
               i, sc.p[i].f, sc.p[i].c, sc.p[i].l, sc.p[i].u, sc.p[i].v,

@@ -20,7 +20,7 @@ extern int ss;
 
 int edGetSector(unsigned s);
 int edAddSector(unsigned s, int f, int c, int l, int u, int v, int t);
-void edDelSector(unsigned s);
+void edDelSector(int s);
 int edAllocSector();
 void edSelectSector(int s, int o);
 void edMouseButtonSector(int mx, int my, int button);
