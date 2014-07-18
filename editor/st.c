@@ -15,40 +15,40 @@ typedef struct {
 } header_t;
 
 typedef struct {
-  short x : 16;
-  short y : 16;
-} __attribute__((packed)) fvertex_t;
+  short x;
+  short y;
+} fvertex_t;
 
 typedef struct {
-  unsigned short a : 16;
-  unsigned short b : 16;
-  unsigned short sf : 16;
-  unsigned short sb : 16;
-  unsigned short u : 16;
-  unsigned short v : 16;
-  unsigned char flags : 8;
-  unsigned int tf : 32;
-  unsigned int tb : 32;
-  short du : 16;
-} __attribute__((packed)) fline_t;
+  unsigned short a;
+  unsigned short b;
+  unsigned short sf;
+  unsigned short sb;
+  unsigned short u;
+  unsigned short v;
+  unsigned char flags;
+  unsigned int tf;
+  unsigned int tb;
+  short du;
+} fline_t;
 
 typedef struct {
-  unsigned short s : 16;
-  short f : 16;
-  short c : 16;
-  unsigned char l : 8;
-  unsigned short u : 16;
-  unsigned short v : 16;
-  unsigned int t : 32;
-} __attribute__((packed)) fsector_t;
+  unsigned short s;
+  short f;
+  short c;
+  unsigned char l;
+  unsigned short u;
+  unsigned short v;
+  unsigned int t;
+} fsector_t;
 
 typedef struct {
-  short type : 16;
-  short x : 16;
-  short y : 16;
-  short z : 16;
-  short rot : 16;
-} __attribute__((packed)) fobject_t;
+  short type;
+  short x;
+  short y;
+  short z;
+  short rot;
+} fobject_t;
 
 static struct {
   fvertex_t *p;
@@ -138,6 +138,137 @@ int stOpen() {
   return !0;
 }
 
+static int
+stReadHeader(FILE *fp, header_t *h)
+{
+  unsigned char buf[4 * 4], *p = buf;
+  if (fread(buf, 1, sizeof(buf), fp) != sizeof(buf)) return -1;
+  h->nVerteces = *(unsigned *)p;
+  h->nLines = *(unsigned *)(p + 4);
+  h->nSectors = *(unsigned *)(p + 8);
+  h->nObjects = *(unsigned *)(p + 12);
+  return 0;
+}
+
+static int
+stWriteHeader(FILE *fp, const header_t *h)
+{
+  unsigned char buf[4 * 4], *p = buf;
+  *(unsigned *)p = h->nVerteces;
+  *(unsigned *)(p + 4) = h->nLines;
+  *(unsigned *)(p + 8) = h->nSectors;
+  *(unsigned *)(p + 12) = h->nObjects;
+  return (fwrite(buf, 1, sizeof(buf), fp) == sizeof(buf)) ? 0 : -1;
+}
+
+static int
+stReadVertex(FILE *fp, fvertex_t *v)
+{
+  unsigned char buf[2 * 2], *p = buf;
+  if (fread(buf, 1, sizeof(buf), fp) != sizeof(buf)) return -1;
+  v->x = *(short *)p;
+  v->y = *(short *)(p + 2);
+  return 0;
+}
+
+static int
+stWriteVertex(FILE *fp, const fvertex_t *v)
+{
+  unsigned char buf[2 * 2], *p = buf;
+  *(short *)p = v->x;
+  *(short *)(p + 2) = v->y;
+  return (fwrite(buf, 1, sizeof(buf), fp) == sizeof(buf)) ? 0 : -1;
+}
+
+static int
+stReadLine(FILE *fp, fline_t *l)
+{
+  unsigned char buf[6 * 2 + 1 + 2 * 4 + 2], *p = buf;
+  if (fread(buf, 1, sizeof(buf), fp) != sizeof(buf)) return -1;
+  l->a = *(unsigned short *)p;
+  l->b = *(unsigned short *)(p + 2);
+  l->sf = *(unsigned short *)(p + 4);
+  l->sb = *(unsigned short *)(p + 6);
+  l->u = *(unsigned short *)(p + 8);
+  l->v = *(unsigned short *)(p + 10);
+  l->flags = buf[12];
+  l->tf = *(unsigned *)(p + 13);
+  l->tb = *(unsigned *)(p + 17);
+  l->du = *(short *)(p + 21);
+  return 0;
+}
+
+static int
+stWriteLine(FILE *fp, const fline_t *l)
+{
+  unsigned char buf[6 * 2 + 1 + 2 * 4 + 2], *p = buf;
+  *(unsigned short *)p = l->a;
+  *(unsigned short *)(p + 2) = l->b;
+  *(unsigned short *)(p + 4) = l->sf;
+  *(unsigned short *)(p + 6) = l->sb;
+  *(unsigned short *)(p + 8) = l->u;
+  *(unsigned short *)(p + 10) = l->v;
+  buf[12] = l->flags;
+  *(unsigned *)(p + 13) = l->tf;
+  *(unsigned *)(p + 17) = l->tb;
+  *(short *)(p + 21) = l->du;
+  return (fwrite(buf, 1, sizeof(buf), fp) == sizeof(buf)) ? 0 : -1;
+}
+
+static int
+stReadSector(FILE *fp, fsector_t *s)
+{
+  unsigned char buf[3 * 2 + 1 + 2 * 2 + 4], *p = buf;
+  if (fread(buf, 1, sizeof(buf), fp) != sizeof(buf)) return -1;
+  s->s = *(unsigned short *)p;
+  s->f = *(short *)(p + 2);
+  s->c = *(short *)(p + 4);
+  s->l = buf[6];
+  s->u = *(unsigned short *)(p + 7);
+  s->v = *(unsigned short *)(p + 9);
+  s->t = *(unsigned *)(p + 11);
+  return 0;
+}
+
+static int
+stWriteSector(FILE *fp, const fsector_t *s)
+{
+  unsigned char buf[3 * 2 + 1 + 2 * 2 + 4], *p = buf;
+  *(unsigned short *)p = s->s;
+  *(short *)(p + 2) = s->f;
+  *(short *)(p + 4) = s->c;
+  buf[6] = s->l;
+  *(unsigned short *)(p + 7) = s->u;
+  *(unsigned short *)(p + 9) = s->v;
+  *(unsigned *)(p + 11) = s->t;
+  return (fwrite(buf, 1, sizeof(buf), fp) == sizeof(buf)) ? 0 : -1;
+}
+
+static int
+stReadObject(FILE *fp, fobject_t *o)
+{
+  unsigned char buf[5 * 2], *p = buf;
+  if (fread(buf, 1, sizeof(buf), fp) != sizeof(buf)) return -1;
+  o->type = *(short *)p;
+  o->x = *(short *)(p + 2);
+  o->y = *(short *)(p + 4);
+  o->z = *(short *)(p + 6);
+  o->rot = *(short *)(p + 8);
+  return 0;
+}
+
+static int
+stWriteObject(FILE *fp, const fobject_t *o)
+{
+  unsigned char buf[5 * 2], *p = buf;
+  *(short *)p = o->type;
+  *(short *)(p + 2) = o->x;
+  *(short *)(p + 4) = o->y;
+  *(short *)(p + 6) = o->z;
+  *(short *)(p + 8) = o->rot;
+  return (fwrite(buf, 1, sizeof(buf), fp) == sizeof(buf)) ? 0 : -1;
+}
+
 int stWrite(const char *fname) {
   int ret = 0;
   if (!inited || fname == NULL) return ret;
@@ -148,11 +279,11 @@ int stWrite(const char *fname) {
   hdr.nLines = flc.n;
   hdr.nSectors = fsc.n;
   hdr.nObjects = foc.n;
-  if (!fwrite(&hdr, sizeof(header_t), 1, f)) goto end;
-  if (fwrite(fvc.p, sizeof(fvertex_t), fvc.n, f) != fvc.n) goto end;
-  if (fwrite(flc.p, sizeof(fline_t), flc.n, f) != flc.n) goto end;
-  if (fwrite(fsc.p, sizeof(fsector_t), fsc.n, f) != fsc.n) goto end;
-  if (fwrite(foc.p, sizeof(fobject_t), foc.n, f) != foc.n) goto end;
+  if (stWriteHeader(f, &hdr)) goto end;
+  for (unsigned i = 0; i < fvc.n; ++i) if (stWriteVertex(f, fvc.p + i)) goto end;
+  for (unsigned i = 0; i < flc.n; ++i) if (stWriteLine(f, flc.p + i)) goto end;
+  for (unsigned i = 0; i < fsc.n; ++i) if (stWriteSector(f, fsc.p + i)) goto end;
+  for (unsigned i = 0; i < foc.n; ++i) if (stWriteObject(f, foc.p + i)) goto end;
   ++ret;
  end:
   fclose(f);
@@ -164,7 +295,7 @@ int stRead(const char *fname) {
   FILE *f = fopen(fname, "rb");
   if (f == NULL) return 0;
   header_t hdr;
-  if (!fread(&hdr, sizeof(header_t), 1, f)) goto end1;
+  if (stReadHeader(f, &hdr)) goto end1;
   if (inited) stClose();
 
   fvc.alloc = fvc.n = hdr.nVerteces;
@@ -183,15 +314,10 @@ int stRead(const char *fname) {
   foc.p = (fobject_t *)malloc(foc.alloc * sizeof(fobject_t));
   if (foc.p == NULL) goto end2;
 
-  if (fread(fvc.p, sizeof(fvertex_t), fvc.n, f) != fvc.n) goto end2;
-  if (fread(flc.p, sizeof(fline_t), flc.n, f) != flc.n) goto end2;
-/*  {
-    memset(flc.p, 0, flc.n * sizeof(fline_t));
-    int i;
-    for (i = 0; i < flc.n; ++i) fread(flc.p + i, sizeof(fline_t)-8, 1, f);
-  }*/
-  if (fread(fsc.p, sizeof(fsector_t), fsc.n, f) != fsc.n) goto end2;
-  if (fread(foc.p, sizeof(fobject_t), foc.n, f) != foc.n) goto end2;
+  for (unsigned i = 0; i < fvc.n; ++i) if (stReadVertex(f, fvc.p + i)) goto end2;
+  for (unsigned i = 0; i < flc.n; ++i) if (stReadLine(f, flc.p + i)) goto end2;
+  for (unsigned i = 0; i < fsc.n; ++i) if (stReadSector(f, fsc.p + i)) goto end2;
+  for (unsigned i = 0; i < foc.n; ++i) if (stReadObject(f, foc.p + i)) goto end2;
 
   fclose(f);
   fvc.r = flc.r = fsc.r = foc.r = 0;
@@ -205,14 +331,11 @@ int stRead(const char *fname) {
 }
 
 int stPutVertex(vertex_t *v) {
-  int i;
-  int na;
-
   if (fvc.n == fvc.alloc) {
-    na = fvc.alloc * 2;
+    unsigned na = fvc.alloc * 2;
     fvertex_t *p = (fvertex_t *)malloc(na * sizeof(fvertex_t));
     if (p == NULL) return -1;
-    for (i = 0; i < fvc.n; ++i) p[i] = fvc.p[i];
+    for (unsigned i = 0; i < fvc.n; ++i) p[i] = fvc.p[i];
     free(fvc.p);
     fvc.p = p;
     fvc.alloc = na;
@@ -234,14 +357,11 @@ int stGetVertex(vertex_t *v) {
 }
 
 int stPutLine(line_t *l) {
-  int i;
-  int na;
-
   if (flc.n == flc.alloc) {
-    na = flc.alloc * 2;
+    unsigned na = flc.alloc * 2;
     fline_t *p = (fline_t *)malloc(na * sizeof(fline_t));
     if (p == NULL) return -1;
-    for (i = 0; i < flc.n; ++i) p[i] = flc.p[i];
+    for (unsigned i = 0; i < flc.n; ++i) p[i] = flc.p[i];
     free(flc.p);
     flc.p = p;
     flc.alloc = na;
@@ -279,14 +399,11 @@ int stGetLine(line_t *l) {
 }
 
 int stPutSector(int n, sector_t *s) {
-  int i;
-  int na;
-
   if (fsc.n == fsc.alloc) {
-    na = fsc.alloc * 2;
+    unsigned na = fsc.alloc * 2;
     fsector_t *p = (fsector_t *)malloc(na * sizeof(fsector_t));
     if (p == NULL) return -1;
-    for (i = 0; i < fsc.n; ++i) p[i] = fsc.p[i];
+    for (unsigned i = 0; i < fsc.n; ++i) p[i] = fsc.p[i];
     free(fsc.p);
     fsc.p = p;
     fsc.alloc = na;
@@ -318,14 +435,11 @@ int stGetSector(int *n, sector_t *s) {
 }
 
 int stPutObject(object_t *o) {
-  int i;
-  int na;
-
   if (foc.n == foc.alloc) {
-    na = foc.alloc * 2;
+    unsigned na = foc.alloc * 2;
     fobject_t *p = (fobject_t *)malloc(na * sizeof(fobject_t));
     if (p == NULL) return -1;
-    for (i = 0; i < foc.n; ++i) p[i] = foc.p[i];
+    for (unsigned i = 0; i < foc.n; ++i) p[i] = foc.p[i];
     free(foc.p);
     foc.p = p;
     foc.alloc = na;
