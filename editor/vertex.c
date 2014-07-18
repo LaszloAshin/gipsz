@@ -8,14 +8,11 @@ vc_t vc;
 vertex_t *sv = NULL;
 
 vertex_t *edAddVertex(int x, int y) {
-  int i;
-  int na;
-
   if (vc.n == vc.alloc) {
-    na = vc.alloc * 2;
+    unsigned na = vc.alloc * 2;
     vertex_t *p = (vertex_t *)malloc(na * sizeof(vertex_t));
     if (p == NULL) return p;
-    for (i = 0; i < vc.n; ++i) p[i] = vc.p[i];
+    for (unsigned i = 0; i < vc.n; ++i) p[i] = vc.p[i];
     sv += p - vc.p;
     free(vc.p);
     vc.p = p;
@@ -28,26 +25,25 @@ vertex_t *edAddVertex(int x, int y) {
 }
 
 vertex_t *edGetVertex(int x, int y) {
-  int i;
-  for (i = 0; i < vc.n; ++i)
+  for (unsigned i = 0; i < vc.n; ++i)
     if (vc.p[i].x == x && vc.p[i].y == y)
       return vc.p + i;
   return NULL;
 }
 
 void edDelVertex(vertex_t *p) {
-  int j, i = p - vc.p;
-  if (p == NULL || i < 0 || i > vc.n) return;
-  for (j = 0; j < lc.n; ++j)
-    if (lc.p[j].a == i || lc.p[j].b == i) {
+  const unsigned i = p - vc.p;
+  if (p == NULL || i > vc.n) return;
+  for (unsigned j = 0; j < lc.n; ++j)
+    if (lc.p[j].a == (int)i || lc.p[j].b == (int)i) {
       lc.p[j] = lc.p[--lc.n];
       sl = NULL;
       --j;
     }
   --vc.n;
-  for (j = 0; j < lc.n; ++j) {
-    if (lc.p[j].a == vc.n) lc.p[j].a = i;
-    if (lc.p[j].b == vc.n) lc.p[j].b = i;
+  for (unsigned j = 0; j < lc.n; ++j) {
+    if (lc.p[j].a == (int)vc.n) lc.p[j].a = i;
+    if (lc.p[j].b == (int)vc.n) lc.p[j].b = i;
   }
   vc.p[i] = vc.p[vc.n];
   sv = NULL;
@@ -80,6 +76,8 @@ void edMouseButtonVertex(int mx, int my, int button) {
 }
 
 void edMouseMotionVertex(int mx, int my, int umx, int umy) {
+  (void)umx;
+  (void)umy;
   grBegin();
   grSetPixelMode(PMD_XOR);
   grSetColor(255);
@@ -103,6 +101,7 @@ void edMouseMotionVertex(int mx, int my, int umx, int umy) {
 }
 
 void edKeyboardVertex(int key) {
+  (void)key;
 }
 
 int pszt(vertex_t p1, vertex_t p2, int mx, int my) {
