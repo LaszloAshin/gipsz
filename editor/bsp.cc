@@ -648,7 +648,7 @@ bspBuildSub(node_t *n)
           n->r->p[n->r->n].a = p[i];
           n->r->p[n->r->n].b = p[i-1];
           n->r->p[n->r->n].neigh = NULL;
-          n->r->p[n->r->n].flags = LF_NOTHING; /* two sided will be set at save */
+          n->r->p[n->r->n].flags = Line::Flag::NOTHING; /* two sided will be set at save */
           n->r->p[n->r->n].u1 = n->r->p[n->r->n].u2 = n->r->p[n->r->n].v = 0;
           n->r->p[n->r->n].t = 0;
           ++n->r->n;
@@ -657,7 +657,7 @@ bspBuildSub(node_t *n)
         if (db && bspMayConnect(n->l, p[i-1], p[i])) {
           n->l->p[n->l->n].a = p[i-1];
           n->l->p[n->l->n].b = p[i];
-          n->l->p[n->l->n].flags = LF_NOTHING; /* two sided will be set at save */
+          n->l->p[n->l->n].flags = Line::Flag::NOTHING; /* two sided will be set at save */
           n->l->p[n->l->n].u1 = n->l->p[n->l->n].u2 = n->l->p[n->l->n].v = 0;
           n->l->p[n->l->n].t = 0;
           if (j) {
@@ -678,7 +678,7 @@ bspBuildSub(node_t *n)
           n->l->p[n->l->n].a = p[i];
           n->l->p[n->l->n].b = p[i-1];
           n->l->p[n->l->n].neigh = NULL;
-          n->l->p[n->l->n].flags = LF_NOTHING; /* two sided will be set at save */
+          n->l->p[n->l->n].flags = Line::Flag::NOTHING; /* two sided will be set at save */
           n->l->p[n->l->n].u1 = n->l->p[n->l->n].u2 = n->l->p[n->l->n].v = 0;
           n->l->p[n->l->n].t = 0;
           ++n->l->n;
@@ -687,7 +687,7 @@ bspBuildSub(node_t *n)
         if (db && bspMayConnect(n->r, p[i-1], p[i])) {
           n->r->p[n->r->n].a = p[i-1];
           n->r->p[n->r->n].b = p[i];
-          n->r->p[n->r->n].flags = LF_NOTHING; /* two sided will be set at save */
+          n->r->p[n->r->n].flags = Line::Flag::NOTHING; /* two sided will be set at save */
           n->r->p[n->r->n].u1 = n->r->p[n->r->n].u2 = n->r->p[n->r->n].v = 0;
           n->r->p[n->r->n].t = 0;
           if (j) {
@@ -816,7 +816,7 @@ bspSaveLine(FILE *fp, bspline_t *l)
   unsigned char buf[2 * 2 + 1 + 3 * 2 + 4], *p = buf;
   *(short *)p = l->a;
   *(short *)(p + 2) = l->b;
-  p[4] = l->neigh ? LF_TWOSIDED : LF_NOTHING;
+  p[4] = l->neigh ? Line::Flag::TWOSIDED : Line::Flag::NOTHING;
   *(unsigned short *)(p + 5) = l->u1;
   *(unsigned short *)(p + 7) = l->u2;
   *(unsigned short *)(p + 9) = l->v;

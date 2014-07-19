@@ -37,9 +37,9 @@ int edAddSector(unsigned s, int f, int c, int l, int u, int v, int t) {
 
 void edDelSector(int s) {
   if (edGetSector(s)) sc.p[s].f = sc.p[s].c = sc.p[s].l = 0;
-  for (unsigned i = 0; i < lc.n; ++i) {
-    if (lc.p[i].sf == s) lc.p[i].sf = 0;
-    if (lc.p[i].sb == s) lc.p[i].sb = 0;
+  for (unsigned i = 0; i < lc.size(); ++i) {
+    if (lc[i].sf == s) lc[i].sf = 0;
+    if (lc[i].sb == s) lc[i].sb = 0;
   }
 }
 
@@ -48,8 +48,8 @@ int edAllocSector() {
   do {
     ++j;
     bo = 0;
-    for (unsigned i = 0; i < lc.n; ++i)
-      if (lc.p[i].sf == j || lc.p[i].sb == j) {
+    for (unsigned i = 0; i < lc.size(); ++i)
+      if (lc[i].sf == j || lc[i].sb == j) {
         ++bo;
         break;
       }
@@ -58,24 +58,24 @@ int edAllocSector() {
 }
 
 void edSelectSector(int s, int o) {
-  for (unsigned i = 0; i < lc.n; ++i) {
-    if (lc.p[i].sf == s) {
+  for (unsigned i = 0; i < lc.size(); ++i) {
+    if (lc[i].sf == s) {
       if (o)
         grSetColor(253);
-      else if (lc.p[i].sf && lc.p[i].sb)
+      else if (lc[i].sf && lc[i].sb)
         grSetColor(76);
       else
         grSetColor(255);
-      edVector(vc[lc.p[i].a].x, vc[lc.p[i].a].y, vc[lc.p[i].b].x, vc[lc.p[i].b].y);
+      edVector(vc[lc[i].a].x, vc[lc[i].a].y, vc[lc[i].b].x, vc[lc[i].b].y);
     }
-    if (lc.p[i].sb == s) {
+    if (lc[i].sb == s) {
       if (o)
         grSetColor(253);
-      else if (lc.p[i].sf && lc.p[i].sb)
+      else if (lc[i].sf && lc[i].sb)
         grSetColor(76);
       else
         grSetColor(255);
-      edVector(vc[lc.p[i].b].x, vc[lc.p[i].b].y, vc[lc.p[i].a].x, vc[lc.p[i].a].y);
+      edVector(vc[lc[i].b].x, vc[lc[i].b].y, vc[lc[i].a].x, vc[lc[i].a].y);
     }
   }
 }
@@ -98,7 +98,7 @@ void edMouseButtonSector(int mx, int my, int button) {
           ss = edAllocSector();
         }
       } else if (tmpline.b != -1 && tmpline.b != tmpline.a) {
-        line_t *p = edGetLine(tmpline.a, tmpline.b);
+        Line* p = edGetLine(tmpline.a, tmpline.b);
         if (p != NULL) {
           if (p->sf != ss && p->sb != ss) {
             if (p->a == tmpline.a)
@@ -164,10 +164,10 @@ void edMouseMotionSector(int mx, int my, int umx, int umy) {
     }
   } else if (!(m & KMOD_SHIFT)) {
     int s;
-    line_t *min = NULL;
-    for (unsigned i = 0; i < lc.n; ++i) {
-      lc.p[i].md = pszt(vc[lc.p[i].a], vc[lc.p[i].b], umx, umy);
-      if (min == NULL || lc.p[i].md < min->md) min = lc.p + i;
+    Line* min = 0;
+    for (unsigned i = 0; i < lc.size(); ++i) {
+      lc[i].md = pszt(vc[lc[i].a], vc[lc[i].b], umx, umy);
+      if (min == NULL || lc[i].md < min->md) min = &lc.at(i);
     }
     if (min != NULL) {
       int dx1 = vc[min->b].x - vc[min->a].x;

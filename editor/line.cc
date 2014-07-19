@@ -5,49 +5,42 @@
 #include "gr.h"
 #include "ed.h"
 
-lc_t lc;
-line_t *sl = NULL, tmpline;
+Lines lc;
+Line* sl = 0, tmpline;
 
-line_t *edGetLine(int a, int b) {
-  for (unsigned i = 0; i < lc.n; ++i)
-    if ((lc.p[i].a == a && lc.p[i].b == b) || (lc.p[i].a == b && lc.p[i].b == a))
-      return lc.p + i;
-  return NULL;
+Line* edGetLine(int a, int b) {
+  for (unsigned i = 0; i < lc.size(); ++i)
+    if ((lc[i].a == a && lc[i].b == b) || (lc[i].a == b && lc[i].b == a))
+      return &lc.at(i);
+  return 0;
 }
 
-line_t *edAddLine(int a, int b, int sf, int sb, int u, int v, int flags, int tf, int tb, int du) {
-  line_t *p = edGetLine(a, b);
-  if (p != NULL || a == b) return p;
-  if (lc.n == lc.alloc) {
-    lc.alloc *= 2;
-    line_t *p = (line_t *)malloc(lc.alloc * sizeof(line_t));
-    if (p == NULL) return p;
-    unsigned i;
-    for (i = 0; i < lc.n; ++i)
-      p[i] = lc.p[i];
-    if (sl != NULL) sl += p - lc.p;
-    free(lc.p);
-    lc.p = p;
-  }
-  lc.p[lc.n].a = a;
-  lc.p[lc.n].b = b;
-  lc.p[lc.n].sf = sf;
-  lc.p[lc.n].sb = sb;
-  lc.p[lc.n].u = u;
-  lc.p[lc.n].v = v;
-  lc.p[lc.n].flags = flags;
-  lc.p[lc.n].tf = tf;
-  lc.p[lc.n].tb = tb;
-  lc.p[lc.n].du = du;
-  ++lc.n;
-  return lc.p + lc.n - 1;
+Line* edAddLine(int a, int b, int sf, int sb, int u, int v, int flags, int tf, int tb, int du) {
+  Line* p = edGetLine(a, b);
+  if (p || a == b) return p;
+  Line l;
+  l.a = a;
+  l.b = b;
+  l.sf = sf;
+  l.sb = sb;
+  l.u = u;
+  l.v = v;
+  l.flags = flags;
+  l.tf = tf;
+  l.tb = tb;
+  l.du = du;
+  const int selected = sl ? (sl - &lc.front()) : -1;
+  lc.push_back(l);
+  sl = (selected >= 0) ? &lc.at(selected) : 0;
+  return &lc.back();
 }
 
-void edDelLine(line_t *p) {
-  unsigned i = p - lc.p;
-  if (p == NULL || i > lc.n) return;
-  lc.p[i] = lc.p[--lc.n];
-  sl = NULL;
+void edDelLine(Line* p) {
+  unsigned i = p - &lc.front();
+  if (!p || i >= lc.size()) return;
+  lc[i] = lc.back();
+  lc.pop_back();
+  sl = 0;
 }
 
 void edMouseButtonLine(int mx, int my, int button) {
@@ -59,7 +52,7 @@ void edMouseButtonLine(int mx, int my, int button) {
         tmpline.a = sv - &vc.front();
         tmpline.b = -1;
       } else if (tmpline.b != -1 && tmpline.b != tmpline.a) {
-        edAddLine(tmpline.a, tmpline.b, 0, 0, 0, 0, LF_NOTHING, 0, 0, 0);
+        edAddLine(tmpline.a, tmpline.b, 0, 0, 0, 0, Line::Flag::NOTHING, 0, 0, 0);
         grBegin();
         grSetColor(255);
         edVector(vc[tmpline.a].x, vc[tmpline.a].y, vc[tmpline.b].x, vc[tmpline.b].y);
@@ -112,10 +105,10 @@ void edMouseMotionLine(int mx, int my, int umx, int umy) {
       grEnd();
     }
   } else {
-    line_t *min = NULL;
-    for (unsigned i = 0; i < lc.n; ++i) {
-      lc.p[i].md = pszt(vc[lc.p[i].a], vc[lc.p[i].b], umx, umy);
-      if (min == NULL || lc.p[i].md < min->md) min = lc.p + i;
+    Line* min = 0;
+    for (unsigned i = 0; i < lc.size(); ++i) {
+      lc[i].md = pszt(vc[lc[i].a], vc[lc[i].b], umx, umy);
+      if (min == NULL || lc[i].md < min->md) min = &lc.at(i);
     }
     if ((min != NULL || sl != NULL) && min != sl) {
       grBegin();
@@ -137,7 +130,7 @@ void edMouseMotionLine(int mx, int my, int umx, int umy) {
         const int dy = vc[min->b].y - vc[min->a].y;
         const int i = min->u + sqrtf(dx * dx + dy * dy) + min->du;
         grprintf("line #%04d - u:%02d:%02d (%02d) v:%02d tf:%03x:%03x:%03x tb:%03x:%03x:%03x",
-          min - lc.p, min->u, i, i & 0x3f, min->v,
+          min - &lc.front(), min->u, i, i & 0x3f, min->v,
           (min->tf >> 20) & 0x3ff, (min->tf >> 10) & 0x3ff, min->tf & 0x3ff,
           (min->tb >> 20) & 0x3ff, (min->tb >> 10) & 0x3ff, min->tb & 0x3ff);
       }
@@ -172,11 +165,11 @@ void edKeyboardLine(int key) {
         ++sl->du;
         break;
       case SDLK_f: {
-        int c;
-        c = sl->a, sl->a = sl->b, sl->b = c;
-        c = sl->sb, sl->sb = sl->sf, sl->sf = c;
-        c = sl->tb, sl->tb = sl->tf, sl->tf = c;
-        line_t *tmp = sl;
+        using std::swap;
+		swap(sl->a, sl->b);
+		swap(sl->sf, sl->sb);
+		swap(sl->tf, sl->tb);
+        Line* tmp = sl;
         edScreen();
         sl = tmp;
         break;
@@ -250,10 +243,9 @@ void edKeyboardLine(int key) {
     int dy = vc[sl->b].y - vc[sl->a].y;
     i = sl->u + sqrtf(dx * dx + dy * dy) + sl->du;
     grprintf("line #%04d - u:%02d:%02d (%02d) v:%02d tf:%03x:%03x:%03x tb:%03x:%03x:%03x",
-      sl - lc.p, sl->u, i, i & 0x3f, sl->v,
+      sl - &lc.front(), sl->u, i, i & 0x3f, sl->v,
       (sl->tf >> 20) & 0x3ff, (sl->tf >> 10) & 0x3ff, sl->tf & 0x3ff,
       (sl->tb >> 20) & 0x3ff, (sl->tb >> 10) & 0x3ff, sl->tb & 0x3ff);
     edStEnd();
   }
 }
-

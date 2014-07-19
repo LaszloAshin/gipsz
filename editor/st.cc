@@ -356,7 +356,7 @@ int stGetVertex(Vertex *v) {
   return !0;
 }
 
-int stPutLine(line_t *l) {
+int stPutLine(Line* l) {
   if (flc.n == flc.alloc) {
     unsigned na = flc.alloc * 2;
     fline_t *p = (fline_t *)malloc(na * sizeof(fline_t));
@@ -379,7 +379,7 @@ int stPutLine(line_t *l) {
   return flc.n++;
 }
 
-int stGetLine(line_t *l) {
+int stGetLine(Line* l) {
   if (flc.r == flc.n) {
     flc.r = 0;
     return 0;

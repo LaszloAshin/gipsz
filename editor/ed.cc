@@ -173,26 +173,26 @@ void edScreen() {
       for (unsigned i = 0; i < vc.size(); ++i)
         edVertex(vc[i].x, vc[i].y);
       grSetColor(78);
-      for (unsigned i = 0; i < lc.n; ++i)
-        if (!lc.p[i].sf && !lc.p[i].sb)
-          edLine(vc[lc.p[i].a].x, vc[lc.p[i].a].y, vc[lc.p[i].b].x, vc[lc.p[i].b].y);
+      for (unsigned i = 0; i < lc.size(); ++i)
+        if (!lc[i].sf && !lc[i].sb)
+          edLine(vc[lc[i].a].x, vc[lc[i].a].y, vc[lc[i].b].x, vc[lc[i].b].y);
       {
         int i = 0;
-        for (unsigned j = 0; j < lc.n; ++j) {
-          if (lc.p[j].sf > i) i = lc.p[j].sf;
-          if (lc.p[j].sb > i) i = lc.p[j].sb;
+        for (unsigned j = 0; j < lc.size(); ++j) {
+          if (lc[j].sf > i) i = lc[j].sf;
+          if (lc[j].sb > i) i = lc[j].sb;
         }
         for (; i; --i) edSelectSector(i, 0);
       }
       break;
     case MD_OBJECT:
       grSetColor(78);
-      for (unsigned i = 0; i < lc.n; ++i) {
-        if (lc.p[i].sf && lc.p[i].sb) /* 2 sided */
+      for (unsigned i = 0; i < lc.size(); ++i) {
+        if (lc[i].sf && lc[i].sb) /* 2 sided */
           grSetColor(76);
         else
           grSetColor(255);
-        edLine(vc[lc.p[i].a].x, vc[lc.p[i].a].y, vc[lc.p[i].b].x, vc[lc.p[i].b].y);
+        edLine(vc[lc[i].a].x, vc[lc[i].a].y, vc[lc[i].b].x, vc[lc[i].b].y);
       }
       for (unsigned i = 0; i < oc.n; ++i) {
         edGetObjectProperties(oc.p[i].what, &r, &c);
@@ -203,12 +203,12 @@ void edScreen() {
       grSetColor(255);
       for (unsigned i = 0; i < vc.size(); ++i)
         edVertex(vc[i].x, vc[i].y);
-      for (unsigned i = 0; i < lc.n; ++i) {
-        if (lc.p[i].sf && lc.p[i].sb) /* 2 sided */
+      for (unsigned i = 0; i < lc.size(); ++i) {
+        if (lc[i].sf && lc[i].sb) /* 2 sided */
           grSetColor(76);
         else
           grSetColor(255);
-        edVector(vc[lc.p[i].a].x, vc[lc.p[i].a].y, vc[lc.p[i].b].x, vc[lc.p[i].b].y);
+        edVector(vc[lc[i].a].x, vc[lc[i].a].y, vc[lc[i].b].x, vc[lc[i].b].y);
       }
   }
   grSetViewPort(0, 0, 0, 0);
@@ -225,8 +225,8 @@ void edScreen() {
 
 void edSave() {
   stOpen();
-  for (unsigned i = 0; i < vc.size(); ++i) stPutVertex(&vc.front() + i);
-  for (unsigned i = 0; i < lc.n; ++i) stPutLine(lc.p + i);
+  for (unsigned i = 0; i < vc.size(); ++i) stPutVertex(&vc.at(i));
+  for (unsigned i = 0; i < lc.size(); ++i) stPutLine(&lc.at(i));
   for (unsigned i = 1; i < sc.alloc; ++i) stPutSector(i, sc.p + i);
   for (unsigned i = 0; i < oc.n; ++i) stPutObject(oc.p + i);
   stWrite("map.st");
@@ -236,13 +236,13 @@ void edSave() {
 void edLoad() {
   int n;
   Vertex v;
-  line_t l;
+  Line l;
   sector_t s;
   object_t o;
 
   stRead("map.st");
   vc.clear();
-  lc.n = 0;
+  lc.clear();
   oc.n = 0;
   for (unsigned i = 0; i < sc.alloc; ++i) {
     sc.p[i].c = sc.p[i].f = sc.p[i].l = 0;
@@ -284,12 +284,12 @@ void edBuildBSP() {
   edSave();
   bspInit();
   int s = 0;
-  for (unsigned i = 0; i < lc.n; ++i) {
-    if (lc.p[i].sf > s) s = lc.p[i].sf;
-    if (lc.p[i].sb > s) s = lc.p[i].sb;
+  for (unsigned i = 0; i < lc.size(); ++i) {
+    if (lc[i].sf > s) s = lc[i].sf;
+    if (lc[i].sb > s) s = lc[i].sb;
   }
   for (int j = s; j; --j)
-    for (line_t *l = lc.p; l < lc.p + lc.n; ++l) {
+    for (Lines::iterator l(lc.begin()); l != lc.end(); ++l) {
       int in = sc.p[j].f < sc.p[j].c;
       if (l->sf == j)
         bspAddLine(j, vc[l->a].x, vc[l->a].y, vc[l->b].x, vc[l->b].y,
@@ -352,10 +352,6 @@ void edInit() {
   sx = -x;
   sy = -y;
 
-  lc.alloc = 8;
-  lc.p = (line_t *)malloc(lc.alloc * sizeof(line_t));
-  lc.n = 0;
-
   sc.alloc = 2;
   sc.p = (sector_t *)malloc(sc.alloc * sizeof(sector_t));
   for (unsigned i = 0; i < sc.alloc; ++i) sc.p[i].f = sc.p[i].c = sc.p[i].l = 0;
@@ -373,7 +369,6 @@ void edDone() {
   edSave();
   free(oc.p);
   free(sc.p);
-  free(lc.p);
 }
 
 void edKeyboard(int key) {

@@ -13,8 +13,8 @@ void stClose();
 
 int stPutVertex(Vertex* v);
 int stGetVertex(Vertex* v);
-int stPutLine(line_t *l);
-int stGetLine(line_t *l);
+int stPutLine(Line* l);
+int stGetLine(Line* l);
 int stPutSector(int n, sector_t *s);
 int stGetSector(int *n, sector_t *s);
 int stPutObject(object_t *o);

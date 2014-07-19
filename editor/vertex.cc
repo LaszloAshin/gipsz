@@ -8,9 +8,9 @@ Vertexes vc;
 Vertex* sv = 0;
 
 Vertex* edAddVertex(int x, int y) {
-  const int selected = sv ? sv - &vc.front() : -1;
+  const int selected = sv ? (sv - &vc.front()) : -1;
   vc.push_back(Vertex(x, y));
-  sv = (selected >= 0) ? &vc.front() + selected : 0;
+  sv = (selected >= 0) ? &vc.at(selected) : 0;
   return &vc.back();
 }
 
@@ -23,18 +23,19 @@ Vertex *edGetVertex(int x, int y) {
 
 void edDelVertex(Vertex *p) {
   const unsigned i = p - &vc.front();
-  if (p == NULL || i >= vc.size()) return;
-  for (unsigned j = 0; j < lc.n; ++j)
-    if (lc.p[j].a == (int)i || lc.p[j].b == (int)i) {
-      lc.p[j] = lc.p[--lc.n];
-      sl = NULL;
+  if (!p || i >= vc.size()) return;
+  for (unsigned j = 0; j < lc.size(); ++j)
+    if (lc[j].a == (int)i || lc[j].b == (int)i) {
+      lc[j] = lc.back();
+	  lc.pop_back();
+      sl = 0;
       --j;
     }
-  vc[i] = vc[vc.size() - 1];
-  vc.resize(vc.size() - 1);
-  for (unsigned j = 0; j < lc.n; ++j) {
-    if (lc.p[j].a == (int)vc.size()) lc.p[j].a = i;
-    if (lc.p[j].b == (int)vc.size()) lc.p[j].b = i;
+  vc[i] = vc.back();
+  vc.pop_back();
+  for (unsigned j = 0; j < lc.size(); ++j) {
+    if (lc[j].a == (int)vc.size()) lc[j].a = i;
+    if (lc[j].b == (int)vc.size()) lc[j].b = i;
   }
   sv = 0;
 }
