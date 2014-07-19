@@ -17,6 +17,9 @@ editor_OBJECTS := $(addprefix $Od/editor/,$(addsuffix .o,$(basename $(editor_SOU
 $Oeditor: $(editor_OBJECTS)
 	$(call link-executable-steps)
 
-all: $Oeditor
+.PHONY: editor
+editor: $Oeditor
+
+all: editor
 
 C += $Oeditor* $Od/editor

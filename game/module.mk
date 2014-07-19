@@ -27,6 +27,9 @@ $Ogame: LDLIBS += -lGL
 $Ogame: $(game_OBJECTS)
 	$(call link-executable-steps)
 
-all: $Ogame
+.PHONY: game
+game: $Ogame
+
+all: game
 
 C += $Ogame* $Od/game
