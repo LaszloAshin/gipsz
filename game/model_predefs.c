@@ -82,14 +82,14 @@ void modelCreateTorus(model_t *m, float r, int step) {
   }
   int i, j, n = 0;
   for (i = 0; i <= step; ++i) {
-    float alpha = 6.2832 * i / step;
+    float alpha = (2.0f * M_PI) * i / step;
     for (j = 0; j <= s2; ++j) {
-      float beta = 6.2832 * j / s2;
+      float beta = (2.0f * M_PI) * j / s2;
       m->vp[n].x = (r + r2 * sinf(beta)) * cosf(alpha);
       m->vp[n].y = (r + r2 * sinf(beta)) * sinf(alpha);
       m->vp[n].z = r2 * cosf(beta);
-      m->vp[n].s = 1.0 / 6.2832 * alpha;
-      m->vp[n].t = 1.0 / 6.2832 * beta;
+      m->vp[n].s = 1.0 / (2.0f * M_PI) * alpha;
+      m->vp[n].t = 1.0 / (2.0f * M_PI) * beta;
       ++n;
     }
   }
@@ -130,14 +130,14 @@ void modelCreateSphere(model_t *m, float r, int step) {
   }
   n = 0;
   for (i = 0; i <= step; ++i) {
-    alpha = 6.2832 * i / step;
+    alpha = (2.0f * M_PI) * i / step;
     for (j = 0; j <= step; ++j) {
-      beta = 3.1416 * j / step;
+      beta = M_PI * j / step;
       m->vp[n].x = r * cosf(alpha) * sinf(beta);
       m->vp[n].y = r * sinf(alpha) * sinf(beta);
       m->vp[n].z = r * cosf(beta);
-      m->vp[n].s = 1.0 / 6.2832 * alpha;
-      m->vp[n].t = 1.0 / 3.1416 * beta;
+      m->vp[n].s = 1.0 / (2.0f * M_PI) * alpha;
+      m->vp[n].t = 1.0 / M_PI * beta;
       ++n;
     }
   }
@@ -178,13 +178,13 @@ void modelCreateTube(model_t *m, float r, float l, int step) {
   }
   n = 0;
   for (i = 0; i <= step; ++i) {
-    alpha = 6.2832 * i / step;
+    alpha = (2.0f * M_PI) * i / step;
     for (j = 0; j <= 1; ++j) {
       m->vp[n].x = r * cosf(alpha);
       m->vp[n].y = r * sinf(alpha);
       m->vp[n].z = l * (0.5 - j);
       m->vp[n].s = l * j / 64.0;
-      m->vp[n].t = 1.0 / 6.2832 * alpha;
+      m->vp[n].t = 1.0 / (2.0f * M_PI) * alpha;
       ++n;
     }
   }
@@ -223,14 +223,14 @@ void modelCreateElbow(model_t *m, float r2, float r, int step) {
   }
   n = 0;
   for (i = 0; i <= step; ++i) {
-    alpha = 1.5708 * i / step;
+    alpha = (M_PI / 2.0f) * i / step;
     for (j = 0; j <= step; ++j) {
-      beta = 6.2832 * j / step;
+      beta = (2.0f * M_PI) * j / step;
       m->vp[n].x = (r + r2 * sinf(beta)) * cosf(alpha);
       m->vp[n].y = (r + r2 * sinf(beta)) * sinf(alpha);
       m->vp[n].z = r2 * cosf(beta);
-      m->vp[n].s = 1.0 / 1.5708 * alpha;
-      m->vp[n].t = 1.0 / 6.2832 * beta;
+      m->vp[n].s = 1.0 / (M_PI / 2.0f) * alpha;
+      m->vp[n].t = 1.0 / (2.0f * M_PI) * beta;
       ++n;
     }
   }
