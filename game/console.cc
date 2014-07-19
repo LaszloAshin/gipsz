@@ -12,6 +12,8 @@
 #include "tx2.h"
 #include "ogl.h"
 
+#include <vector>
+
 static constate_t conState = CON_INACTIVE;
 static double conPos = 0.0;
 static double conSize = 1.0;
@@ -92,7 +94,7 @@ void cmsg(msglev_t lev, const char *fmt, ...) {
   va_end(va);
   buf[CPRINTFLEN] = '\0';
   conWrite(buf);
-  recmsg_t *rm = mmAlloc(sizeof(recmsg_t));
+  recmsg_t *rm = static_cast<recmsg_t*>(mmAlloc(sizeof(recmsg_t)));
   if (rm == NULL) return;
   rm->time = SDL_GetTicks();
   strncpy(rm->msg, buf, 120);
@@ -227,15 +229,16 @@ void conExec(const char *cmd) {
       cmsg(MLERR, "parse error: open escape");
       return;
     }
-    char *argv[argc], *r;
+    char *r;
+	std::vector<char*> argv(argc);
     n = 0;
     argv[n++] = buf;
     for (r = buf; n < argc; ++r) if (!*r) argv[n++] = ++r;
-    cmdfunc_t func = cmdGetFunc(*argv);
+    cmdfunc_t func = cmdGetFunc(argv.at(0));
     if (func != NULL) {
-      retval = func(argc, argv);
+      retval = func(argc, &argv.front());
     } else {
-      cmsg(MLERR, "%s: command not found", argv[0]);
+      cmsg(MLERR, "%s: command not found", argv.at(0));
       retval = -1;
     }
   } while (iter);

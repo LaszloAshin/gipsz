@@ -7,7 +7,7 @@ typedef enum {
   CON_INACTIVE,
   CON_OPENING,
   CON_ACTIVE,
-  CON_CLOSING,
+  CON_CLOSING
 } constate_t;
 
 typedef enum { MLERR, MLWARN, MLINFO, MLHINT, MLDBG } msglev_t;

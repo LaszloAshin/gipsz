@@ -17,7 +17,7 @@ static int r_drawwalls = 1;
 static void
 rSetVisible(node_t *n, nodeflag_t vis)
 {
-  n->flags = (n->flags & ~NF_VISIBLE) | (vis & NF_VISIBLE);
+  n->flags = nodeflag_t((n->flags & ~NF_VISIBLE) | (vis & NF_VISIBLE));
   if (n->l != NULL) rSetVisible(n->l, vis);
   if (n->r != NULL) rSetVisible(n->r, vis);
 }
@@ -38,7 +38,7 @@ rSeeThrough(node_t *n, int i)
 static void
 rTraceNode(node_t *n)
 {
-  n->flags |= NF_VISIBLE;
+  n->flags = nodeflag_t(n->flags | NF_VISIBLE);
   for (unsigned i = 0; i < n->n; ++i) {
     vertex_t a = vc.p[n->p[i].a];
     vertex_t b = vc.p[n->p[i].b];
@@ -58,7 +58,7 @@ rSearchOutsiders(node_t *n)
   if (n->s != NULL && n->s->f < n->s->c) return;
   if (n->l != NULL) rSearchOutsiders(n->l);
   if (n->r != NULL) rSearchOutsiders(n->r);
-  if (n->ow != NULL && n->ow->flags & NF_VISIBLE) n->flags |= NF_VISIBLE;
+  if (n->ow != NULL && n->ow->flags & NF_VISIBLE) n->flags = nodeflag_t(n->flags | NF_VISIBLE);
 }
 
 static void
@@ -68,7 +68,7 @@ rSpreadVisibility(node_t *n)
   if (n->r != NULL) rSpreadVisibility(n->r);
   if ((n->l != NULL && (n->l->flags & NF_VISIBLE)) ||
       (n->r != NULL && (n->r->flags & NF_VISIBLE))) {
-    n->flags |= NF_VISIBLE;
+    n->flags = nodeflag_t(n->flags | NF_VISIBLE);
   }
 }
 

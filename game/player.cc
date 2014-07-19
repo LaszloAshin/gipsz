@@ -231,9 +231,7 @@ void plUpdate() {
 }
 
 static void rFovSet(void *addr) {
-  float *d;
-  
-  d = addr;
+  float *d = reinterpret_cast<float*>(addr);
   if (*d > 120.0) {
     cmsg(MLWARN, "maximal value is 120.0, clamped");
     *d = 120.0;

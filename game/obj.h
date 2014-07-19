@@ -3,9 +3,11 @@
 
 #include <stdio.h>
 
+struct Obj;
+
 void objUpdate();
-void *objGetForName(int name);
-void *objAdd(int name, int modelname, float x, float y, float z);
+Obj *objGetForName(int name);
+Obj *objAdd(int name, int modelname, float x, float y, float z);
 void objDrawObjects();
 int objInit();
 void objFlush();

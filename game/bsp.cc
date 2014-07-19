@@ -279,7 +279,7 @@ bspReadLine(line_t *l, FILE *f)
   if (rd != sizeof(buf)) return -1;
   l->a = *(short *)p;
   l->b = *(short *)(p + 2);
-  l->flags = p[4];
+  l->flags = lineflag_t(p[4]);
   l->u1 = (double)(*(unsigned short *)(p + 5)) * 1.0f / 64.0f;
   l->u2 = (double)(*(unsigned short *)(p + 7)) * 1.0f / 64.0f;
   l->v = *(unsigned short *)(p + 9);

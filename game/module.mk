@@ -1,23 +1,23 @@
 # game/module.mk
 
 game_SOURCES := \
-	bbox.c \
-	bsp.c \
-	cmd.c \
-	console.c \
-	game.c \
-	input.c \
-	main.c \
-	menu.c \
-	mm.c \
-	model.c \
-	obj.c \
-	ogl.c \
-	player.c \
-	render.c \
-	tex.c \
-	tga.c \
-	tx2.c
+	bbox.cc \
+	bsp.cc \
+	cmd.cc \
+	console.cc \
+	game.cc \
+	input.cc \
+	main.cc \
+	menu.cc \
+	mm.cc \
+	model.cc \
+	obj.cc \
+	ogl.cc \
+	player.cc \
+	render.cc \
+	tex.cc \
+	tga.cc \
+	tx2.cc
 
 game_OBJECTS := $(addprefix $Od/game/,$(addsuffix .o,$(basename $(game_SOURCES))))
 -include $(addsuffix .d,$(basename $(game_OBJECTS)))

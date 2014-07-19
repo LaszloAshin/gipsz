@@ -136,19 +136,19 @@ void texFreeTexture(unsigned id) {
 }
 
 void texImage(int lev, int intfmt, GLsizei w, GLsizei h, GLenum fmt, void *data, int b) {
-  unsigned char *p, *d, *s;
+  unsigned char *p;
   int ls, n, y;
 
-  p = data;
+  p = static_cast<unsigned char*>(data);
   ls = w * b;
   n = (b > 2) ? 8 : 4;
   if (ls < n && h > 1) {
-    p = mmAlloc(h * n);
+    p = static_cast<unsigned char*>(mmAlloc(h * n));
     if (p == NULL) {
-      p = data;
+      p = static_cast<unsigned char*>(data);
     } else {
-      d = p;
-      s = data;
+      unsigned char* d = p;
+      unsigned char* s = static_cast<unsigned char*>(data);
       for (y = h; y; --y) {
         memcpy(d, s, ls);
         d += n;

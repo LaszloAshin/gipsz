@@ -85,7 +85,7 @@ static int mmGetPageForPtr(char *p) {
   return -1;
 }
 
-static void mmInsert(void *p, int size) {
+static void mmInsert(char *p, int size) {
   if (nb == MAX_BLOCKS) {
     printf("mmInsert(): no more blocks\n");
     return;
@@ -99,14 +99,14 @@ static void mmInsert(void *p, int size) {
   if (size) memset(p, 0, size);
 }
 
-static void *mmPageAlloc() {
+static char *mmPageAlloc() {
   int i;
   for (i = 0; i < MAX_PAGES && pgs[i] != NULL; ++i);
   if (i == MAX_PAGES) {
     cmsg(MLERR, "mmPageAlloc: out of pages");
     return NULL; /* no more pages */
   }
-  char *p = malloc(PAGE_SIZE);
+  char *p = static_cast<char*>(malloc(PAGE_SIZE));
   if (p == NULL) {
     cmsg(MLERR, "malloc failed to alloc %d bytes", PAGE_SIZE);
     return NULL; /* no more memory */
@@ -173,7 +173,7 @@ void *mmAlloc(int size) {
 void mmFree(void *p) {
   if (!inited) return;
 //  printf("mmFree(%08x);\n", (int)p);
-  int i = mmGetExactPos(p);
+  int i = mmGetExactPos(static_cast<char*>(p));
   if (i < 0 || !bs[i].size) {
     cmsg(MLERR, "mmFree: given pointer doesnt address an allocated zone (%p)\n", p);
     return;

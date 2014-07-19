@@ -297,7 +297,7 @@ static int cmd_bindlist(int argc, char **argv) {
   (void)argc;
   (void)argv;
   for (unsigned i = 0; i < ac.n; ++i) {
-    char *s = NULL;
+    const char *s = NULL;
     switch (ac.p[i].push) {
       case PT_HOLD:
         s = "hold";

@@ -167,7 +167,7 @@ static void cmdPrintVar(cvar_t *p) {
         cmsg(MLINFO, " %s (%lf)", p->name, *(double *)p->addr);
       break;
     case CVT_STRING: {
-      char *s = p->addr;
+      char *s = static_cast<char*>(p->addr);
       if (s == NULL)
         cmsg(MLINFO, " %s NULL", p->name);
       else if (p->rw)
@@ -255,7 +255,7 @@ static int cmd_set(int argc, char **argv) {
         cmsg(MLERR, "unable to parse \"%s\" as double", argv[2]);
         return !0;
       case CVT_STRING: {
-        char *d = p->addr, *e = d + p->size - 1;
+        char *d = static_cast<char*>(p->addr), *e = d + p->size - 1;
         int i;
         for (i = 2; i < argc && d < e; ++i) {
           char *s = argv[i];

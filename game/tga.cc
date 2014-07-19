@@ -54,22 +54,22 @@ int tgaRead(tgaimage_t *im, const char *fname) {
 
   switch (hd[2] & 0x03) {
     case 0x01:
-      info.imageType = TGA_TYPE_MAPPED;
+      info.imageType = tga_info_s::TGA_TYPE_MAPPED;
       break;
     case 0x02:
-      info.imageType = TGA_TYPE_COLOR;
+      info.imageType = tga_info_s::TGA_TYPE_COLOR;
       break;
     case 0x03:
-      info.imageType = TGA_TYPE_GRAY;
+      info.imageType = tga_info_s::TGA_TYPE_GRAY;
       break;
     default:
       cmsg(MLERR, "unknown image type for '%s'", fname);
       goto exit;
   }
   if (hd[2] & 0x08) {
-    info.imageCompression = TGA_COMP_RLE;
+    info.imageCompression = tga_info_s::TGA_COMP_RLE;
   } else {
-    info.imageCompression = TGA_COMP_NONE;
+    info.imageCompression = tga_info_s::TGA_COMP_NONE;
   }
 
   info.idLength     = hd[0];
@@ -91,19 +91,19 @@ int tgaRead(tgaimage_t *im, const char *fname) {
   info.flipVert  = (hd[17] & 0x20) ? 0 : 1;
 
   switch (info.imageType) {
-    case TGA_TYPE_MAPPED:
+    case tga_info_s::TGA_TYPE_MAPPED:
       if (info.bpp != 8) {
         cmsg(MLERR, "unhandled sub-format in '%s'", fname);
         goto exit;
       }
       break;
-    case TGA_TYPE_COLOR:
+    case tga_info_s::TGA_TYPE_COLOR:
       if (info.bpp != 15 && info.bpp != 16 && info.bpp != 24 && info.bpp != 32) {
         cmsg(MLERR, "unhandled sub-format in '%s'", fname);
         goto exit;
       }
       break;
-    case TGA_TYPE_GRAY:
+    case tga_info_s::TGA_TYPE_GRAY:
       if (info.bpp != 8 && (info.alphaBits != 8 || (info.bpp != 15 && info.bpp != 16))) {
         cmsg(MLERR, "unhandled sub-format in '%s' %d %d", fname, info.bpp, info.alphaBits);
         goto exit;
@@ -116,10 +116,10 @@ int tgaRead(tgaimage_t *im, const char *fname) {
     goto exit;
   }
 
-  if (info.imageType == TGA_TYPE_MAPPED && info.colorMapType != 1) {
+  if (info.imageType == tga_info_s::TGA_TYPE_MAPPED && info.colorMapType != 1) {
     cmsg(MLERR, "indexed image has invalid color map type %d", info.colorMapType);
     goto exit;
-  } else if (info.imageType != TGA_TYPE_MAPPED && info.colorMapType != 0) {
+  } else if (info.imageType != tga_info_s::TGA_TYPE_MAPPED && info.colorMapType != 0) {
     cmsg(MLERR, "Non-indexed image has invalid color map type %d", info.colorMapType);
     goto exit;
   }
@@ -132,7 +132,7 @@ int tgaRead(tgaimage_t *im, const char *fname) {
     im->width = info.width;
     im->height = info.height;
     im->bytes = info.bytes;
-    im->data = p;
+    im->data = static_cast<unsigned char*>(p);
     ++ret;
   }
  exit:
@@ -237,10 +237,10 @@ static int rle_read(unsigned char *buf, int width, int bytes, FILE *fp) {
 
 static void ReadLine(FILE *fp, tga_info_t *info, unsigned char *row, unsigned char *cmap) {
   switch (info->imageCompression) {
-    case TGA_COMP_NONE:
+    case tga_info_s::TGA_COMP_NONE:
       fread(row, info->width, info->bytes, fp);
       break;
-    case TGA_COMP_RLE:
+    case tga_info_s::TGA_COMP_RLE:
       rle_read(row, info->width, info->bytes, fp);
       break;
   }
@@ -248,17 +248,17 @@ static void ReadLine(FILE *fp, tga_info_t *info, unsigned char *row, unsigned ch
     /* TODO: flip line */
   }
   switch (info->imageType) {
-    case TGA_TYPE_MAPPED:
+    case tga_info_s::TGA_TYPE_MAPPED:
       unmap(row, info->width, info->alphaBits, cmap, info->colorMapSize);
       break;
-    case TGA_TYPE_COLOR:
+    case tga_info_s::TGA_TYPE_COLOR:
       if (info->bpp == 15 || info->bpp == 16) {
         upsample(row, info->width, info->alphaBits);
       } else {
         bgr2rgb(row, info->width, info->bytes);
       }
       break;
-    case TGA_TYPE_GRAY:
+    case tga_info_s::TGA_TYPE_GRAY:
       /* gray images can go */
       break;
   }
@@ -291,23 +291,23 @@ static void *ReadImage(FILE *fp, tga_info_t *info, const char *fname) {
   }
 
   switch (info->imageType) {
-    case TGA_TYPE_MAPPED:
+    case tga_info_s::TGA_TYPE_MAPPED:
       destbytes = (info->colorMapSize + 7) / 8;
       if (info->alphaBits) destbytes += 1;
 //      printf("cms %d %d %d\n", destbytes, info->colorMapSize, info->alphaBits);
       break;
-    case TGA_TYPE_COLOR:
-    case TGA_TYPE_GRAY:
+    case tga_info_s::TGA_TYPE_COLOR:
+    case tga_info_s::TGA_TYPE_GRAY:
       destbytes = info->bytes;
       break;
     default:
       cmsg(MLERR, "unknown image type for '%s'", fname);
       return NULL;
   }
-  img = mmAlloc(info->width * info->height * destbytes);
+  img = static_cast<unsigned char*>(mmAlloc(info->width * info->height * destbytes));
   if (img == NULL) return img;
 
-  if (info->imageCompression == TGA_COMP_RLE) rle_read(NULL, 0, 0, NULL);
+  if (info->imageCompression == tga_info_s::TGA_COMP_RLE) rle_read(NULL, 0, 0, NULL);
   if (info->flipVert) {
     row = img + info->width * (info->height - 1) * destbytes;
     for (i = info->height; i; --i) {

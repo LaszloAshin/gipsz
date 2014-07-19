@@ -19,12 +19,12 @@ typedef struct {
   int a, b, c;
 } tri_t;
 
-typedef struct {
+typedef struct Stat {
   float beta, gamma;
   float alpha;
 } stat_t;
 
-typedef struct {
+typedef struct Model {
   int name;
   int nverts;
   int ntris;
@@ -39,9 +39,9 @@ static struct {
   int alloc, n;
 } mc;
 
-#include "model_predefs.c"
+#include "model_predefs.cc"
 
-void *modelGetForName(int name) {
+model_t *modelGetForName(int name) {
   if (!name) return NULL;
   int i;
   for (i = 0; i < mc.n; ++i)
@@ -49,7 +49,7 @@ void *modelGetForName(int name) {
   return NULL;
 }
 
-void modelComputeNormals(model_t *m) {
+static void modelComputeNormals(model_t *m) {
   int *map;
   int i, j;
   struct n_s { float x, y, z; } *n;
@@ -128,7 +128,7 @@ void modelComputeNormals(model_t *m) {
   mmFree(n);
 }
 
-void *modelAdd(int name) {
+Model *modelAdd(int name) {
   if (!name) return NULL;
   model_t *p = modelGetForName(name);
   if (p != NULL) return NULL;
@@ -187,16 +187,16 @@ void *modelAdd(int name) {
   return p;
 }
 
-void *modelInitStat(void *mp) {
+Stat *modelInitStat(void *mp) {
   (void)mp;
   int s = sizeof(stat_t);
-  stat_t *p = mmAlloc(s);
+  stat_t *p = static_cast<stat_t*>(mmAlloc(s));
   if (p == NULL) return p;
   memset(p, 0, s);
   return p;
 }
 
-void modelSetStatAngle(void *sp, float a, float b, float c) {
+void modelSetStatAngle(Stat *sp, float a, float b, float c) {
   stat_t *s = sp;
 
   s->alpha = a;
@@ -217,7 +217,7 @@ void modelUpdate(void *mp, void *sp) {
   }*/
 }
 
-void modelDraw(void *mp, void *sp) {
+void modelDraw(Model *mp, Stat *sp) {
   model_t *m = mp;
   stat_t *s = sp;
   float ma[16];

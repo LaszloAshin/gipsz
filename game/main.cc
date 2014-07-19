@@ -122,7 +122,7 @@ static void Draw() {
   texUpdate();
   conBegin();
   if (gIsEnabled()) {
-    gDraw(mx, my);
+    gDraw();
   } else {
     glClearColor(0.0, 0.0, 0.0, 0.0);
     glClear(GL_COLOR_BUFFER_BIT);

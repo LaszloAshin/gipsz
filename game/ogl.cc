@@ -16,12 +16,12 @@ static const struct {
   { "GL_ARB_texture_cube_map", NULL },
   { "GL_ARB_texture_env_combine", NULL },
   { "GL_ARB_texture_env_dot3", NULL },
-  { NULL }
+  { 0, 0 }
 };
 
 static void oglDisableExt(const char *ext) {
   int i;
-  void **p = (void *)&gl;
+  void **p = reinterpret_cast<void**>(&gl);
   for (i = 0; extfuncs[i].ext != NULL; ++i, ++p)
     if (ext == extfuncs[i].ext) *p = NULL;
 }
@@ -29,7 +29,7 @@ static void oglDisableExt(const char *ext) {
 static void oglPrintExtUsage() {
   int i;
   const char *last = NULL;
-  void **p = (void *)&gl;
+  void **p = reinterpret_cast<void**>(&gl);
 
   cmsg(MLINFO, "detecting OpenGL extensions");
   for (i = 0; extfuncs[i].ext != NULL; ++i, ++p) {
@@ -48,11 +48,11 @@ void oglInitProcs() {
   int i;
   const char *exts = (char *)glGetString(GL_EXTENSIONS), *last = NULL;
   int lastvalid = 0;
-  void **p = (void *)&gl;
+  void **p = reinterpret_cast<void**>(&gl);
   for (i = 0; extfuncs[i].ext != NULL; ++i, ++p) {
     if (extfuncs[i].ext != last) {
       last = extfuncs[i].ext;
-      char *s = strstr(exts, last);
+      const char *s = strstr(exts, last);
       lastvalid = s != NULL && s[strlen(last)] <= 32;
     }
     if (lastvalid) {

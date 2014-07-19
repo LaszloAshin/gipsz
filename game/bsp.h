@@ -27,7 +27,7 @@ typedef enum {
   LF_TWOSIDED		= 0x0001,
   LF_TOPSTART		= 0x0002,
   LF_BOTTOMSTART	= 0x0004,
-  LF_BLOCK		= 0x0008,
+  LF_BLOCK		= 0x0008
 } lineflag_t;
 
 typedef struct {
@@ -41,7 +41,7 @@ typedef struct {
 
 typedef enum {
   NF_NOTHING	= 0x00,
-  NF_VISIBLE	= 0x01,
+  NF_VISIBLE	= 0x01
 } nodeflag_t;
 
 typedef struct node_s {

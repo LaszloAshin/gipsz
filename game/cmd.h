@@ -13,7 +13,7 @@ typedef enum {
   CVT_FLOAT,
   CVT_DOUBLE,
   CVT_STRING,
-  CVT_LIST,
+  CVT_LIST
 } cvartype_t;
 
 int cmdAddCommand(const char *name, cmdfunc_t func);

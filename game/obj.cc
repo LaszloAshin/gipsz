@@ -8,11 +8,11 @@
 
 #include <math.h>
 
-typedef struct {
+typedef struct Obj {
   int name;
   float x, y, z;
-  void *model;
-  void *stat;
+  Model *model;
+  Stat *stat;
   node_t *node;
 } obj_t;
 
@@ -21,7 +21,7 @@ static struct {
   int alloc, n;
 } oc;
 
-void *objGetForName(int name) {
+Obj *objGetForName(int name) {
   if (!name) return NULL;
   int i;
   for (i = 0; i < oc.n; ++i)
@@ -29,8 +29,8 @@ void *objGetForName(int name) {
   return NULL;
 }
 
-void *objAdd(int name, int modelname, float x, float y, float z) {
-  void *model;
+Obj *objAdd(int name, int modelname, float x, float y, float z) {
+  Model *model;
 
   if (!name) return NULL;
   obj_t *p = objGetForName(name);
