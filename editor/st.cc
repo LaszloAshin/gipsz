@@ -330,7 +330,7 @@ int stRead(const char *fname) {
   return 0;
 }
 
-int stPutVertex(vertex_t *v) {
+int stPutVertex(Vertex *v) {
   if (fvc.n == fvc.alloc) {
     unsigned na = fvc.alloc * 2;
     fvertex_t *p = (fvertex_t *)malloc(na * sizeof(fvertex_t));
@@ -345,7 +345,7 @@ int stPutVertex(vertex_t *v) {
   return fvc.n++;
 }
 
-int stGetVertex(vertex_t *v) {
+int stGetVertex(Vertex *v) {
   if (fvc.r == fvc.n) {
     fvc.r = 0;
     return 0;

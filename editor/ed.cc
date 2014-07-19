@@ -170,12 +170,12 @@ void edScreen() {
       break;
     case MD_SECTOR:
       grSetColor(255);
-      for (unsigned i = 0; i < vc.n; ++i)
-        edVertex(vc.p[i].x, vc.p[i].y);
+      for (unsigned i = 0; i < vc.size(); ++i)
+        edVertex(vc[i].x, vc[i].y);
       grSetColor(78);
       for (unsigned i = 0; i < lc.n; ++i)
         if (!lc.p[i].sf && !lc.p[i].sb)
-          edLine(vc.p[lc.p[i].a].x, vc.p[lc.p[i].a].y, vc.p[lc.p[i].b].x, vc.p[lc.p[i].b].y);
+          edLine(vc[lc.p[i].a].x, vc[lc.p[i].a].y, vc[lc.p[i].b].x, vc[lc.p[i].b].y);
       {
         int i = 0;
         for (unsigned j = 0; j < lc.n; ++j) {
@@ -192,7 +192,7 @@ void edScreen() {
           grSetColor(76);
         else
           grSetColor(255);
-        edLine(vc.p[lc.p[i].a].x, vc.p[lc.p[i].a].y, vc.p[lc.p[i].b].x, vc.p[lc.p[i].b].y);
+        edLine(vc[lc.p[i].a].x, vc[lc.p[i].a].y, vc[lc.p[i].b].x, vc[lc.p[i].b].y);
       }
       for (unsigned i = 0; i < oc.n; ++i) {
         edGetObjectProperties(oc.p[i].what, &r, &c);
@@ -201,14 +201,14 @@ void edScreen() {
       break;
     default:
       grSetColor(255);
-      for (unsigned i = 0; i < vc.n; ++i)
-        edVertex(vc.p[i].x, vc.p[i].y);
+      for (unsigned i = 0; i < vc.size(); ++i)
+        edVertex(vc[i].x, vc[i].y);
       for (unsigned i = 0; i < lc.n; ++i) {
         if (lc.p[i].sf && lc.p[i].sb) /* 2 sided */
           grSetColor(76);
         else
           grSetColor(255);
-        edVector(vc.p[lc.p[i].a].x, vc.p[lc.p[i].a].y, vc.p[lc.p[i].b].x, vc.p[lc.p[i].b].y);
+        edVector(vc[lc.p[i].a].x, vc[lc.p[i].a].y, vc[lc.p[i].b].x, vc[lc.p[i].b].y);
       }
   }
   grSetViewPort(0, 0, 0, 0);
@@ -225,7 +225,7 @@ void edScreen() {
 
 void edSave() {
   stOpen();
-  for (unsigned i = 0; i < vc.n; ++i) stPutVertex(vc.p + i);
+  for (unsigned i = 0; i < vc.size(); ++i) stPutVertex(&vc.front() + i);
   for (unsigned i = 0; i < lc.n; ++i) stPutLine(lc.p + i);
   for (unsigned i = 1; i < sc.alloc; ++i) stPutSector(i, sc.p + i);
   for (unsigned i = 0; i < oc.n; ++i) stPutObject(oc.p + i);
@@ -235,13 +235,14 @@ void edSave() {
 
 void edLoad() {
   int n;
-  vertex_t v;
+  Vertex v;
   line_t l;
   sector_t s;
   object_t o;
 
   stRead("map.st");
-  vc.n = lc.n = 0;
+  vc.clear();
+  lc.n = 0;
   oc.n = 0;
   for (unsigned i = 0; i < sc.alloc; ++i) {
     sc.p[i].c = sc.p[i].f = sc.p[i].l = 0;
@@ -291,10 +292,10 @@ void edBuildBSP() {
     for (line_t *l = lc.p; l < lc.p + lc.n; ++l) {
       int in = sc.p[j].f < sc.p[j].c;
       if (l->sf == j)
-        bspAddLine(j, vc.p[l->a].x, vc.p[l->a].y, vc.p[l->b].x, vc.p[l->b].y,
+        bspAddLine(j, vc[l->a].x, vc[l->a].y, vc[l->b].x, vc[l->b].y,
           l->u, l->v, l->flags, (in) ? l->tf : l->tb, l->du);
       if (l->sb == j)
-        bspAddLine(j, vc.p[l->b].x, vc.p[l->b].y, vc.p[l->a].x, vc.p[l->a].y,
+        bspAddLine(j, vc[l->b].x, vc[l->b].y, vc[l->a].x, vc[l->a].y,
           l->u, l->v, l->flags, (in) ? l->tb : l->tf, l->du);
     }
   bspBuildTree();
@@ -351,10 +352,6 @@ void edInit() {
   sx = -x;
   sy = -y;
 
-  vc.alloc = 8;
-  vc.p = (vertex_t *)malloc(vc.alloc * sizeof(vertex_t));
-  vc.n = 0;
-
   lc.alloc = 8;
   lc.p = (line_t *)malloc(lc.alloc * sizeof(line_t));
   lc.n = 0;
@@ -377,7 +374,6 @@ void edDone() {
   free(oc.p);
   free(sc.p);
   free(lc.p);
-  free(vc.p);
 }
 
 void edKeyboard(int key) {
@@ -478,12 +474,12 @@ void edMouseMotion(int mx, int my, int state) {
   }
 
   if (!moving && mode != MD_OBJECT) {
-    vertex_t *min = NULL;
-    for (unsigned i = 0; i < vc.n; ++i) {
-      const int dx = vc.p[i].x - umx;
-      const int dy = vc.p[i].y - umy;
-      vc.p[i].md = dx * dx + dy * dy;
-      if (min == NULL || vc.p[i].md < min->md) min = vc.p + i;
+    Vertex *min = 0;
+    for (unsigned i = 0; i < vc.size(); ++i) {
+      const int dx = vc[i].x - umx;
+      const int dy = vc[i].y - umy;
+      vc[i].md = dx * dx + dy * dy;
+      if (min == NULL || vc[i].md < min->md) min = &vc.front() + i;
     }
     if ((min != NULL || sv != NULL) && min != sv) {
       grBegin();
@@ -498,7 +494,7 @@ void edMouseMotion(int mx, int my, int state) {
       grEnd();
       if (min != NULL && mode == MD_VERTEX) {
         edStBegin();
-        grprintf("vertex #%d - x:%d y:%d", min - vc.p, min->x, min->y);
+        grprintf("vertex #%d - x:%d y:%d", min - &vc.front(), min->x, min->y);
         edStEnd();
       }
     }

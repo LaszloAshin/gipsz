@@ -4,53 +4,43 @@
 #include "ed.h"
 #include "gr.h"
 
-vc_t vc;
-vertex_t *sv = NULL;
+Vertexes vc;
+Vertex* sv = 0;
 
-vertex_t *edAddVertex(int x, int y) {
-  if (vc.n == vc.alloc) {
-    unsigned na = vc.alloc * 2;
-    vertex_t *p = (vertex_t *)malloc(na * sizeof(vertex_t));
-    if (p == NULL) return p;
-    for (unsigned i = 0; i < vc.n; ++i) p[i] = vc.p[i];
-    sv += p - vc.p;
-    free(vc.p);
-    vc.p = p;
-    vc.alloc = na;
-  }
-  vc.p[vc.n].x = x;
-  vc.p[vc.n].y = y;
-  ++vc.n;
-  return vc.p + vc.n - 1;
+Vertex* edAddVertex(int x, int y) {
+  const int selected = sv ? sv - &vc.front() : -1;
+  vc.push_back(Vertex(x, y));
+  sv = (selected >= 0) ? &vc.front() + selected : 0;
+  return &vc.back();
 }
 
-vertex_t *edGetVertex(int x, int y) {
-  for (unsigned i = 0; i < vc.n; ++i)
-    if (vc.p[i].x == x && vc.p[i].y == y)
-      return vc.p + i;
+Vertex *edGetVertex(int x, int y) {
+  for (unsigned i = 0; i < vc.size(); ++i)
+    if (vc[i].x == x && vc[i].y == y)
+      return &vc.at(i);
   return NULL;
 }
 
-void edDelVertex(vertex_t *p) {
-  const unsigned i = p - vc.p;
-  if (p == NULL || i > vc.n) return;
+void edDelVertex(Vertex *p) {
+  const unsigned i = p - &vc.front();
+  if (p == NULL || i >= vc.size()) return;
   for (unsigned j = 0; j < lc.n; ++j)
     if (lc.p[j].a == (int)i || lc.p[j].b == (int)i) {
       lc.p[j] = lc.p[--lc.n];
       sl = NULL;
       --j;
     }
-  --vc.n;
+  vc[i] = vc[vc.size() - 1];
+  vc.resize(vc.size() - 1);
   for (unsigned j = 0; j < lc.n; ++j) {
-    if (lc.p[j].a == (int)vc.n) lc.p[j].a = i;
-    if (lc.p[j].b == (int)vc.n) lc.p[j].b = i;
+    if (lc.p[j].a == (int)vc.size()) lc.p[j].a = i;
+    if (lc.p[j].b == (int)vc.size()) lc.p[j].b = i;
   }
-  vc.p[i] = vc.p[vc.n];
-  sv = NULL;
+  sv = 0;
 }
 
 void edMouseButtonVertex(int mx, int my, int button) {
-  vertex_t *v = edGetVertex(mx, my);
+  Vertex *v = edGetVertex(mx, my);
   if (snap && v == NULL && sv != NULL && sv->md <= gs*gs) v = sv;
   if (button == 1) {
     if (v != NULL) {
@@ -104,10 +94,10 @@ void edKeyboardVertex(int key) {
   (void)key;
 }
 
-int pszt(vertex_t p1, vertex_t p2, int mx, int my) {
+int pszt(Vertex p1, Vertex p2, int mx, int my) {
   int dx21, dy21;
   if (p1.x > p2.x) {
-    vertex_t p = p1;
+    Vertex p(p1);
     p1 = p2;
     p2 = p;
   }
@@ -135,7 +125,7 @@ int pszt(vertex_t p1, vertex_t p2, int mx, int my) {
     else
       return 0;
     if (p1.y > p2.y) {
-      vertex_t p = p1;
+      Vertex p(p1);
       p1 = p2;
       p2 = p;
     }

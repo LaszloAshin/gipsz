@@ -66,7 +66,7 @@ void edSelectSector(int s, int o) {
         grSetColor(76);
       else
         grSetColor(255);
-      edVector(vc.p[lc.p[i].a].x, vc.p[lc.p[i].a].y, vc.p[lc.p[i].b].x, vc.p[lc.p[i].b].y);
+      edVector(vc[lc.p[i].a].x, vc[lc.p[i].a].y, vc[lc.p[i].b].x, vc[lc.p[i].b].y);
     }
     if (lc.p[i].sb == s) {
       if (o)
@@ -75,7 +75,7 @@ void edSelectSector(int s, int o) {
         grSetColor(76);
       else
         grSetColor(255);
-      edVector(vc.p[lc.p[i].b].x, vc.p[lc.p[i].b].y, vc.p[lc.p[i].a].x, vc.p[lc.p[i].a].y);
+      edVector(vc[lc.p[i].b].x, vc[lc.p[i].b].y, vc[lc.p[i].a].x, vc[lc.p[i].a].y);
     }
   }
 }
@@ -86,7 +86,7 @@ void edMouseButtonSector(int mx, int my, int button) {
   if (button == 1) {
     if (sv != NULL) {
       if (tmpline.a == -1) {
-        tmpline.a = sv - vc.p;
+        tmpline.a = sv - &vc.front();
         tmpline.b = -1;
         SDLMod m = SDL_GetModState();
         if (!(m & KMOD_SHIFT)) {
@@ -111,7 +111,7 @@ void edMouseButtonSector(int mx, int my, int button) {
           grBegin();
           grSetColor(253);
           grSetPixelMode(PMD_XOR);
-          edVector(vc.p[tmpline.a].x, vc.p[tmpline.a].y, vc.p[tmpline.b].x, vc.p[tmpline.b].y);
+          edVector(vc[tmpline.a].x, vc[tmpline.a].y, vc[tmpline.b].x, vc[tmpline.b].y);
           grSetPixelMode(PMD_SET);
           grEnd();
         }
@@ -129,7 +129,7 @@ void edMouseButtonSector(int mx, int my, int button) {
           grBegin();
           grSetColor(253);
           grSetPixelMode(PMD_XOR);
-          edVector(vc.p[tmpline.a].x, vc.p[tmpline.a].y, vc.p[tmpline.b].x, vc.p[tmpline.b].y);
+          edVector(vc[tmpline.a].x, vc[tmpline.a].y, vc[tmpline.b].x, vc[tmpline.b].y);
           grSetPixelMode(PMD_SET);
           grEnd();
           tmpline.b = -1;
@@ -148,16 +148,16 @@ void edMouseMotionSector(int mx, int my, int umx, int umy) {
   (void)my;
   SDLMod m = SDL_GetModState();
   if (tmpline.a != -1) {
-    if (sv != NULL && edGetLine(tmpline.a, sv - vc.p) != NULL) {
+    if (sv != NULL && edGetLine(tmpline.a, sv - &vc.front()) != NULL) {
       grBegin();
       grSetColor(253);
       grSetPixelMode(PMD_XOR);
       if (tmpline.b != -1) {
-        edVector(vc.p[tmpline.a].x, vc.p[tmpline.a].y, vc.p[tmpline.b].x, vc.p[tmpline.b].y);
+        edVector(vc[tmpline.a].x, vc[tmpline.a].y, vc[tmpline.b].x, vc[tmpline.b].y);
       }
       if (sv != NULL) {
-        tmpline.b = sv - vc.p;
-        edVector(vc.p[tmpline.a].x, vc.p[tmpline.a].y, vc.p[tmpline.b].x, vc.p[tmpline.b].y);
+        tmpline.b = sv - &vc.front();
+        edVector(vc[tmpline.a].x, vc[tmpline.a].y, vc[tmpline.b].x, vc[tmpline.b].y);
       }
       grSetPixelMode(PMD_SET);
       grEnd();
@@ -166,14 +166,14 @@ void edMouseMotionSector(int mx, int my, int umx, int umy) {
     int s;
     line_t *min = NULL;
     for (unsigned i = 0; i < lc.n; ++i) {
-      lc.p[i].md = pszt(vc.p[lc.p[i].a], vc.p[lc.p[i].b], umx, umy);
+      lc.p[i].md = pszt(vc[lc.p[i].a], vc[lc.p[i].b], umx, umy);
       if (min == NULL || lc.p[i].md < min->md) min = lc.p + i;
     }
     if (min != NULL) {
-      int dx1 = vc.p[min->b].x - vc.p[min->a].x;
-      int dy1 = vc.p[min->b].y - vc.p[min->a].y;
-      int dx2 = umx - vc.p[min->a].x;
-      int dy2 = umy - vc.p[min->a].y;
+      int dx1 = vc[min->b].x - vc[min->a].x;
+      int dy1 = vc[min->b].y - vc[min->a].y;
+      int dx2 = umx - vc[min->a].x;
+      int dy2 = umy - vc[min->a].y;
       s = (dx1 * dy2 < dy1 * dx2) ? min->sb : min->sf;
       if (s != ss) {
         if (ss || s) {

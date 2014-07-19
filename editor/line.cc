@@ -56,13 +56,13 @@ void edMouseButtonLine(int mx, int my, int button) {
   if (button == 1) {
     if (sv != NULL) {
       if (tmpline.a == -1) {
-        tmpline.a = sv - vc.p;
+        tmpline.a = sv - &vc.front();
         tmpline.b = -1;
       } else if (tmpline.b != -1 && tmpline.b != tmpline.a) {
         edAddLine(tmpline.a, tmpline.b, 0, 0, 0, 0, LF_NOTHING, 0, 0, 0);
         grBegin();
         grSetColor(255);
-        edVector(vc.p[tmpline.a].x, vc.p[tmpline.a].y, vc.p[tmpline.b].x, vc.p[tmpline.b].y);
+        edVector(vc[tmpline.a].x, vc[tmpline.a].y, vc[tmpline.b].x, vc[tmpline.b].y);
         grEnd();
         tmpline.a = tmpline.b;
         tmpline.b = -1;
@@ -75,7 +75,7 @@ void edMouseButtonLine(int mx, int my, int button) {
           grBegin();
           grSetColor(254);
           grSetPixelMode(PMD_XOR);
-          edVector(vc.p[tmpline.a].x, vc.p[tmpline.a].y, vc.p[tmpline.b].x, vc.p[tmpline.b].y);
+          edVector(vc[tmpline.a].x, vc[tmpline.a].y, vc[tmpline.b].x, vc[tmpline.b].y);
           grSetPixelMode(PMD_SET);
           grEnd();
           tmpline.b = -1;
@@ -84,7 +84,7 @@ void edMouseButtonLine(int mx, int my, int button) {
       } else if (sl != NULL) {
         grBegin();
         grSetColor(0);
-        edVector(vc.p[sl->a].x, vc.p[sl->a].y, vc.p[sl->b].x, vc.p[sl->b].y);
+        edVector(vc[sl->a].x, vc[sl->a].y, vc[sl->b].x, vc[sl->b].y);
         grEnd();
         edDelLine(sl);
       }
@@ -96,16 +96,16 @@ void edMouseMotionLine(int mx, int my, int umx, int umy) {
   (void)mx;
   (void)my;
   if (tmpline.a != -1) {
-    if (sv != NULL && edGetLine(tmpline.a, sv - vc.p) == NULL) {
+    if (sv != NULL && edGetLine(tmpline.a, sv - &vc.front()) == NULL) {
       grBegin();
       grSetColor(254);
       grSetPixelMode(PMD_XOR);
       if (tmpline.b != -1) {
-        edVector(vc.p[tmpline.a].x, vc.p[tmpline.a].y, vc.p[tmpline.b].x, vc.p[tmpline.b].y);
+        edVector(vc[tmpline.a].x, vc[tmpline.a].y, vc[tmpline.b].x, vc[tmpline.b].y);
       }
       if (sv != NULL) {
-        tmpline.b = sv - vc.p;
-        edVector(vc.p[tmpline.a].x, vc.p[tmpline.a].y, vc.p[tmpline.b].x, vc.p[tmpline.b].y);
+        tmpline.b = sv - &vc.front();
+        edVector(vc[tmpline.a].x, vc[tmpline.a].y, vc[tmpline.b].x, vc[tmpline.b].y);
       } else
         tmpline.b = -1;
       grSetPixelMode(PMD_SET);
@@ -114,7 +114,7 @@ void edMouseMotionLine(int mx, int my, int umx, int umy) {
   } else {
     line_t *min = NULL;
     for (unsigned i = 0; i < lc.n; ++i) {
-      lc.p[i].md = pszt(vc.p[lc.p[i].a], vc.p[lc.p[i].b], umx, umy);
+      lc.p[i].md = pszt(vc[lc.p[i].a], vc[lc.p[i].b], umx, umy);
       if (min == NULL || lc.p[i].md < min->md) min = lc.p + i;
     }
     if ((min != NULL || sl != NULL) && min != sl) {
@@ -124,17 +124,17 @@ void edMouseMotionLine(int mx, int my, int umx, int umy) {
           grSetColor(76);
         else
           grSetColor(255);
-        edVector(vc.p[sl->a].x, vc.p[sl->a].y, vc.p[sl->b].x, vc.p[sl->b].y);
+        edVector(vc[sl->a].x, vc[sl->a].y, vc[sl->b].x, vc[sl->b].y);
       }
       if (min != NULL) {
         grSetColor(253);
-        edVector(vc.p[min->a].x, vc.p[min->a].y, vc.p[min->b].x, vc.p[min->b].y);
+        edVector(vc[min->a].x, vc[min->a].y, vc[min->b].x, vc[min->b].y);
       }
       grEnd();
       edStBegin();
       if (min != NULL) {
-        const int dx = vc.p[min->b].x - vc.p[min->a].x;
-        const int dy = vc.p[min->b].y - vc.p[min->a].y;
+        const int dx = vc[min->b].x - vc[min->a].x;
+        const int dy = vc[min->b].y - vc[min->a].y;
         const int i = min->u + sqrtf(dx * dx + dy * dy) + min->du;
         grprintf("line #%04d - u:%02d:%02d (%02d) v:%02d tf:%03x:%03x:%03x tb:%03x:%03x:%03x",
           min - lc.p, min->u, i, i & 0x3f, min->v,
@@ -246,8 +246,8 @@ void edKeyboardLine(int key) {
   }
   if (i && sl != NULL) {
     edStBegin();
-    int dx = vc.p[sl->b].x - vc.p[sl->a].x;
-    int dy = vc.p[sl->b].y - vc.p[sl->a].y;
+    int dx = vc[sl->b].x - vc[sl->a].x;
+    int dy = vc[sl->b].y - vc[sl->a].y;
     i = sl->u + sqrtf(dx * dx + dy * dy) + sl->du;
     grprintf("line #%04d - u:%02d:%02d (%02d) v:%02d tf:%03x:%03x:%03x tb:%03x:%03x:%03x",
       sl - lc.p, sl->u, i, i & 0x3f, sl->v,
