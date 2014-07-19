@@ -1,21 +1,22 @@
 #ifndef _SECTOR_H
 #define _SECTOR_H 1
 
-typedef struct {
+#include <vector>
+
+struct Sector {
   short f;
   short c;
   unsigned char l;
   short u;
   short v;
   unsigned t;
-} sector_t;
 
-typedef struct {
-  sector_t *p;
-  unsigned alloc;
-} sc_t;
+  Sector() : f(0), c(0), l(0), u(0), v(0), t(0) {}
+};
 
-extern sc_t sc;
+typedef std::vector<Sector> Sectors;
+
+extern Sectors sc;
 extern int ss;
 
 int edGetSector(unsigned s);

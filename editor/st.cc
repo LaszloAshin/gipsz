@@ -398,7 +398,7 @@ int stGetLine(Line* l) {
   return !0;
 }
 
-int stPutSector(int n, sector_t *s) {
+int stPutSector(int n, Sector* s) {
   if (fsc.n == fsc.alloc) {
     unsigned na = fsc.alloc * 2;
     fsector_t *p = (fsector_t *)malloc(na * sizeof(fsector_t));
@@ -418,7 +418,7 @@ int stPutSector(int n, sector_t *s) {
   return fsc.n++;
 }
 
-int stGetSector(int *n, sector_t *s) {
+int stGetSector(int *n, Sector* s) {
   if (fsc.r == fsc.n) {
     fsc.r = 0;
     return 0;

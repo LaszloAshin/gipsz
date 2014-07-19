@@ -6,37 +6,27 @@
 #include "gr.h"
 #include "ed.h"
 
-sc_t sc;
+Sectors sc;
 int ss = 0;
 
 int edGetSector(unsigned s) {
-  return (s && s < sc.alloc && (sc.p[s].f || sc.p[s].c || sc.p[s].l)) ? s : 0;
+  return (s && s < sc.size() && (sc[s].f || sc[s].c || sc[s].l)) ? s : 0;
 }
 
 int edAddSector(unsigned s, int f, int c, int l, int u, int v, int t) {
   if (!s) return 0;
-  if (s >= sc.alloc) {
-    unsigned oa = sc.alloc;
-    sc.alloc *= 2;
-    if (s >= sc.alloc) sc.alloc = s + 1;
-    sector_t *p = (sector_t *)malloc(sc.alloc * sizeof(sector_t));
-    if (p == NULL) return -1;
-    for (unsigned i = 0; i < oa; ++i) p[i] = sc.p[i];
-    for (unsigned i = oa; i < sc.alloc; ++i) p[i].c = p[i].f = 0;
-    free(sc.p);
-    sc.p = p;
-  }
-  sc.p[s].f = f;
-  sc.p[s].c = c;
-  sc.p[s].l = l;
-  sc.p[s].u = u;
-  sc.p[s].v = v;
-  sc.p[s].t = t;
+  if (s >= sc.size()) sc.resize(s + 1);
+  sc[s].f = f;
+  sc[s].c = c;
+  sc[s].l = l;
+  sc[s].u = u;
+  sc[s].v = v;
+  sc[s].t = t;
   return s;
 }
 
 void edDelSector(int s) {
-  if (edGetSector(s)) sc.p[s].f = sc.p[s].c = sc.p[s].l = 0;
+  if (edGetSector(s)) sc[s].f = sc[s].c = sc[s].l = 0;
   for (unsigned i = 0; i < lc.size(); ++i) {
     if (lc[i].sf == s) lc[i].sf = 0;
     if (lc[i].sb == s) lc[i].sb = 0;
@@ -185,8 +175,8 @@ void edMouseMotionSector(int mx, int my, int umx, int umy) {
 		  int i;
           if (s && (i = edGetSector(s)) > 0)
             grprintf("sector #%04d - f:%03d c:%03d l:0x%02x u:0x%02x v:0x%02x tc:%03x tf:%03x",
-              i, sc.p[i].f, sc.p[i].c, sc.p[i].l, sc.p[i].u, sc.p[i].v,
-              (sc.p[i].t >> 10) & 0x3ff, sc.p[i].t & 0x3ff);
+              i, sc[i].f, sc[i].c, sc[i].l, sc[i].u, sc[i].v,
+              (sc[i].t >> 10) & 0x3ff, sc[i].t & 0x3ff);
           edStEnd();
         }
         ss = s;
@@ -202,66 +192,66 @@ void edKeyboardSector(int key) {
   if (i > 0)
     switch (key) {
       case SDLK_1:
-        sc.p[i].f -= 8;
+        sc[i].f -= 8;
         break;
       case SDLK_2:
-        sc.p[i].f += 8;
+        sc[i].f += 8;
         break;
       case SDLK_3:
-        sc.p[i].c -= 8;
+        sc[i].c -= 8;
         break;
       case SDLK_4:
-        sc.p[i].c += 8;
+        sc[i].c += 8;
         break;
       case SDLK_5:
-        if (sc.p[i].l > 8)
-          sc.p[i].l -= 8;
+        if (sc[i].l > 8)
+          sc[i].l -= 8;
         else
-          sc.p[i].l = 0;
+          sc[i].l = 0;
         break;
       case SDLK_6:
-        if (sc.p[i].l < 0xff-8)
-          sc.p[i].l += 8;
+        if (sc[i].l < 0xff-8)
+          sc[i].l += 8;
         else
-          sc.p[i].l = 0xff;
+          sc[i].l = 0xff;
         break;
       case SDLK_h:
-        if (sc.p[i].u > 0) --sc.p[i].u;
+        if (sc[i].u > 0) --sc[i].u;
         break;
       case SDLK_y:
-        ++sc.p[i].u;
+        ++sc[i].u;
         break;
       case SDLK_j:
-        if (sc.p[i].v > 0) --sc.p[i].v;
+        if (sc[i].v > 0) --sc[i].v;
         break;
       case SDLK_u:
-        ++sc.p[i].v;
+        ++sc[i].v;
         break;
       case SDLK_k:
-        if (sc.p[i].t & 0xffc00)
-          sc.p[i].t = (sc.p[i].t & 0x3ff) | ((sc.p[i].t & 0xffc00) - 0x400);
+        if (sc[i].t & 0xffc00)
+          sc[i].t = (sc[i].t & 0x3ff) | ((sc[i].t & 0xffc00) - 0x400);
         break;
       case SDLK_i:
-        if ((sc.p[i].t & 0xffc00) < 0xffc00)
-          sc.p[i].t = (sc.p[i].t & 0x3ff) | ((sc.p[i].t & 0xffc00) + 0x400);
+        if ((sc[i].t & 0xffc00) < 0xffc00)
+          sc[i].t = (sc[i].t & 0x3ff) | ((sc[i].t & 0xffc00) + 0x400);
         break;
       case SDLK_l:
-        if (sc.p[i].t & 0x3ff)
-          sc.p[i].t = (sc.p[i].t & 0xffc00) | ((sc.p[i].t & 0x3ff) - 1);
+        if (sc[i].t & 0x3ff)
+          sc[i].t = (sc[i].t & 0xffc00) | ((sc[i].t & 0x3ff) - 1);
         break;
       case SDLK_o:
-        if ((sc.p[i].t & 0x3ff) < 0x3ff)
-          sc.p[i].t = (sc.p[i].t & 0xffc00) | ((sc.p[i].t & 0x3ff) + 1);
+        if ((sc[i].t & 0x3ff) < 0x3ff)
+          sc[i].t = (sc[i].t & 0xffc00) | ((sc[i].t & 0x3ff) + 1);
         break;
       case SDLK_c:
-        cb[0] = sc.p[i].t;
-        cb[1] = sc.p[i].u;
-        cb[2] = sc.p[i].v;
+        cb[0] = sc[i].t;
+        cb[1] = sc[i].u;
+        cb[2] = sc[i].v;
         break;
       case SDLK_v:
-        sc.p[i].t = cb[0];
-        sc.p[i].u = cb[1];
-        sc.p[i].v = cb[2];
+        sc[i].t = cb[0];
+        sc[i].u = cb[1];
+        sc[i].v = cb[2];
         break;
       default:
         i = -1;
@@ -270,8 +260,8 @@ void edKeyboardSector(int key) {
   if (i > 0) {
     edStBegin();
     grprintf("sector #%04d - f:%03d c:%03d l:0x%02x u:0x%02x v:0x%02x tc:%03x tf:%03x",
-      i, sc.p[i].f, sc.p[i].c, sc.p[i].l, sc.p[i].u, sc.p[i].v,
-      (sc.p[i].t >> 10) & 0x3ff, sc.p[i].t & 0x3ff);
+      i, sc[i].f, sc[i].c, sc[i].l, sc[i].u, sc[i].v,
+      (sc[i].t >> 10) & 0x3ff, sc[i].t & 0x3ff);
     edStEnd();
   }
 }

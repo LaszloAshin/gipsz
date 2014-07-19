@@ -227,7 +227,7 @@ void edSave() {
   stOpen();
   for (unsigned i = 0; i < vc.size(); ++i) stPutVertex(&vc.at(i));
   for (unsigned i = 0; i < lc.size(); ++i) stPutLine(&lc.at(i));
-  for (unsigned i = 1; i < sc.alloc; ++i) stPutSector(i, sc.p + i);
+  for (unsigned i = 1; i < sc.size(); ++i) stPutSector(i, &sc.at(i));
   for (unsigned i = 0; i < oc.n; ++i) stPutObject(oc.p + i);
   stWrite("map.st");
   stClose();
@@ -237,16 +237,14 @@ void edLoad() {
   int n;
   Vertex v;
   Line l;
-  sector_t s;
+  Sector s;
   object_t o;
 
   stRead("map.st");
   vc.clear();
   lc.clear();
+  sc.clear();
   oc.n = 0;
-  for (unsigned i = 0; i < sc.alloc; ++i) {
-    sc.p[i].c = sc.p[i].f = sc.p[i].l = 0;
-  }
   while (stGetVertex(&v)) {
     edAddVertex(v.x, v.y);
   }
@@ -268,7 +266,7 @@ static void (*edMouseMotionMode)(int mx, int my, int umx, int umy) = edMouseMoti
 static void (*edKeyboardMode)(int key) = edKeyboardVertex;
 
 static int
-edSaveSector(FILE *fp, sector_t *s)
+edSaveSector(FILE *fp, Sector* s)
 {
   unsigned char buf[2 * 2 + 1 + 2 * 2 + 4], *p = buf;
   *(short *)p = s->f;
@@ -290,7 +288,7 @@ void edBuildBSP() {
   }
   for (int j = s; j; --j)
     for (Lines::iterator l(lc.begin()); l != lc.end(); ++l) {
-      int in = sc.p[j].f < sc.p[j].c;
+      int in = sc[j].f < sc[j].c;
       if (l->sf == j)
         bspAddLine(j, vc[l->a].x, vc[l->a].y, vc[l->b].x, vc[l->b].y,
           l->u, l->v, l->flags, (in) ? l->tf : l->tb, l->du);
@@ -302,7 +300,7 @@ void edBuildBSP() {
   FILE *f = fopen("map.bsp", "wb");
   ++s;
   fwrite(&s, sizeof(int), 1, f);
-  for (sector_t *sp = sc.p; sp < sc.p + s; ++sp) edSaveSector(f, sp);
+  for (Sector* sp = &sc.front(); sp < &sc.front() + s; ++sp) edSaveSector(f, sp);
   bspSave(f);
   edSaveObjects(f);
   fclose(f);
@@ -352,10 +350,6 @@ void edInit() {
   sx = -x;
   sy = -y;
 
-  sc.alloc = 2;
-  sc.p = (sector_t *)malloc(sc.alloc * sizeof(sector_t));
-  for (unsigned i = 0; i < sc.alloc; ++i) sc.p[i].f = sc.p[i].c = sc.p[i].l = 0;
-
   oc.alloc = 8;
   oc.p = (object_t *)malloc(oc.alloc * sizeof(object_t));
   oc.n = 0;
@@ -368,7 +362,6 @@ void edInit() {
 void edDone() {
   edSave();
   free(oc.p);
-  free(sc.p);
 }
 
 void edKeyboard(int key) {
