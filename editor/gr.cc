@@ -121,7 +121,7 @@ static pixelmode_t grPixelMode = PMD_SET;
 void grSetPixelMode(pixelmode_t pm) {
   grPixelMode = pm;
 //  if (grPixelMode < PMD_FIRST) grPixelMode = PMD_FIRST;
-  if (grPixelMode >= PMD_LAST) grPixelMode = PMD_LAST - 1;
+  if (grPixelMode >= PMD_LAST) grPixelMode = pixelmode_t(PMD_LAST - 1);
   if (sf == NULL) return;
   int nb = sf->format->BytesPerPixel - 1;
   if (nb < 0 || nb > 3) return;

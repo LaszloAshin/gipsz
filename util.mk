@@ -20,7 +20,7 @@ endef
 define link-executable-steps
 	$(if $Q,@echo "  LINK  $(subst $(abspath $O)/,,$(abspath $@))")
 	$Qmkdir -p $(@D)
-	$Q$(CC) $(LDFLAGS) $(LDLIBS) $(LOADLIBES) $^ $(OUTPUT_OPTION)
+	$Q$(CXX) $(LDFLAGS) $(LDLIBS) $(LOADLIBES) $^ $(OUTPUT_OPTION)
 endef
 
 $Od/%.o: %.c

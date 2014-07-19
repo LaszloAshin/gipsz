@@ -66,11 +66,11 @@ void edMouseButtonVertex(int mx, int my, int button) {
   } else {
     if (moving) {
       moving = 0;
-      edScreen(1);
+      edScreen();
     }
     if (button == 3 && v != NULL) {
       edDelVertex(v);
-      edScreen(1);
+      edScreen();
     }
   }
 }

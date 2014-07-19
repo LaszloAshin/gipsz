@@ -6,7 +6,7 @@ typedef enum {
   LF_TWOSIDED = 0x01,
   LF_TOPSTART = 0x02,
   LF_BOTTOMSTART = 0x04,
-  LF_BLOCK = 0x08,
+  LF_BLOCK = 0x08
 } lineflag_t;
 
 typedef struct {

@@ -11,17 +11,17 @@
 #include "sector.h"
 #include "object.h"
 
-static enum {
+static enum Mode {
   MD_FIRST = 0,
   MD_VERTEX = 0,
   MD_LINE,
   MD_SECTOR,
   MD_OBJECT,
   MD_LAST,
-  MD_BSP,
+  MD_BSP
 } mode = MD_VERTEX;
 
-static char *mdnames[] = {
+static const char *mdnames[] = {
   "vertex", "line", "sector", "object", "ILLEGAL", "bsp"
 };
 
@@ -393,7 +393,8 @@ void edKeyboard(int key) {
       break;
     case SDLK_TAB:
       if (mode == MD_BSP) bspDone();
-      if (++mode >= MD_LAST) mode = MD_FIRST;
+	  mode = Mode(mode + 1);
+      if (mode >= MD_LAST) mode = MD_FIRST;
       edApplyMode();
       break;
     case SDLK_LEFT:

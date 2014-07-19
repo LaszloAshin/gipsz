@@ -7,7 +7,8 @@
 #include "gr.h"
 #include "line.h"
 
-#include <assert.h>
+#include <vector>
+#include <cassert>
 
 typedef struct {
   int x, y;
@@ -462,7 +463,8 @@ bspBuildSub(node_t *n)
   n->r->s = n->l->s = n->s;
 
   l = r = 0;
-  bspline_t tl = { 0 };
+  bspline_t tl;
+  memset(&tl, 0, sizeof(bspline_t));
   for (unsigned i = 0; i < n->n; ++i) {
     if (n->p[i].r) {
       n->r->p[r++] = n->p[i];
@@ -627,10 +629,10 @@ bspBuildSub(node_t *n)
   n->r->n = r;
   n->l->n = l;
 
-  unsigned p[f];
+  std::vector<unsigned> p(f);
   int t = 0;
   for (unsigned i = 0; i < vc.n; ++i) if (vc.p[i].s) p[t++] = i;
-  bspSortVerteces(p, t);
+  bspSortVerteces(&p.front(), t);
   const int dx2 = vc.p[p[0]].x - vc.p[p[t-1]].x;
   const int dy2 = vc.p[p[0]].y - vc.p[p[t-1]].y;
   --t;

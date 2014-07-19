@@ -1,15 +1,15 @@
 # editor/module.mk
 
 editor_SOURCES := \
-	bsp.c \
-	ed.c \
-	gr.c \
-	line.c \
-	main.c \
-	object.c \
-	sector.c \
-	st.c \
-	vertex.c
+	bsp.cc \
+	ed.cc \
+	gr.cc \
+	line.cc \
+	main.cc \
+	object.cc \
+	sector.cc \
+	st.cc \
+	vertex.cc
 
 editor_OBJECTS := $(addprefix $Od/editor/,$(addsuffix .o,$(basename $(editor_SOURCES))))
 -include $(addsuffix .d,$(basename $(editor_OBJECTS)))

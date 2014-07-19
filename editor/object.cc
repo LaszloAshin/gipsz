@@ -15,7 +15,7 @@ static const objprop_t objprop[] = {
   { OT_START, NULL,     0,   0 }
 };
 
-char *edGetObjectProperties(objtype_t wh, int *r, int *c) {
+const char *edGetObjectProperties(objtype_t wh, int *r, int *c) {
   int i;
 
   for (i = 0; objprop[i].name != NULL; ++i)
@@ -67,16 +67,16 @@ void edMouseButtonObject(int mx, int my, int button) {
       moving = 1;
     } else {
       edAddObject(OT_START, mx, my, 0, 0, 0, 0);
-      edScreen(1);
+      edScreen();
     }
   } else {
     if (moving) {
       moving = 0;
-      edScreen(1);
+      edScreen();
     }
     if (button == 3 && o != NULL) {
       edDelObject(o);
-      edScreen(1);
+      edScreen();
     }
   }
 }
@@ -87,7 +87,7 @@ void edMouseMotionObject(int mx, int my, int umx, int umy) {
   int dx, dy;
   object_t *o;
   int r = 8, c = 0;
-  char *name = NULL;
+  const char *name = NULL;
 
   grBegin();
   grSetPixelMode(PMD_XOR);
@@ -142,7 +142,7 @@ void edMouseMotionObject(int mx, int my, int umx, int umy) {
 
 void edKeyboardObject(int key) {
   int r = 8, c = 0;
-  char *name;
+  const char *name;
   
   if (so != NULL) {
     grBegin();
@@ -150,10 +150,10 @@ void edKeyboardObject(int key) {
     edObject(so->x, so->y, so->c, r, 0);
     switch (key) {
       case SDLK_1:
-        if (so->what > 0) --so->what;
+        if (so->what > 0) so->what = objtype_t(so->what - 1);
         break;
       case SDLK_2:
-        if (so->what < OT_LAST-1) ++so->what;
+        if (so->what < OT_LAST-1) so->what = objtype_t(so->what + 1);
         break;
       case SDLK_3:
         so->z -= 8;

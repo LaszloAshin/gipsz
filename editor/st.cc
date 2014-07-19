@@ -457,7 +457,7 @@ int stGetObject(object_t *o) {
     foc.r = 0;
     return 0;
   }
-  o->what = foc.p[foc.r].type;
+  o->what = objtype_t(foc.p[foc.r].type);
   o->x = foc.p[foc.r].x;
   o->y = foc.p[foc.r].y;
   o->z = foc.p[foc.r].z;

@@ -12,7 +12,7 @@ typedef enum {
 
 typedef struct {
   objtype_t typ;
-  char *name;
+  const char *name;
   int r; /* radius */
   int c; /* color */
 } objprop_t;
@@ -32,7 +32,7 @@ typedef struct {
 extern oc_t oc;
 extern object_t *so;
 
-char *edGetObjectProperties(objtype_t wh, int *r, int *c);
+const char *edGetObjectProperties(objtype_t wh, int *r, int *c);
 object_t *edGetObject(int x, int y);
 int edAddObject(objtype_t wh, int x, int y, int z, int a, int b, int c);
 void edDelObject(object_t *o);

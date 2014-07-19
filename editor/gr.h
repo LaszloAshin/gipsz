@@ -11,7 +11,7 @@ typedef enum {
   PMD_FIRST = 0,
   PMD_SET = 0,
   PMD_XOR,
-  PMD_LAST,
+  PMD_LAST
 } pixelmode_t;
 
 int grSetSurface(SDL_Surface *s);
