@@ -1,3 +1,4 @@
+/* vim: set ts=2 sw=8 tw=0 et :*/
 #include <stdlib.h>
 #include <math.h>
 #include "ed.h"
@@ -223,15 +224,24 @@ void edScreen() {
   omx = omy = -1;
 }
 
-void edSave() {
-  stOpen();
-  stWrite("map.st");
-  stClose();
+void
+edSave()
+{
+  try {
+    stWrite("map.st");
+  } catch (const std::exception& e) {
+    printf("failed to save map file: %s\n", e.what());
+  }
 }
 
-void edLoad() {
-  stRead("map.st");
-  stClose();
+void
+edLoad()
+{
+  try {
+    stRead("map.st");
+  } catch (const std::exception& e) {
+    printf("failed to load map file: %s\n", e.what());
+  }
 }
 
 static void (*edMouseButtonMode)(int mx, int my, int button) = edMouseButtonVertex;

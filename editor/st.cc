@@ -1,7 +1,4 @@
 /* vim: set ts=2 sw=8 tw=0 et :*/
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include "st.h"
 #include "vertex.h"
 #include "line.h"
@@ -10,6 +7,7 @@
 
 #include <cassert>
 #include <stdexcept>
+#include <fstream>
 
 struct Header {
   unsigned nVerteces;
@@ -18,24 +16,12 @@ struct Header {
   unsigned nObjects;
 };
 
-static int inited = 0;
-
-void stClose() {
-  inited = 0;
-}
-
-int stOpen() {
-  if (inited) return 0;
-  ++inited;
-  return !0;
-}
-
 static Header
-stReadHeader(FILE *fp)
+stReadHeader(std::istream& is)
 {
   Header result;
-  unsigned char buf[4 * 4], *p = buf;
-  if (fread(buf, 1, sizeof(buf), fp) != sizeof(buf)) throw std::runtime_error("header");
+  char buf[4 * 4], *p = buf;
+  is.read(buf, sizeof(buf));
   result.nVerteces = *(unsigned *)p;
   result.nLines = *(unsigned *)(p + 4);
   result.nSectors = *(unsigned *)(p + 8);
@@ -43,43 +29,43 @@ stReadHeader(FILE *fp)
   return result;
 }
 
-static int
-stWriteHeader(FILE *fp)
+static void
+stWriteHeader(std::ostream& os)
 {
-  unsigned char buf[4 * 4], *p = buf;
+  char buf[4 * 4], *p = buf;
   *(unsigned *)p = vc.size();
   *(unsigned *)(p + 4) = lc.size();
   *(unsigned *)(p + 8) = sc.size() ? (sc.size() - 1) : 0;
   *(unsigned *)(p + 12) = oc.size();
-  return (fwrite(buf, 1, sizeof(buf), fp) == sizeof(buf)) ? 0 : -1;
+  os.write(buf, sizeof(buf));
 }
 
 static Vertex
-stReadVertex(FILE *fp)
+stReadVertex(std::istream& is)
 {
   Vertex result;
-  unsigned char buf[2 * 2], *p = buf;
-  if (fread(buf, 1, sizeof(buf), fp) != sizeof(buf)) throw std::runtime_error("vertex");
+  char buf[2 * 2], *p = buf;
+  is.read(buf, sizeof(buf));
   result.x = *(short *)p;
   result.y = *(short *)(p + 2);
   return result;
 }
 
-static int
-stWriteVertex(FILE *fp, const Vertex& v)
+static void
+stWriteVertex(std::ostream& os, const Vertex& v)
 {
-  unsigned char buf[2 * 2], *p = buf;
+  char buf[2 * 2], *p = buf;
   *(short *)p = v.x;
   *(short *)(p + 2) = v.y;
-  return (fwrite(buf, 1, sizeof(buf), fp) == sizeof(buf)) ? 0 : -1;
+  os.write(buf, sizeof(buf));
 }
 
 static Line
-stReadLine(FILE *fp)
+stReadLine(std::istream& is)
 {
   Line result;
-  unsigned char buf[6 * 2 + 1 + 2 * 4 + 2], *p = buf;
-  if (fread(buf, 1, sizeof(buf), fp) != sizeof(buf)) throw std::runtime_error("line");
+  char buf[6 * 2 + 1 + 2 * 4 + 2], *p = buf;
+  is.read(buf, sizeof(buf));
   result.a = *(unsigned short *)p;
   result.b = *(unsigned short *)(p + 2);
   result.sf = *(unsigned short *)(p + 4);
@@ -94,10 +80,10 @@ stReadLine(FILE *fp)
   return result;
 }
 
-static int
-stWriteLine(FILE *fp, const Line& l)
+static void
+stWriteLine(std::ostream& os, const Line& l)
 {
-  unsigned char buf[6 * 2 + 1 + 2 * 4 + 2], *p = buf;
+  char buf[6 * 2 + 1 + 2 * 4 + 2], *p = buf;
   *(unsigned short *)p = l.a;
   *(unsigned short *)(p + 2) = l.b;
   *(unsigned short *)(p + 4) = l.sf;
@@ -108,15 +94,15 @@ stWriteLine(FILE *fp, const Line& l)
   *(unsigned *)(p + 13) = l.tf;
   *(unsigned *)(p + 17) = l.tb;
   *(short *)(p + 21) = l.du;
-  return (fwrite(buf, 1, sizeof(buf), fp) == sizeof(buf)) ? 0 : -1;
+  os.write(buf, sizeof(buf));
 }
 
 static Sector
-stReadSector(FILE *fp, unsigned& n)
+stReadSector(std::istream& is, unsigned& n)
 {
   Sector result;
-  unsigned char buf[3 * 2 + 1 + 2 * 2 + 4], *p = buf;
-  if (fread(buf, 1, sizeof(buf), fp) != sizeof(buf)) throw std::runtime_error("sector");
+  char buf[3 * 2 + 1 + 2 * 2 + 4], *p = buf;
+  is.read(buf, sizeof(buf));
   n = *(unsigned short *)p;
   result.f = *(short *)(p + 2);
   result.c = *(short *)(p + 4);
@@ -127,10 +113,10 @@ stReadSector(FILE *fp, unsigned& n)
   return result;
 }
 
-static int
-stWriteSector(FILE *fp, const Sector& s)
+static void
+stWriteSector(std::ostream& os, const Sector& s)
 {
-  unsigned char buf[3 * 2 + 1 + 2 * 2 + 4], *p = buf;
+  char buf[3 * 2 + 1 + 2 * 2 + 4], *p = buf;
   unsigned n = &s - &sc.front();
   assert(n < sc.size());
   *(unsigned short *)p = n;
@@ -140,15 +126,15 @@ stWriteSector(FILE *fp, const Sector& s)
   *(unsigned short *)(p + 7) = s.u;
   *(unsigned short *)(p + 9) = s.v;
   *(unsigned *)(p + 11) = s.t;
-  return (fwrite(buf, 1, sizeof(buf), fp) == sizeof(buf)) ? 0 : -1;
+  os.write(buf, sizeof(buf));
 }
 
 static Object
-stReadObject(FILE *fp)
+stReadObject(std::istream& is)
 {
   Object result;
-  unsigned char buf[5 * 2], *p = buf;
-  if (fread(buf, 1, sizeof(buf), fp) != sizeof(buf)) throw std::runtime_error("object");
+  char buf[5 * 2], *p = buf;
+  is.read(buf, sizeof(buf));
   result.what = ObjType::Type(*(short *)p);
   result.x = *(short *)(p + 2);
   result.y = *(short *)(p + 4);
@@ -160,55 +146,42 @@ stReadObject(FILE *fp)
   return result;
 }
 
-static int
-stWriteObject(FILE *fp, const Object& o)
+static void
+stWriteObject(std::ostream& os, const Object& o)
 {
-  unsigned char buf[5 * 2], *p = buf;
+  char buf[5 * 2], *p = buf;
   *(short *)p = o.what;
   *(short *)(p + 2) = o.x;
   *(short *)(p + 4) = o.y;
   *(short *)(p + 6) = o.z;
   *(short *)(p + 8) = (o.a & 7) | ((o.b & 7) << 3) | ((o.c & 7) << 6);
-  return (fwrite(buf, 1, sizeof(buf), fp) == sizeof(buf)) ? 0 : -1;
+  os.write(buf, sizeof(buf));
 }
 
-int stWrite(const char *fname) {
-  int ret = 0;
-  if (!inited || fname == NULL) return ret;
-  FILE *f = fopen(fname, "wb");
-  if (f == NULL) return ret;
-  if (stWriteHeader(f)) goto end;
-  for (Vertexes::const_iterator i(vc.begin()); i != vc.end(); ++i) {
-    if (stWriteVertex(f, *i)) goto end;
-  }
-  for (Lines::const_iterator i(lc.begin()); i != lc.end(); ++i) {
-    if (stWriteLine(f, *i)) goto end;
-  }
+void
+stWrite(const char* fname)
+{
+  std::ofstream f(fname, std::ios::binary);
+  f.exceptions(std::ios::failbit | std::ios::badbit);
+  if (!f) throw std::runtime_error("failed to open map file for writing");
+  stWriteHeader(f);
+  for (Vertexes::const_iterator i(vc.begin()); i != vc.end(); ++i) stWriteVertex(f, *i);
+  for (Lines::const_iterator i(lc.begin()); i != lc.end(); ++i) stWriteLine(f, *i);
   {
     Sectors::const_iterator i(sc.begin());
     if (i != sc.end()) ++i;
-    for (; i != sc.end(); ++i) {
-      if (stWriteSector(f, *i)) goto end;
-    }
+    for (; i != sc.end(); ++i) stWriteSector(f, *i);
   }
-  for (Objects::const_iterator i(oc.begin()); i != oc.end(); ++i) {
-    if (stWriteObject(f, *i)) goto end;
-  }
-  ++ret;
+  for (Objects::const_iterator i(oc.begin()); i != oc.end(); ++i) stWriteObject(f, *i);
   printf("map written to \"%s\"\n", fname);
- end:
-  fclose(f);
-  return ret;
 }
 
-int stRead(const char *fname) {
-  Vertexes vertexes;
-  Lines lines;
-  Sectors sectors;
-  Objects objects;
-  if (fname == NULL) return 0;
-  FILE *f = fopen(fname, "rb");
-  if (f == NULL) return 0;
+void
+stRead(const char* fname)
+{
+  std::ifstream f(fname, std::ios::binary);
+  f.exceptions(std::ios::failbit | std::ios::badbit | std::ios::eofbit);
+  if (!f) throw std::runtime_error("failed to open map file for reading");
   Header hdr(stReadHeader(f));
   puts("stRead");
   printf(
@@ -218,13 +191,14 @@ int stRead(const char *fname) {
     hdr.nSectors,
     hdr.nObjects
   );
-  if (inited) stClose();
 
+  Vertexes vertexes;
   for (unsigned i = 0; i < hdr.nVerteces; ++i) {
     vertexes.push_back(stReadVertex(f));
     printf("vertex %u: x=%d y=%d\n", i, vertexes.back().x, vertexes.back().y);
   }
 
+  Lines lines;
   for (unsigned i = 0; i < hdr.nLines; ++i) {
     lines.push_back(stReadLine(f));
     printf(
@@ -243,6 +217,7 @@ int stRead(const char *fname) {
     );
   }
 
+  Sectors sectors;
   sectors.push_back(Sector());
   for (unsigned i = 0; i < hdr.nSectors; ++i) {
     unsigned n;
@@ -261,6 +236,7 @@ int stRead(const char *fname) {
     );
   }
 
+  Objects objects;
   for (unsigned i = 0; i < hdr.nObjects; ++i) {
     objects.push_back(stReadObject(f));
     printf(
@@ -276,15 +252,9 @@ int stRead(const char *fname) {
     );
   }
 
-  fclose(f);
-  ++inited;
   using std::swap;
   swap(vc, vertexes);
   swap(lc, lines);
   swap(sc, sectors);
   swap(oc, objects);
-  return !0;
-  stClose();
-  fclose(f);
-  return 0;
 }
