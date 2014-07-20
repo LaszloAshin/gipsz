@@ -11,13 +11,9 @@ int stWrite(const char *fname);
 int stRead(const char *fname);
 void stClose();
 
-int stPutVertex(Vertex* v);
 int stGetVertex(Vertex* v);
-int stPutLine(Line* l);
 int stGetLine(Line* l);
-int stPutSector(int n, Sector* s);
 int stGetSector(int* n, Sector* s);
-int stPutObject(Object* o);
 int stGetObject(Object* o);
 
 #endif /* _ST_H */

@@ -225,10 +225,6 @@ void edScreen() {
 
 void edSave() {
   stOpen();
-  for (unsigned i = 0; i < vc.size(); ++i) stPutVertex(&vc.at(i));
-  for (unsigned i = 0; i < lc.size(); ++i) stPutLine(&lc.at(i));
-  for (unsigned i = 1; i < sc.size(); ++i) stPutSector(i, &sc.at(i));
-  for (unsigned i = 0; i < oc.size(); ++i) stPutObject(&oc.at(i));
   stWrite("map.st");
   stClose();
 }
