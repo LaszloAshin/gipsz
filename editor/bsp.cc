@@ -24,7 +24,7 @@ struct Vertex {
 
 struct Node;
 
-typedef struct line_s {
+struct Line {
   int a, b;
   int c, l, r, n;
   int pd;
@@ -32,16 +32,26 @@ typedef struct line_s {
   unsigned flags;
   Node* neigh;
   int t;
-} bspline_t;
+
+  Line() : a(0), b(0), c(0), l(0), r(0), n(0), pd(0), u1(0), u2(0), v(0), flags(0), neigh(0), t(0) {}
+  Line(int a0, int b0, int u10, int u20, int v0, unsigned flags0, int t0)
+  : a(a0), b(b0), c(0), l(0), r(0), n(0), pd(0), u1(u10), u2(u20), v(v0), flags(flags0), neigh(0), t(t0)
+  {}
+};
+
+typedef std::vector<Line> Lines;
 
 struct Node {
-  bspline_t *p;
-  unsigned alloc, n;
+  Lines p;
   int s;
   Node* l;
   Node* r;
 
-  Node() : p(0), alloc(0), n(0), s(0), l(0), r(0) {}
+  Node() : s(0), l(0), r(0) {}
+
+private:
+  Node(const Node&);
+  Node& operator=(const Node&);
 };
 
 struct Sector {
@@ -127,40 +137,22 @@ int bspAddLine(int s, int x1, int y1, int x2, int y2, int u, int v, int flags, i
   Node* n = bspGetNodeForSector(s);
   if (n == NULL) return -1;
   if (a < 0 || b < 0) return -1;
-  unsigned i;
-  if (n->n == n->alloc) {
-    if (!n->alloc)
-      n->alloc = 4;
-    else
-      n->alloc *= 2;
-    bspline_t *p = (bspline_t *)malloc(n->alloc * sizeof(bspline_t));
-    if (p == NULL) return -1;
-    for (i = 0; i < n->n; ++i) p[i] = n->p[i];
-    if (n->p != NULL) free(n->p);
-    n->p = p;
-  }
-  n->p[n->n].a = a;
-  n->p[n->n].b = b;
-  n->p[n->n].u1 = u + sqrtf((x2-x1)*(x2-x1) + (y2-y1)*(y2-y1)) + du;
-  n->p[n->n].u2 = u;
-  n->p[n->n].v = v;
-  n->p[n->n].flags = flags;
-  n->p[n->n].neigh = NULL;
-  n->p[n->n].t = t;
-  unsigned j;
-  Node* p;
-  for (i = 0; i < sc.size(); ++i)
+  Line line(a, b, u + sqrtf((x2-x1)*(x2-x1) + (y2-y1)*(y2-y1)) + du, u, v, flags, t);
+  for (unsigned i = 0; i < sc.size(); ++i) {
     if (sc[i].s != s) {
-      p = sc[i].n;
-      for (j = 0; j < p->n; ++j)
+      Node* p = sc[i].n;
+      for (unsigned j = 0; j < p->p.size(); ++j) {
         if (p->p[j].a == b && p->p[j].b == a) {
-          n->p[n->n].neigh = p;
+          line.neigh = p;
           p->p[j].neigh = n;
           break;
         }
-      if (n->p[n->n].neigh != NULL) break;
+      }
+      if (line.neigh) break;
     }
-  return n->n++;
+  }
+  n->p.push_back(line);
+  return n->p.size() - 1;
 }
 
 static bool
@@ -194,9 +186,9 @@ bspIntersect(const Vertex& p1, const Vertex& p2, const Vertex& p3, const Vertex&
 static void bspShowSub(Node* n) {
   if (n->l != NULL) bspShowSub(n->l);
   if (n->r != NULL) bspShowSub(n->r);
-  if (n->p != NULL) {
+  if (!n->p.empty()) {
     grSetColor((n->s * 343) | 3);
-    for (unsigned i = 0; i < n->n; ++i)
+    for (unsigned i = 0; i < n->p.size(); ++i)
       edVector(vc[n->p[i].a].x, vc[n->p[i].a].y, vc[n->p[i].b].x, vc[n->p[i].b].y);
   }
 }
@@ -216,7 +208,7 @@ static void
 bspCountSub(Node* n, struct bsp_count_result *result)
 {
   ++result->node_count;
-  result->line_count += n->n;
+  result->line_count += n->p.size();
   if (n->l != NULL) bspCountSub(n->l, result);
   if (n->r != NULL) bspCountSub(n->r, result);
 }
@@ -258,7 +250,7 @@ static void bspSortVerteces(unsigned *p, unsigned n) {
 }
 
 static int bspMayConnect(Node* n, int a, int b) {
-  for (unsigned i = 0; i < n->n; ++i) {
+  for (unsigned i = 0; i < n->p.size(); ++i) {
     if ((n->p[i].a == a && n->p[i].b == b))
       return 0;
     n->p[i].n = 0;
@@ -269,10 +261,10 @@ static int bspMayConnect(Node* n, int a, int b) {
 static int bspALine(Node* n, int a) {
   unsigned j = 0;
   int bo;
-  for (unsigned i = 0; i < n->n; ++i)
+  for (unsigned i = 0; i < n->p.size(); ++i)
     if (n->p[i].a == a) {
       bo = 0;
-      for (; j < n->n; ++j)
+      for (; j < n->p.size(); ++j)
         if (n->p[j].b == a) {
           ++j;
           ++bo;
@@ -286,10 +278,10 @@ static int bspALine(Node* n, int a) {
 static int bspBLine(Node* n, int b) {
   unsigned j = 0;
   int bo;
-  for (unsigned i = 0; i < n->n; ++i)
+  for (unsigned i = 0; i < n->p.size(); ++i)
     if (n->p[i].b == b) {
       bo = 0;
-      for (; j < n->n; ++j)
+      for (; j < n->p.size(); ++j)
         if (n->p[j].a == b) {
           ++j;
           ++bo;
@@ -303,7 +295,7 @@ static int bspBLine(Node* n, int b) {
 static int bspGetPair(Node* n, unsigned l) {
   Node* p = n->p[l].neigh;
   unsigned i;
-  for (i = 0; i < p->n; ++i)
+  for (i = 0; i < p->p.size(); ++i)
     if (p->p[i].a == n->p[l].b && p->p[i].b == n->p[l].a) {
       if (p->p[i].neigh != n) printf("pair neighje mashova mutat\n");
       return i;
@@ -321,7 +313,7 @@ bspCleanSub(Node** n)
 {
   if ((*n)->l != NULL) bspCleanSub(&(*n)->l);
   if ((*n)->r != NULL) bspCleanSub(&(*n)->r);
-  if ((*n)->l == NULL && (*n)->r == NULL && !(*n)->n) {
+  if ((*n)->l == NULL && (*n)->r == NULL && (*n)->p.empty()) {
     delete *n;
     *n = 0;
   }
@@ -336,14 +328,14 @@ void bspCleanTree() {
 static void
 bspBuildSub(Node* n)
 {
-  if (n == NULL || n->n < 3) return;
+  if (n == NULL || n->p.size() < 3) return;
 //  if (n->s != 31) return;
 //  printf("bspBuildSub(): %d\n", n->n);
-  for (unsigned i = 0; i < n->n; ++i) {
+  for (unsigned i = 0; i < n->p.size(); ++i) {
     n->p[i].l = n->p[i].r = n->p[i].n = 0;
     const int dx1 = vc[n->p[i].b].x - vc[n->p[i].a].x;
     const int dy1 = vc[n->p[i].b].y - vc[n->p[i].a].y;
-    for (unsigned j = 0; j < n->n; ++j) {
+    for (unsigned j = 0; j < n->p.size(); ++j) {
       const int dx2a = vc[n->p[j].a].x - vc[n->p[i].a].x;
       const int dy2a = vc[n->p[j].a].y - vc[n->p[i].a].y;
       const int da = dy1 * dx2a - dy2a * dx1;
@@ -359,7 +351,7 @@ bspBuildSub(Node* n)
     }
   }
   int j = 0;
-  for (unsigned i = 1; i < n->n; ++i) {
+  for (unsigned i = 1; i < n->p.size(); ++i) {
 //    printf("nodeline candidate: %d r=%d l=%d\n", i, n->p[i].r, n->p[i].l);
     if (!n->p[j].r || !n->p[j].l) {
       j = i;
@@ -372,99 +364,76 @@ bspBuildSub(Node* n)
 //  printf("nodeline: %d r=%d l=%d\n", j, n->p[j].r, n->p[j].l);
   const int dx1 = vc[n->p[j].b].x - vc[n->p[j].a].x;
   const int dy1 = vc[n->p[j].b].y - vc[n->p[j].a].y;
-  int l = 0;
-  int e = 0;
-  int r = 0;
-  int f = 0;
   for (unsigned i = 0; i < vc.size(); ++i) vc[i].s = 0;
   int mina = 0;
   int maxa = 0;
-  for (unsigned i = 0; i < n->n; ++i) {
-    n->p[i].l = n->p[i].r = 0;
-    const int dx2a = vc[n->p[i].a].x - vc[n->p[j].a].x;
-    const int dy2a = vc[n->p[i].a].y - vc[n->p[j].a].y;
-    int da = dy1 * dx2a - dy2a * dx1;
-    const int dx2b = vc[n->p[i].b].x - vc[n->p[j].a].x;
-    const int dy2b = vc[n->p[i].b].y - vc[n->p[j].a].y;
-    const int db = dy1 * dx2b - dy2b * dx1;
-    if (da < mina) mina = da;
-    if (db < mina) mina = db;
-    if (da > maxa) maxa = da;
-    if (db > maxa) maxa = db;
-    if (!da && !vc[n->p[i].a].s) {
-      ++f;
-      ++vc[n->p[i].a].s;
+  int e = 0;
+  int f = 0;
+  {
+    int l = 0;
+    int r = 0;
+    for (unsigned i = 0; i < n->p.size(); ++i) {
+      n->p[i].l = n->p[i].r = 0;
+      const int dx2a = vc[n->p[i].a].x - vc[n->p[j].a].x;
+      const int dy2a = vc[n->p[i].a].y - vc[n->p[j].a].y;
+      int da = dy1 * dx2a - dy2a * dx1;
+      const int dx2b = vc[n->p[i].b].x - vc[n->p[j].a].x;
+      const int dy2b = vc[n->p[i].b].y - vc[n->p[j].a].y;
+      const int db = dy1 * dx2b - dy2b * dx1;
+      if (da < mina) mina = da;
+      if (db < mina) mina = db;
+      if (da > maxa) maxa = da;
+      if (db > maxa) maxa = db;
+      if (!da && !vc[n->p[i].a].s) {
+        ++f;
+        ++vc[n->p[i].a].s;
+      }
+      if (!db && !vc[n->p[i].b].s) {
+        ++f;
+        ++vc[n->p[i].b].s;
+      }
+      if (!da && !db) {
+        const int dx2 = vc[n->p[i].a].x - vc[n->p[i].b].x;
+        const int dy2 = vc[n->p[i].a].y - vc[n->p[i].b].y;
+        da = dy1 * dy2 + dx1 * dx2;
+      }
+      if ((da < 0 && db <= 0) || (da <= 0 && db < 0)) {
+        ++n->p[i].r;
+        ++r;
+        continue;
+      }
+      if ((da > 0 && db >= 0) || (da >= 0 && db > 0)) {
+        ++n->p[i].l;
+        ++l;
+        continue;
+      }
+      ++e;
     }
-    if (!db && !vc[n->p[i].b].s) {
-      ++f;
-      ++vc[n->p[i].b].s;
-    }
-    if (!da && !db) {
-      const int dx2 = vc[n->p[i].a].x - vc[n->p[i].b].x;
-      const int dy2 = vc[n->p[i].a].y - vc[n->p[i].b].y;
-      da = dy1 * dy2 + dx1 * dx2;
-    }
-    if ((da < 0 && db <= 0) || (da <= 0 && db < 0)) {
-      ++n->p[i].r;
-      ++r;
-      continue;
-    }
-    if ((da > 0 && db >= 0) || (da >= 0 && db > 0)) {
-      ++n->p[i].l;
-      ++l;
-      continue;
-    }
-    ++e;
-  }
-  if (!l && !e) return;
+    if (!l && !e) return;
 
-  f += e;
+    f += e;
   /* here f tells us how many verteces are on the nodeline */
 //  printf("f=%d mina=%d maxa=%d\n", f, mina, maxa);
-  if (mina >= 10 || maxa <= 10) return;
+    if (mina >= 10 || maxa <= 10) return;
 
-  n->l = new Node();
-  n->l->alloc = l + e + f;
-  n->l->p = (bspline_t *)malloc(n->l->alloc * sizeof(bspline_t));
-  if (n->l->p == NULL) {
-    delete n->l;
-    n->l = NULL;
-    return;
-  }
-  n->l->n = 0;
+    n->l = new Node();
+    n->l->p.reserve(l + e + f);
 
-  n->r = new Node();
-  if (n->r == NULL) {
-    free(n->l->p);
-    delete n->l;
-    n->l = NULL;
-    return;
+    n->r = new Node();
+    n->r->p.reserve(r + e + f);
   }
-  n->r->alloc = r + e + f;
-  n->r->p = (bspline_t *)malloc(n->r->alloc * sizeof(bspline_t));
-  if (n->r->p == NULL) {
-    free(n->l->p);
-    delete n->l;
-    n->l = NULL;
-    delete n->r;
-    n->r = NULL;
-    return;
-  }
-  n->r->n = 0;
 
   n->r->s = n->l->s = n->s;
 
-  l = r = 0;
-  bspline_t tl;
-  memset(&tl, 0, sizeof(bspline_t));
-  for (unsigned i = 0; i < n->n; ++i) {
+  Line tl;
+  for (unsigned i = 0; i < n->p.size(); ++i) {
     if (n->p[i].r) {
-      n->r->p[r++] = n->p[i];
+      n->r->p.push_back(n->p[i]);
       if (n->p[i].neigh != NULL) bspNoticePair(n, i, n->r);
       continue;
     }
     if (n->p[i].l) {
-      n->l->p[l++] = n->p[i];
+      n->l->p.push_back(n->p[i]);
       if (n->p[i].neigh != NULL) bspNoticePair(n, i, n->l);
       continue;
     }
@@ -480,16 +449,9 @@ bspBuildSub(Node* n)
     Node * const ne = n->p[i].neigh;
     int t = (ne != NULL) ? bspGetPair(n, i) : -1;
     if (t >= 0) {
-      /* make sure we have enough space on the neigh node */
-      if (ne->p[t].a != e && ne->p[t].b != e && ne->n == ne->alloc) {
-        ne->alloc *= 2;
-        bspline_t *p = (bspline_t *)malloc(ne->alloc * sizeof(bspline_t));
-        for (unsigned j = 0; j < ne->n; ++j) p[j] = ne->p[j];
-        free(ne->p);
-        ne->p = p;
-      }
       tl = ne->p[t];
-      ne->p[t] = ne->p[--ne->n];
+      ne->p[t] = ne->p.back();
+      ne->p.pop_back();
     }
     t = t != -1;
     if (da > 0) {
@@ -511,46 +473,24 @@ bspBuildSub(Node* n)
         }
       }
       if (n->p[i].a != e) {
-        n->l->p[l].a = n->p[i].a;
-        n->l->p[l].u1 = n->p[i].u1;
-        n->l->p[l].b = e;
-        n->l->p[l].u2 = dx2;
-        n->l->p[l].v = n->p[i].v;
-        n->l->p[l].t = n->p[i].t;
+        Line line2(n->p[i].a, e, n->p[i].u1, dx2, n->p[i].v, 0, n->p[i].t);
         if (t) {
-          n->l->p[l].neigh = ne;
-          ne->p[ne->n].a = e;
-          ne->p[ne->n].u1 = dy2;
-          ne->p[ne->n].b = tl.b;
-          ne->p[ne->n].u2 = tl.u2;
-          ne->p[ne->n].neigh = n->l;
-          ne->p[ne->n].v = tl.v;
-          ne->p[ne->n].t = tl.t;
-          ++ne->n;
-        } else
-          n->l->p[l].neigh = NULL;
-        ++l;
+          line2.neigh = ne;
+          Line line(e, tl.b, dy2, tl.u2, tl.v, 0, tl.t);
+          line.neigh = n->l;
+          ne->p.push_back(line);
+        }
+        n->l->p.push_back(line2);
       }
       if (n->p[i].b != e) {
-        n->r->p[r].a = e;
-        n->r->p[r].u1 = dx2;
-        n->r->p[r].b = n->p[i].b;
-        n->r->p[r].u2 = n->p[i].u2;
-        n->r->p[r].v = n->p[i].v;
-        n->r->p[r].t = n->p[i].t;
+        Line line2(e, n->p[i].b, dx2, n->p[i].u2, n->p[i].v, 0, n->p[i].t);
         if (t) {
-          n->r->p[r].neigh = ne;
-          ne->p[ne->n].a = tl.a;
-          ne->p[ne->n].u1 = tl.u1;
-          ne->p[ne->n].b = e;
-          ne->p[ne->n].u2 = dy2;
-          ne->p[ne->n].neigh = n->r;
-          ne->p[ne->n].v = tl.v;
-          ne->p[ne->n].t = tl.t;
-          ++ne->n;
-        } else
-          n->r->p[r].neigh = NULL;
-        ++r;
+          line2.neigh = ne;
+          Line line(tl.a, e, tl.u1, dy2, tl.v, 0, tl.t);
+          line.neigh = n->r;
+          ne->p.push_back(line);
+        }
+        n->r->p.push_back(line2);
       }
     } else {
       int dx2 = 0;
@@ -571,56 +511,29 @@ bspBuildSub(Node* n)
         }
       }
       if (n->p[i].a != e) {
-        n->r->p[r].a = n->p[i].a;
-        n->r->p[r].u1 = n->p[i].u1;
-        n->r->p[r].b = e;
-        n->r->p[r].u2 = dx2;
-        n->r->p[r].v = n->p[i].v;
-        n->r->p[r].t = n->p[i].t;
+        Line line2(n->p[i].a, e, n->p[i].u1, dx2, n->p[i].v, 0, n->p[i].t);
         if (t) {
-          n->r->p[r].neigh = ne;
-          ne->p[ne->n].a = e;
-          ne->p[ne->n].u1 = dy2;
-          ne->p[ne->n].b = tl.b;
-          ne->p[ne->n].u2 = tl.u2;
-          ne->p[ne->n].neigh = n->r;
-          ne->p[ne->n].v = tl.v;
-          ne->p[ne->n].t = tl.t;
-          ++ne->n;
-        } else
-          n->r->p[r].neigh = NULL;
-        ++r;
+          line2.neigh = ne;
+          Line line(e, tl.b, dy2, tl.u2, tl.v, 0, tl.t);
+          line.neigh = n->r;
+          ne->p.push_back(line);
+        }
+        n->r->p.push_back(line2);
       }
       if (n->p[i].b != e) {
-        n->l->p[l].a = e;
-        n->l->p[l].u1 = dx2;
-        n->l->p[l].b = n->p[i].b;
-        n->l->p[l].u2 = n->p[i].u2;
-        n->l->p[l].v = n->p[i].v;
-        n->l->p[l].t = n->p[i].t;
+        Line line2(e, n->p[i].b, dx2, n->p[i].u2, n->p[i].v, 0, n->p[i].t);
         if (t) {
-          n->l->p[l].neigh = ne;
-          ne->p[ne->n].a = tl.a;
-          ne->p[ne->n].u1 = tl.u1;
-          ne->p[ne->n].b = e;
-          ne->p[ne->n].u2 = dy2;
-          ne->p[ne->n].neigh = n->l;
-          ne->p[ne->n].v = tl.v;
-          ne->p[ne->n].t = tl.t;
-          ++ne->n;
-        } else
-          n->l->p[l].neigh = NULL;
-        ++l;
+          line2.neigh = ne;
+          Line line(tl.a, e, tl.u1, dy2, tl.v, 0, tl.t);
+          line.neigh = n->l;
+          ne->p.push_back(line);
+        }
+        n->l->p.push_back(line2);
       }
     }
   }
 
-  free(n->p);
-  n->p = NULL;
-
-  /* fontos! */
-  n->r->n = r;
-  n->l->n = l;
+  n->p.clear();
 
   std::vector<unsigned> p(f);
   int t = 0;
@@ -638,27 +551,17 @@ bspBuildSub(Node* n)
         ++i;
         j = 0;
         if (da && bspMayConnect(n->r, p[i], p[i-1])) {
-          n->r->p[n->r->n].a = p[i];
-          n->r->p[n->r->n].b = p[i-1];
-          n->r->p[n->r->n].neigh = NULL;
-          n->r->p[n->r->n].flags = Line::Flag::NOTHING; /* two sided will be set at save */
-          n->r->p[n->r->n].u1 = n->r->p[n->r->n].u2 = n->r->p[n->r->n].v = 0;
-          n->r->p[n->r->n].t = 0;
-          ++n->r->n;
+          Line line(p[i], p[i - 1], 0, 0, 0, ::Line::Flag::NOTHING, 0);
+          n->r->p.push_back(line);
           ++j;
         }
         if (db && bspMayConnect(n->l, p[i-1], p[i])) {
-          n->l->p[n->l->n].a = p[i-1];
-          n->l->p[n->l->n].b = p[i];
-          n->l->p[n->l->n].flags = Line::Flag::NOTHING; /* two sided will be set at save */
-          n->l->p[n->l->n].u1 = n->l->p[n->l->n].u2 = n->l->p[n->l->n].v = 0;
-          n->l->p[n->l->n].t = 0;
+          Line line(p[i - 1], p[i], 0, 0, 0, ::Line::Flag::NOTHING, 0);
           if (j) {
-            n->r->p[n->r->n-1].neigh = n->l;
-            n->l->p[n->l->n].neigh = n->r;
-          } else
-            n->l->p[n->l->n].neigh = NULL;
-          ++n->l->n;
+            n->r->p.back().neigh = n->l;
+            line.neigh = n->r;
+          }
+          n->l->p.push_back(line);
         }
       } while (i < t);
     } else {
@@ -668,36 +571,26 @@ bspBuildSub(Node* n)
         ++i;
         j = 0;
         if (da && bspMayConnect(n->l, p[i], p[i-1])) {
-          n->l->p[n->l->n].a = p[i];
-          n->l->p[n->l->n].b = p[i-1];
-          n->l->p[n->l->n].neigh = NULL;
-          n->l->p[n->l->n].flags = Line::Flag::NOTHING; /* two sided will be set at save */
-          n->l->p[n->l->n].u1 = n->l->p[n->l->n].u2 = n->l->p[n->l->n].v = 0;
-          n->l->p[n->l->n].t = 0;
-          ++n->l->n;
+          Line line(p[i], p[i - 1], 0, 0, 0, ::Line::Flag::NOTHING, 0);
+          n->l->p.push_back(line);
           ++j;
         }
         if (db && bspMayConnect(n->r, p[i-1], p[i])) {
-          n->r->p[n->r->n].a = p[i-1];
-          n->r->p[n->r->n].b = p[i];
-          n->r->p[n->r->n].flags = Line::Flag::NOTHING; /* two sided will be set at save */
-          n->r->p[n->r->n].u1 = n->r->p[n->r->n].u2 = n->r->p[n->r->n].v = 0;
-          n->r->p[n->r->n].t = 0;
+          Line line(p[i - 1], p[i], 0, 0, 0, ::Line::Flag::NOTHING, 0);
           if (j) {
-            n->r->p[n->r->n].neigh = n->l;
-            n->l->p[n->l->n-1].neigh = n->r;
-          } else
-            n->r->p[n->r->n].neigh = NULL;
-          ++n->r->n;
+            line.neigh = n->l;
+            n->l->p.back().neigh = n->r;
+          }
+          n->r->p.push_back(line);
         }
       } while (i < t);
     }
   }
 
   e = rand() | 3;
-  for (unsigned i = 0; i < n->r->n; ++i) n->r->p[i].c = e;
+  for (unsigned i = 0; i < n->r->p.size(); ++i) n->r->p[i].c = e;
   e = rand() | 3;
-  for (unsigned i = 0; i < n->l->n; ++i) n->l->p[i].c = e;
+  for (unsigned i = 0; i < n->l->p.size(); ++i) n->l->p[i].c = e;
 
   grBegin();
   bspShowSub(n);
@@ -705,18 +598,18 @@ bspBuildSub(Node* n)
 //  SDL_Delay(100);
   bspBuildSub(n->l);
   bspBuildSub(n->r);
-  n->n = 0;
+  n->p.clear();
 }
 
 static void
 bspBuildSearch(Node* n)
 {
-  if (!n->n) {
+  if (n->p.empty()) {
     if (n->l != NULL) bspBuildSearch(n->l);
     if (n->r != NULL) bspBuildSearch(n->r);
   } else {
     int e = rand() | 3;
-    for (unsigned i = 0; i < n->n; ++i) n->p[i].c = e;
+    for (unsigned i = 0; i < n->p.size(); ++i) n->p[i].c = e;
     bspBuildSub(n);
   }
 }
@@ -750,7 +643,6 @@ bspDelNode(Node* n)
 {
   if (n->l != NULL) bspDelNode(n->l);
   if (n->r != NULL) bspDelNode(n->r);
-  if (n->p != NULL) free(n->p);
   delete n;
 }
 
@@ -764,7 +656,7 @@ static void
 bspPrintTreeSub(Node* n, unsigned d)
 {
   for (unsigned i = 0; i < d; ++i) putchar(' ');
-  printf("%d\n", n->n);
+  printf("%lu\n", n->p.size());
   ++d;
   if (n->l != NULL) bspPrintTreeSub(n->l, d);
   if (n->r != NULL) bspPrintTreeSub(n->r, d);
@@ -784,12 +676,12 @@ bspSaveVertex(FILE *fp, Vertex *v)
 }
 
 static int
-bspSaveLine(FILE *fp, bspline_t *l)
+bspSaveLine(FILE* fp, Line* l)
 {
   unsigned char buf[2 * 2 + 1 + 3 * 2 + 4], *p = buf;
   *(short *)p = l->a;
   *(short *)(p + 2) = l->b;
-  p[4] = l->neigh ? Line::Flag::TWOSIDED : Line::Flag::NOTHING;
+  p[4] = l->neigh ? ::Line::Flag::TWOSIDED : ::Line::Flag::NOTHING;
   *(unsigned short *)(p + 5) = l->u1;
   *(unsigned short *)(p + 7) = l->u2;
   *(unsigned short *)(p + 9) = l->v;
@@ -806,18 +698,18 @@ bspSaveSub(FILE* fp, Node* n)
     return;
   }
   {
-    unsigned i = n->n + 1;
+    unsigned i = n->p.size() + 1;
     fwrite(&i, sizeof(int), 1, fp);
   }
   fwrite(&n->s, sizeof(int), 1, fp);
-  if (n->n) {
+  if (!n->p.empty()) {
     int j = n->p[0].a;
-    for (unsigned i = 0; i < n->n; ++i) n->p[i].n = 0;
+    for (unsigned i = 0; i < n->p.size(); ++i) n->p[i].n = 0;
     unsigned k = 0;
     int last_good = -1;
-    for (unsigned i = 0; i < n->n; ++i) {
+    for (unsigned i = 0; i < n->p.size(); ++i) {
       if (n->p[i].a == j && !n->p[i].n) {
-        bspSaveLine(fp, n->p + i);
+        bspSaveLine(fp, &n->p.at(i));
         last_good = i;
         j = n->p[i].b;
         ++n->p[i].n;
@@ -825,14 +717,14 @@ bspSaveSub(FILE* fp, Node* n)
         ++k;
       }
     }
-    if (k != n->n) {
-      printf("open sector!!! (%d) k=%d n->n=%d\n", n->s, k, n->n);
-      for (unsigned i = 0; i < n->n; ++i)
+    if (k != n->p.size()) {
+      printf("open sector!!! (%d) k=%d n->n=%lu\n", n->s, k, n->p.size());
+      for (unsigned i = 0; i < n->p.size(); ++i)
         printf(" %d %d\n", n->p[i].a, n->p[i].b);
       // halvany lila workaround ...
-      for (; k < n->n; ++k) {
+      for (; k < n->p.size(); ++k) {
         assert(last_good >= 0);
-        bspSaveLine(fp, n->p + last_good);
+        bspSaveLine(fp, &n->p.at(last_good));
       }
     }
   }
