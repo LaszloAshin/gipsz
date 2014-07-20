@@ -70,6 +70,13 @@ const
   os << std::endl;
 }
 
+template <class ForwardIterator>
+void
+saveAll(ForwardIterator first, ForwardIterator last, std::ostream& os)
+{
+  for (; first != last; ++first) first->save(os);
+}
+
 void
 stWrite(const char* fname)
 {
@@ -77,15 +84,25 @@ stWrite(const char* fname)
   f.exceptions(std::ios::failbit | std::ios::badbit);
   if (!f) throw std::runtime_error("failed to open map file for writing");
   Header(vc.size(), lc.size(), sc.size() ? (sc.size() - 1) : 0, oc.size()).save(f);
-  for (Vertexes::const_iterator i(vc.begin()); i != vc.end(); ++i) i->save(f);
-  for (Lines::const_iterator i(lc.begin()); i != lc.end(); ++i) i->save(f);
+  saveAll(vc.begin(), vc.end(), f);
+  saveAll(lc.begin(), lc.end(), f);
   {
     Sectors::const_iterator i(sc.begin());
     if (i != sc.end()) ++i;
     for (; i != sc.end(); ++i) i->save(f, &*i - &sc.front());
   }
-  for (Objects::const_iterator i(oc.begin()); i != oc.end(); ++i) i->save(f);
-  printf("map written to \"%s\"\n", fname);
+  saveAll(oc.begin(), oc.end(), f);
+  std::cout << "map written to " << fname << std::endl;
+}
+
+template <class T>
+void
+loadAll(std::vector<T>& v, size_t count, std::istream& is, std::ostream& os)
+{
+  for (size_t i = 0; i < count; ++i) {
+    v.push_back(T::load(is));
+    v.back().print(os, i);
+  }
 }
 
 void
@@ -99,16 +116,10 @@ stRead(const char* fname)
   hdr.print(std::cout);
 
   Vertexes vertexes;
-  for (unsigned i = 0; i < hdr.vertexCount(); ++i) {
-    vertexes.push_back(Vertex::load(f));
-    vertexes.back().print(std::cout, i);
-  }
+  loadAll(vertexes, hdr.vertexCount(), f, std::cout);
 
   Lines lines;
-  for (unsigned i = 0; i < hdr.lineCount(); ++i) {
-    lines.push_back(Line::load(f));
-    lines.back().print(std::cout, i);
-  }
+  loadAll(lines, hdr.lineCount(), f, std::cout);
 
   Sectors sectors;
   sectors.push_back(Sector());
@@ -120,10 +131,7 @@ stRead(const char* fname)
   }
 
   Objects objects;
-  for (unsigned i = 0; i < hdr.objectCount(); ++i) {
-    objects.push_back(Object::load(f));
-    objects.back().print(std::cout, i);
-  }
+  loadAll(objects, hdr.objectCount(), f, std::cout);
 
   using std::swap;
   swap(vc, vertexes);
