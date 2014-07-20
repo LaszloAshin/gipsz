@@ -231,18 +231,10 @@ void edSave() {
 
 void edLoad() {
   int n;
-  Vertex v;
-  Line l;
   Sector s;
-  Object o;
 
   stRead("map.st");
-  lc.clear();
   sc.clear();
-  while (stGetLine(&l)) {
-    if (l.sb == l.sf) l.sb = 0;
-    edAddLine(l.a, l.b, l.sf, l.sb, l.u, l.v, l.flags, l.tf, l.tb, l.du);
-  }
   while (stGetSector(&n, &s)) {
     edAddSector(n, s.f, s.c, s.l, s.u, s.v, s.t);
   }

@@ -19,19 +19,6 @@ struct Header {
 };
 
 typedef struct {
-  unsigned short a;
-  unsigned short b;
-  unsigned short sf;
-  unsigned short sb;
-  unsigned short u;
-  unsigned short v;
-  unsigned char flags;
-  unsigned int tf;
-  unsigned int tb;
-  short du;
-} fline_t;
-
-typedef struct {
   unsigned short s;
   short f;
   short c;
@@ -40,11 +27,6 @@ typedef struct {
   unsigned short v;
   unsigned int t;
 } fsector_t;
-
-static struct {
-  fline_t *p;
-  unsigned n, alloc, r;
-} flc;
 
 static struct {
   fsector_t *p;
@@ -60,25 +42,11 @@ void stClose() {
   }
   fsc.n = fsc.alloc = 0;
 
-  if (flc.p != NULL) {
-    free(flc.p);
-    flc.p = NULL;
-  }
-  flc.n = flc.alloc = 0;
-
   inited = 0;
 }
 
 int stOpen() {
   if (inited) return 0;
-  flc.alloc = 8;
-  flc.p = (fline_t *)malloc(flc.alloc * sizeof(fline_t));
-  if (flc.p == NULL) {
-    stClose();
-    return 0;
-  }
-  flc.n = 0;
-
   fsc.alloc = 8;
   fsc.p = (fsector_t *)malloc(fsc.alloc * sizeof(fsector_t));
   if (fsc.p == NULL) {
@@ -135,22 +103,24 @@ stWriteVertex(FILE *fp, const Vertex& v)
   return (fwrite(buf, 1, sizeof(buf), fp) == sizeof(buf)) ? 0 : -1;
 }
 
-static int
-stReadLine(FILE *fp, fline_t *l)
+static Line
+stReadLine(FILE *fp)
 {
+  Line result;
   unsigned char buf[6 * 2 + 1 + 2 * 4 + 2], *p = buf;
-  if (fread(buf, 1, sizeof(buf), fp) != sizeof(buf)) return -1;
-  l->a = *(unsigned short *)p;
-  l->b = *(unsigned short *)(p + 2);
-  l->sf = *(unsigned short *)(p + 4);
-  l->sb = *(unsigned short *)(p + 6);
-  l->u = *(unsigned short *)(p + 8);
-  l->v = *(unsigned short *)(p + 10);
-  l->flags = buf[12];
-  l->tf = *(unsigned *)(p + 13);
-  l->tb = *(unsigned *)(p + 17);
-  l->du = *(short *)(p + 21);
-  return 0;
+  if (fread(buf, 1, sizeof(buf), fp) != sizeof(buf)) throw std::runtime_error("line");
+  result.a = *(unsigned short *)p;
+  result.b = *(unsigned short *)(p + 2);
+  result.sf = *(unsigned short *)(p + 4);
+  result.sb = *(unsigned short *)(p + 6);
+  result.u = *(unsigned short *)(p + 8);
+  result.v = *(unsigned short *)(p + 10);
+  result.flags = buf[12];
+  result.tf = *(unsigned *)(p + 13);
+  result.tb = *(unsigned *)(p + 17);
+  result.du = *(short *)(p + 21);
+  if (result.sb == result.sf) result.sb = 0;
+  return result;
 }
 
 static int
@@ -261,6 +231,7 @@ int stWrite(const char *fname) {
 
 int stRead(const char *fname) {
   Vertexes vertexes;
+  Lines lines;
   Objects objects;
   if (fname == NULL) return 0;
   FILE *f = fopen(fname, "rb");
@@ -276,10 +247,6 @@ int stRead(const char *fname) {
   );
   if (inited) stClose();
 
-  flc.alloc = flc.n = hdr.nLines;
-  flc.p = (fline_t *)malloc(flc.alloc * sizeof(fline_t));
-  if (flc.p == NULL) goto end2;
-
   fsc.alloc = fsc.n = hdr.nSectors;
   fsc.p = (fsector_t *)malloc(fsc.alloc * sizeof(fsector_t));
   if (fsc.p == NULL) goto end2;
@@ -289,23 +256,24 @@ int stRead(const char *fname) {
     printf("vertex %u: x=%d y=%d\n", i, vertexes.back().x, vertexes.back().y);
   }
 
-  for (unsigned i = 0; i < flc.n; ++i) {
-    if (stReadLine(f, flc.p + i)) goto end2;
+  for (unsigned i = 0; i < hdr.nLines; ++i) {
+    lines.push_back(stReadLine(f));
     printf(
       "line %u: a=%u b=%u sf=%u sb=%u u=%u v=%u flg=%u tf=%u tb=%u du=%d\n",
       i,
-      flc.p[i].a,
-      flc.p[i].b,
-      flc.p[i].sf,
-      flc.p[i].sb,
-      flc.p[i].u,
-      flc.p[i].v,
-      flc.p[i].flags,
-      flc.p[i].tf,
-      flc.p[i].tb,
-      flc.p[i].du
+      lines.back().a,
+      lines.back().b,
+      lines.back().sf,
+      lines.back().sb,
+      lines.back().u,
+      lines.back().v,
+      lines.back().flags,
+      lines.back().tf,
+      lines.back().tb,
+      lines.back().du
     );
   }
+
   for (unsigned i = 0; i < fsc.n; ++i) {
     if (stReadSector(f, fsc.p + i)) goto end2;
     printf(
@@ -337,35 +305,17 @@ int stRead(const char *fname) {
   }
 
   fclose(f);
-  flc.r = fsc.r = 0;
+  fsc.r = 0;
   ++inited;
   using std::swap;
   swap(vc, vertexes);
+  swap(lc, lines);
   swap(oc, objects);
   return !0;
  end2:
   stClose();
   fclose(f);
   return 0;
-}
-
-int stGetLine(Line* l) {
-  if (flc.r == flc.n) {
-    flc.r = 0;
-    return 0;
-  }
-  l->a = flc.p[flc.r].a;
-  l->b = flc.p[flc.r].b;
-  l->sf = flc.p[flc.r].sf;
-  l->sb = flc.p[flc.r].sb;
-  l->u = flc.p[flc.r].u;
-  l->v = flc.p[flc.r].v;
-  l->flags = flc.p[flc.r].flags;
-  l->tf = flc.p[flc.r].tf;
-  l->tb = flc.p[flc.r].tb;
-  l->du = flc.p[flc.r].du;
-  ++flc.r;
-  return !0;
 }
 
 int stGetSector(int *n, Sector* s) {
