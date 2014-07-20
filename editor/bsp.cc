@@ -22,7 +22,7 @@ struct Vertex {
   Vertex(int x0, int y0) : x(x0), y(y0), s(0) {}
 };
 
-struct node_s;
+struct Node;
 
 typedef struct line_s {
   int a, b;
@@ -30,23 +30,26 @@ typedef struct line_s {
   int pd;
   int u1, u2, v;
   unsigned flags;
-  struct node_s *neigh;
+  Node* neigh;
   int t;
 } bspline_t;
 
-typedef struct node_s {
+struct Node {
   bspline_t *p;
   unsigned alloc, n;
   int s;
-  struct node_s *l, *r;
-} node_t;
+  Node* l;
+  Node* r;
+
+  Node() : p(0), alloc(0), n(0), s(0), l(0), r(0) {}
+};
 
 struct Sector {
   int s;
-  node_t *n;
+  Node* n;
 
   Sector() : s(0), n(0) {}
-  Sector(int s0, node_t *n0) : s(s0), n(n0) {}
+  Sector(int s0, Node* n0) : s(s0), n(n0) {}
 };
 
 typedef std::vector<Vertex> Vertexes;
@@ -55,7 +58,7 @@ typedef std::vector<Sector> Sectors;
 Vertexes vc;
 Sectors sc;
 
-static node_t *root = NULL;
+static Node* root = 0;
 
 static int bspGetVertex(int x, int y) {
   for (unsigned i = 0; i < vc.size(); ++i)
@@ -81,27 +84,27 @@ bspAddSector()
 }
 
 static void
-bspDuplicateNode(node_t *n, node_t **p)
+bspDuplicateNode(Node* n, Node** p) // XXX: reference
 {
-  *p = (node_t *)malloc(sizeof(node_t));
-  if (*p == NULL) return;
-  if (n->l == NULL && n->r == NULL) {
-    int i;
-    if ((i = bspAddSector()) < 0) return;
+  *p = new Node();
+  if (!n->l && !n->r) {
+    int i = bspAddSector();
+    if (i < 0) return;
     sc[i].n = *p;
   }
-  (*p)->alloc = (*p)->n = 0;
-  (*p)->p = NULL;
-  (*p)->s = 0;
-  if (n->l != NULL) bspDuplicateNode(n->l, &(*p)->l); else (*p)->l = NULL;
-  if (n->r != NULL) bspDuplicateNode(n->r, &(*p)->r); else (*p)->r = NULL;
+  if (n->l) bspDuplicateNode(n->l, &(*p)->l);
+  if (n->r) bspDuplicateNode(n->r, &(*p)->r);
 }
 
-static void bspDuplicateTree(node_t *n) {
+static void
+bspDuplicateTree(Node* n)
+{
   bspDuplicateNode(n->l, &n->r);
 }
 
-static node_t *bspGetNodeForSector(int s) {
+static Node*
+bspGetNodeForSector(int s)
+{
   if (!s) return NULL;
   for (unsigned i = 0; i < sc.size(); ++i)
     if (sc[i].s == s)
@@ -111,10 +114,7 @@ static node_t *bspGetNodeForSector(int s) {
       sc[i].s = sc[i].n->s = s;
       return sc[i].n;
     }
-  node_t *p = (node_t *)malloc(sizeof(node_t));
-  if (p == NULL) return p;
-  p->alloc = p->n = p->s = 0;
-  p->p = NULL;
+  Node* p = new Node();
   p->l = root;
   bspDuplicateTree(p);
   root = p;
@@ -124,7 +124,7 @@ static node_t *bspGetNodeForSector(int s) {
 int bspAddLine(int s, int x1, int y1, int x2, int y2, int u, int v, int flags, int t, int du) {
   int a = bspAddVertex(x1, y1);
   int b = bspAddVertex(x2, y2);
-  node_t *n = bspGetNodeForSector(s);
+  Node* n = bspGetNodeForSector(s);
   if (n == NULL) return -1;
   if (a < 0 || b < 0) return -1;
   unsigned i;
@@ -148,7 +148,7 @@ int bspAddLine(int s, int x1, int y1, int x2, int y2, int u, int v, int flags, i
   n->p[n->n].neigh = NULL;
   n->p[n->n].t = t;
   unsigned j;
-  node_t *p;
+  Node* p;
   for (i = 0; i < sc.size(); ++i)
     if (sc[i].s != s) {
       p = sc[i].n;
@@ -191,7 +191,7 @@ bspIntersect(const Vertex& p1, const Vertex& p2, const Vertex& p3, const Vertex&
   return true;
 }
 
-static void bspShowSub(node_t *n) {
+static void bspShowSub(Node* n) {
   if (n->l != NULL) bspShowSub(n->l);
   if (n->r != NULL) bspShowSub(n->r);
   if (n->p != NULL) {
@@ -213,7 +213,7 @@ struct bsp_count_result {
 };
 
 static void
-bspCountSub(node_t *n, struct bsp_count_result *result)
+bspCountSub(Node* n, struct bsp_count_result *result)
 {
   ++result->node_count;
   result->line_count += n->n;
@@ -257,7 +257,7 @@ static void bspSortVerteces(unsigned *p, unsigned n) {
   }
 }
 
-static int bspMayConnect(node_t *n, int a, int b) {
+static int bspMayConnect(Node* n, int a, int b) {
   for (unsigned i = 0; i < n->n; ++i) {
     if ((n->p[i].a == a && n->p[i].b == b))
       return 0;
@@ -266,7 +266,7 @@ static int bspMayConnect(node_t *n, int a, int b) {
   return !0;
 }
 
-static int bspALine(node_t *n, int a) {
+static int bspALine(Node* n, int a) {
   unsigned j = 0;
   int bo;
   for (unsigned i = 0; i < n->n; ++i)
@@ -283,7 +283,7 @@ static int bspALine(node_t *n, int a) {
   return 0;
 }
 
-static int bspBLine(node_t *n, int b) {
+static int bspBLine(Node* n, int b) {
   unsigned j = 0;
   int bo;
   for (unsigned i = 0; i < n->n; ++i)
@@ -300,8 +300,8 @@ static int bspBLine(node_t *n, int b) {
   return 0;
 }
 
-static int bspGetPair(node_t *n, unsigned l) {
-  node_t *p = n->p[l].neigh;
+static int bspGetPair(Node* n, unsigned l) {
+  Node* p = n->p[l].neigh;
   unsigned i;
   for (i = 0; i < p->n; ++i)
     if (p->p[i].a == n->p[l].b && p->p[i].b == n->p[l].a) {
@@ -311,19 +311,19 @@ static int bspGetPair(node_t *n, unsigned l) {
   return -1;
 }
 
-static void bspNoticePair(node_t *n, unsigned l, node_t *p) {
+static void bspNoticePair(Node* n, unsigned l, Node* p) {
   int i = bspGetPair(n, l);
   if (i != -1) n->p[l].neigh->p[i].neigh = p;
 }
 
 static void
-bspCleanSub(node_t **n)
+bspCleanSub(Node** n)
 {
   if ((*n)->l != NULL) bspCleanSub(&(*n)->l);
   if ((*n)->r != NULL) bspCleanSub(&(*n)->r);
   if ((*n)->l == NULL && (*n)->r == NULL && !(*n)->n) {
-    free(*n);
-    *n = NULL;
+    delete *n;
+    *n = 0;
   }
 }
 
@@ -334,7 +334,7 @@ void bspCleanTree() {
 //int bspLoad(FILE *f);
 
 static void
-bspBuildSub(node_t *n)
+bspBuildSub(Node* n)
 {
   if (n == NULL || n->n < 3) return;
 //  if (n->s != 31) return;
@@ -423,33 +423,30 @@ bspBuildSub(node_t *n)
 //  printf("f=%d mina=%d maxa=%d\n", f, mina, maxa);
   if (mina >= 10 || maxa <= 10) return;
 
-  n->l = (node_t *)malloc(sizeof(node_t));
-  if (n->l == NULL) return;
-  n->l->l = n->l->r = NULL;
+  n->l = new Node();
   n->l->alloc = l + e + f;
   n->l->p = (bspline_t *)malloc(n->l->alloc * sizeof(bspline_t));
   if (n->l->p == NULL) {
-    free(n->l);
+    delete n->l;
     n->l = NULL;
     return;
   }
   n->l->n = 0;
 
-  n->r = (node_t *)malloc(sizeof(node_t));
+  n->r = new Node();
   if (n->r == NULL) {
     free(n->l->p);
-    free(n->l);
+    delete n->l;
     n->l = NULL;
     return;
   }
-  n->r->l = n->r->r = NULL;
   n->r->alloc = r + e + f;
   n->r->p = (bspline_t *)malloc(n->r->alloc * sizeof(bspline_t));
   if (n->r->p == NULL) {
     free(n->l->p);
-    free(n->l);
+    delete n->l;
     n->l = NULL;
-    free(n->r);
+    delete n->r;
     n->r = NULL;
     return;
   }
@@ -480,7 +477,7 @@ bspBuildSub(node_t *n)
     }
     if ((e = bspGetVertex(v.x, v.y)) == -1) e = bspAddVertex(v.x, v.y);
     vc[e].s = 1;
-    node_t * const ne = n->p[i].neigh;
+    Node * const ne = n->p[i].neigh;
     int t = (ne != NULL) ? bspGetPair(n, i) : -1;
     if (t >= 0) {
       /* make sure we have enough space on the neigh node */
@@ -712,7 +709,7 @@ bspBuildSub(node_t *n)
 }
 
 static void
-bspBuildSearch(node_t *n)
+bspBuildSearch(Node* n)
 {
   if (!n->n) {
     if (n->l != NULL) bspBuildSearch(n->l);
@@ -741,27 +738,20 @@ int bspInit() {
   vc.clear();
   sc.clear();
 
-  root = (node_t *)malloc(sizeof(node_t));
-  if (root == NULL) goto end2;
-  root->l = root->r = NULL;
-  root->alloc = 0;
-  root->p = NULL;
-  root->n = 0;
+  root = new Node();
 
   sc.push_back(Sector(0, root));
 
   return !0;
- end2:
-  return 0;
 }
 
 static void
-bspDelNode(node_t *n)
+bspDelNode(Node* n)
 {
   if (n->l != NULL) bspDelNode(n->l);
   if (n->r != NULL) bspDelNode(n->r);
   if (n->p != NULL) free(n->p);
-  free(n);
+  delete n;
 }
 
 void bspDone() {
@@ -771,7 +761,7 @@ void bspDone() {
 }
 
 static void
-bspPrintTreeSub(node_t *n, unsigned d)
+bspPrintTreeSub(Node* n, unsigned d)
 {
   for (unsigned i = 0; i < d; ++i) putchar(' ');
   printf("%d\n", n->n);
@@ -808,7 +798,7 @@ bspSaveLine(FILE *fp, bspline_t *l)
 }
 
 static void
-bspSaveSub(FILE *fp, node_t *n)
+bspSaveSub(FILE* fp, Node* n)
 {
   if (n == NULL) {
     unsigned i = 0;
