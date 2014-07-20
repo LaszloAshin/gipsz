@@ -4,6 +4,8 @@
 
 #include <vector>
 #include <cstdio>
+#include <istream>
+#include <ostream>
 
 struct ObjType {
   enum Type {
@@ -28,6 +30,10 @@ struct Object {
   int md;
 
   Object() : what(ObjType::START), x(0), y(0), z(0), a(0), b(0), c(0), md(0) {}
+
+  static Object load(std::istream& is);
+  void save(std::ostream& os) const;
+  void print(std::ostream& os, unsigned index) const;
 };
 
 typedef std::vector<Object> Objects;

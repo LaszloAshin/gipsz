@@ -5,6 +5,52 @@
 #include "gr.h"
 #include "ed.h"
 
+Object
+Object::load(std::istream& is)
+{
+  Object result;
+  char buf[5 * 2], *p = buf;
+  is.read(buf, sizeof(buf));
+  result.what = ObjType::Type(*(short *)p);
+  result.x = *(short *)(p + 2);
+  result.y = *(short *)(p + 4);
+  result.z = *(short *)(p + 6);
+  const short rot = *(short *)(p + 8);
+  result.a = rot & 7;
+  result.b = (rot >> 3) & 7;
+  result.c = (rot >> 6) & 7;
+  return result;
+}
+
+void
+Object::save(std::ostream& os)
+const
+{
+  char buf[5 * 2], *p = buf;
+  *(short *)p = what;
+  *(short *)(p + 2) = x;
+  *(short *)(p + 4) = y;
+  *(short *)(p + 6) = z;
+  *(short *)(p + 8) = (a & 7) | ((b & 7) << 3) | ((c & 7) << 6);
+  os.write(buf, sizeof(buf));
+}
+
+void
+Object::print(std::ostream& os, unsigned index)
+const
+{
+  os << "object #" << index;
+  os << ": t=" << what;
+  os << ", x=" << x;
+  os << ", y=" << y;
+  os << ", z=" << z;
+  os << ", a=" << a;
+  os << ", b=" << b;
+  os << ", c=" << c;
+  os << std::endl;
+}
+
+
 Objects oc;
 
 Object* so = 0;

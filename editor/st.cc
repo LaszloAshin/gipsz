@@ -70,35 +70,6 @@ const
   os << std::endl;
 }
 
-static Object
-stReadObject(std::istream& is)
-{
-  Object result;
-  char buf[5 * 2], *p = buf;
-  is.read(buf, sizeof(buf));
-  result.what = ObjType::Type(*(short *)p);
-  result.x = *(short *)(p + 2);
-  result.y = *(short *)(p + 4);
-  result.z = *(short *)(p + 6);
-  const short rot = *(short *)(p + 8);
-  result.a = rot & 7;
-  result.b = (rot >> 3) & 7;
-  result.c = (rot >> 6) & 7;
-  return result;
-}
-
-static void
-stWriteObject(std::ostream& os, const Object& o)
-{
-  char buf[5 * 2], *p = buf;
-  *(short *)p = o.what;
-  *(short *)(p + 2) = o.x;
-  *(short *)(p + 4) = o.y;
-  *(short *)(p + 6) = o.z;
-  *(short *)(p + 8) = (o.a & 7) | ((o.b & 7) << 3) | ((o.c & 7) << 6);
-  os.write(buf, sizeof(buf));
-}
-
 void
 stWrite(const char* fname)
 {
@@ -113,7 +84,7 @@ stWrite(const char* fname)
     if (i != sc.end()) ++i;
     for (; i != sc.end(); ++i) i->save(f, &*i - &sc.front());
   }
-  for (Objects::const_iterator i(oc.begin()); i != oc.end(); ++i) stWriteObject(f, *i);
+  for (Objects::const_iterator i(oc.begin()); i != oc.end(); ++i) i->save(f);
   printf("map written to \"%s\"\n", fname);
 }
 
@@ -150,18 +121,8 @@ stRead(const char* fname)
 
   Objects objects;
   for (unsigned i = 0; i < hdr.objectCount(); ++i) {
-    objects.push_back(stReadObject(f));
-    printf(
-      "object %u: t=%d x=%d y=%d z=%d a=%d b=%d c=%d\n",
-      i,
-      objects.back().what,
-      objects.back().x,
-      objects.back().y,
-      objects.back().z,
-      objects.back().a,
-      objects.back().b,
-      objects.back().c
-    );
+    objects.push_back(Object::load(f));
+    objects.back().print(std::cout, i);
   }
 
   using std::swap;
