@@ -1,7 +1,10 @@
+/* vim: set ts=2 sw=8 tw=0 et :*/
 #ifndef _SECTOR_H
 #define _SECTOR_H 1
 
 #include <vector>
+#include <istream>
+#include <ostream>
 
 struct Sector {
   short f;
@@ -12,6 +15,10 @@ struct Sector {
   unsigned t;
 
   Sector() : f(0), c(0), l(0), u(0), v(0), t(0) {}
+
+  static Sector load(std::istream& is, unsigned& index);
+  void save(std::ostream& os, unsigned index) const;
+  void print(std::ostream& os, unsigned index) const;
 };
 
 typedef std::vector<Sector> Sectors;

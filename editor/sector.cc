@@ -1,3 +1,4 @@
+/* vim: set ts=2 sw=8 tw=0 et :*/
 #include <stdlib.h>
 #include <SDL/SDL.h>
 #include "sector.h"
@@ -5,6 +6,51 @@
 #include "vertex.h"
 #include "gr.h"
 #include "ed.h"
+
+Sector
+Sector::load(std::istream& is, unsigned& index)
+{
+  Sector result;
+  char buf[3 * 2 + 1 + 2 * 2 + 4], *p = buf;
+  is.read(buf, sizeof(buf));
+  index = *(unsigned short *)p;
+  result.f = *(short *)(p + 2);
+  result.c = *(short *)(p + 4);
+  result.l = buf[6];
+  result.u = *(unsigned short *)(p + 7);
+  result.v = *(unsigned short *)(p + 9);
+  result.t = *(unsigned *)(p + 11);
+  return result;
+}
+
+void
+Sector::save(std::ostream& os, unsigned index)
+const
+{
+  char buf[3 * 2 + 1 + 2 * 2 + 4], *p = buf;
+  *(unsigned short *)p = index;
+  *(short *)(p + 2) = f;
+  *(short *)(p + 4) = c;
+  buf[6] = l;
+  *(unsigned short *)(p + 7) = u;
+  *(unsigned short *)(p + 9) = v;
+  *(unsigned *)(p + 11) = t;
+  os.write(buf, sizeof(buf));
+}
+
+void
+Sector::print(std::ostream& os, unsigned index)
+const
+{
+  os << "sector #" << index;
+  os << ": f=" << f;
+  os << ", c=" << c;
+  os << ", l=" << int(l);
+  os << ", u=" << u;
+  os << ", v=" << v;
+  os << ", t=" << t;
+  os << std::endl;
+}
 
 Sectors sc;
 int ss = 0;

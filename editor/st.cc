@@ -70,38 +70,6 @@ const
   os << std::endl;
 }
 
-static Sector
-stReadSector(std::istream& is, unsigned& n)
-{
-  Sector result;
-  char buf[3 * 2 + 1 + 2 * 2 + 4], *p = buf;
-  is.read(buf, sizeof(buf));
-  n = *(unsigned short *)p;
-  result.f = *(short *)(p + 2);
-  result.c = *(short *)(p + 4);
-  result.l = buf[6];
-  result.u = *(unsigned short *)(p + 7);
-  result.v = *(unsigned short *)(p + 9);
-  result.t = *(unsigned *)(p + 11);
-  return result;
-}
-
-static void
-stWriteSector(std::ostream& os, const Sector& s)
-{
-  char buf[3 * 2 + 1 + 2 * 2 + 4], *p = buf;
-  unsigned n = &s - &sc.front();
-  assert(n < sc.size());
-  *(unsigned short *)p = n;
-  *(short *)(p + 2) = s.f;
-  *(short *)(p + 4) = s.c;
-  buf[6] = s.l;
-  *(unsigned short *)(p + 7) = s.u;
-  *(unsigned short *)(p + 9) = s.v;
-  *(unsigned *)(p + 11) = s.t;
-  os.write(buf, sizeof(buf));
-}
-
 static Object
 stReadObject(std::istream& is)
 {
@@ -143,7 +111,7 @@ stWrite(const char* fname)
   {
     Sectors::const_iterator i(sc.begin());
     if (i != sc.end()) ++i;
-    for (; i != sc.end(); ++i) stWriteSector(f, *i);
+    for (; i != sc.end(); ++i) i->save(f, &*i - &sc.front());
   }
   for (Objects::const_iterator i(oc.begin()); i != oc.end(); ++i) stWriteObject(f, *i);
   printf("map written to \"%s\"\n", fname);
@@ -175,19 +143,9 @@ stRead(const char* fname)
   sectors.push_back(Sector());
   for (unsigned i = 0; i < hdr.sectorCount(); ++i) {
     unsigned n;
-    sectors.push_back(stReadSector(f, n));
+    sectors.push_back(Sector::load(f, n));
     if (n != i + 1) throw std::runtime_error("sector number");
-    printf(
-      "sector %u: s=%u f=%d c=%d l=%u u=%u v=%u t=%d\n",
-      i,
-      n,
-      sectors.back().f,
-      sectors.back().c,
-      sectors.back().l,
-      sectors.back().u,
-      sectors.back().v,
-      sectors.back().t
-    );
+    sectors.back().print(std::cout, i);
   }
 
   Objects objects;
