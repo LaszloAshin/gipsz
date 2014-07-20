@@ -2,6 +2,8 @@
 #define _VERTEX_H 1
 
 #include <vector>
+#include <istream>
+#include <ostream>
 
 struct Vertex {
   int x, y;
@@ -9,6 +11,10 @@ struct Vertex {
 
   Vertex() : x(0), y(0), md(0) {}
   Vertex(int x0, int y0) : x(x0), y(y0), md(0) {}
+
+  void print(std::ostream& os, int index) const;
+  void save(std::ostream& os) const;
+  static Vertex load(std::istream& is);
 };
 
 typedef std::vector<Vertex> Vertexes;

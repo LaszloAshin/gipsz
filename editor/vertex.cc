@@ -4,6 +4,35 @@
 #include "ed.h"
 #include "gr.h"
 
+void
+Vertex::print(std::ostream& os, int index)
+const
+{
+	os << "vertex #" << index << " x=" << x << " y=" << y << " md=" << md << std::endl;
+}
+
+void
+Vertex::save(std::ostream& os)
+const
+{
+  char buf[2 * 2], *p = buf;
+  *(short *)p = x;
+  *(short *)(p + 2) = y;
+  os.write(buf, sizeof(buf));
+}
+
+Vertex
+Vertex::load(std::istream& is)
+{
+  Vertex result;
+  char buf[2 * 2], *p = buf;
+  is.read(buf, sizeof(buf));
+  result.x = *(short *)p;
+  result.y = *(short *)(p + 2);
+  return result;
+}
+
+
 Vertexes vc;
 Vertex* sv = 0;
 

@@ -8,6 +8,7 @@
 #include <cassert>
 #include <stdexcept>
 #include <fstream>
+#include <iostream>
 
 struct Header {
   unsigned nVerteces;
@@ -37,26 +38,6 @@ stWriteHeader(std::ostream& os)
   *(unsigned *)(p + 4) = lc.size();
   *(unsigned *)(p + 8) = sc.size() ? (sc.size() - 1) : 0;
   *(unsigned *)(p + 12) = oc.size();
-  os.write(buf, sizeof(buf));
-}
-
-static Vertex
-stReadVertex(std::istream& is)
-{
-  Vertex result;
-  char buf[2 * 2], *p = buf;
-  is.read(buf, sizeof(buf));
-  result.x = *(short *)p;
-  result.y = *(short *)(p + 2);
-  return result;
-}
-
-static void
-stWriteVertex(std::ostream& os, const Vertex& v)
-{
-  char buf[2 * 2], *p = buf;
-  *(short *)p = v.x;
-  *(short *)(p + 2) = v.y;
   os.write(buf, sizeof(buf));
 }
 
@@ -165,7 +146,7 @@ stWrite(const char* fname)
   f.exceptions(std::ios::failbit | std::ios::badbit);
   if (!f) throw std::runtime_error("failed to open map file for writing");
   stWriteHeader(f);
-  for (Vertexes::const_iterator i(vc.begin()); i != vc.end(); ++i) stWriteVertex(f, *i);
+  for (Vertexes::const_iterator i(vc.begin()); i != vc.end(); ++i) i->save(f);
   for (Lines::const_iterator i(lc.begin()); i != lc.end(); ++i) stWriteLine(f, *i);
   {
     Sectors::const_iterator i(sc.begin());
@@ -182,7 +163,7 @@ stRead(const char* fname)
   std::ifstream f(fname, std::ios::binary);
   f.exceptions(std::ios::failbit | std::ios::badbit | std::ios::eofbit);
   if (!f) throw std::runtime_error("failed to open map file for reading");
-  Header hdr(stReadHeader(f));
+  const Header hdr(stReadHeader(f));
   puts("stRead");
   printf(
     "%u vertices, %u lines, %u sectors, %u objects\n",
@@ -194,8 +175,8 @@ stRead(const char* fname)
 
   Vertexes vertexes;
   for (unsigned i = 0; i < hdr.nVerteces; ++i) {
-    vertexes.push_back(stReadVertex(f));
-    printf("vertex %u: x=%d y=%d\n", i, vertexes.back().x, vertexes.back().y);
+    vertexes.push_back(Vertex::load(f));
+    vertexes.back().print(std::cout, i);
   }
 
   Lines lines;
