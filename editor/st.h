@@ -11,6 +11,4 @@ int stWrite(const char *fname);
 int stRead(const char *fname);
 void stClose();
 
-int stGetSector(int* n, Sector* s);
-
 #endif /* _ST_H */

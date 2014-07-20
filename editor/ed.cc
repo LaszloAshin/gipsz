@@ -230,14 +230,7 @@ void edSave() {
 }
 
 void edLoad() {
-  int n;
-  Sector s;
-
   stRead("map.st");
-  sc.clear();
-  while (stGetSector(&n, &s)) {
-    edAddSector(n, s.f, s.c, s.l, s.u, s.v, s.t);
-  }
   stClose();
 }
 

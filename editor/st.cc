@@ -18,43 +18,14 @@ struct Header {
   unsigned nObjects;
 };
 
-typedef struct {
-  unsigned short s;
-  short f;
-  short c;
-  unsigned char l;
-  unsigned short u;
-  unsigned short v;
-  unsigned int t;
-} fsector_t;
-
-static struct {
-  fsector_t *p;
-  unsigned n, alloc, r;
-} fsc;
-
 static int inited = 0;
 
 void stClose() {
-  if (fsc.p != NULL) {
-    free(fsc.p);
-    fsc.p = NULL;
-  }
-  fsc.n = fsc.alloc = 0;
-
   inited = 0;
 }
 
 int stOpen() {
   if (inited) return 0;
-  fsc.alloc = 8;
-  fsc.p = (fsector_t *)malloc(fsc.alloc * sizeof(fsector_t));
-  if (fsc.p == NULL) {
-    stClose();
-    return 0;
-  }
-  fsc.n = 0;
-
   ++inited;
   return !0;
 }
@@ -140,19 +111,20 @@ stWriteLine(FILE *fp, const Line& l)
   return (fwrite(buf, 1, sizeof(buf), fp) == sizeof(buf)) ? 0 : -1;
 }
 
-static int
-stReadSector(FILE *fp, fsector_t *s)
+static Sector
+stReadSector(FILE *fp, unsigned& n)
 {
+  Sector result;
   unsigned char buf[3 * 2 + 1 + 2 * 2 + 4], *p = buf;
-  if (fread(buf, 1, sizeof(buf), fp) != sizeof(buf)) return -1;
-  s->s = *(unsigned short *)p;
-  s->f = *(short *)(p + 2);
-  s->c = *(short *)(p + 4);
-  s->l = buf[6];
-  s->u = *(unsigned short *)(p + 7);
-  s->v = *(unsigned short *)(p + 9);
-  s->t = *(unsigned *)(p + 11);
-  return 0;
+  if (fread(buf, 1, sizeof(buf), fp) != sizeof(buf)) throw std::runtime_error("sector");
+  n = *(unsigned short *)p;
+  result.f = *(short *)(p + 2);
+  result.c = *(short *)(p + 4);
+  result.l = buf[6];
+  result.u = *(unsigned short *)(p + 7);
+  result.v = *(unsigned short *)(p + 9);
+  result.t = *(unsigned *)(p + 11);
+  return result;
 }
 
 static int
@@ -232,6 +204,7 @@ int stWrite(const char *fname) {
 int stRead(const char *fname) {
   Vertexes vertexes;
   Lines lines;
+  Sectors sectors;
   Objects objects;
   if (fname == NULL) return 0;
   FILE *f = fopen(fname, "rb");
@@ -246,10 +219,6 @@ int stRead(const char *fname) {
     hdr.nObjects
   );
   if (inited) stClose();
-
-  fsc.alloc = fsc.n = hdr.nSectors;
-  fsc.p = (fsector_t *)malloc(fsc.alloc * sizeof(fsector_t));
-  if (fsc.p == NULL) goto end2;
 
   for (unsigned i = 0; i < hdr.nVerteces; ++i) {
     vertexes.push_back(stReadVertex(f));
@@ -274,18 +243,21 @@ int stRead(const char *fname) {
     );
   }
 
-  for (unsigned i = 0; i < fsc.n; ++i) {
-    if (stReadSector(f, fsc.p + i)) goto end2;
+  sectors.push_back(Sector());
+  for (unsigned i = 0; i < hdr.nSectors; ++i) {
+    unsigned n;
+    sectors.push_back(stReadSector(f, n));
+    if (n != i + 1) throw std::runtime_error("sector number");
     printf(
       "sector %u: s=%u f=%d c=%d l=%u u=%u v=%u t=%d\n",
       i,
-      fsc.p[i].s,
-      fsc.p[i].f,
-      fsc.p[i].c,
-      fsc.p[i].l,
-      fsc.p[i].u,
-      fsc.p[i].v,
-      fsc.p[i].t
+      n,
+      sectors.back().f,
+      sectors.back().c,
+      sectors.back().l,
+      sectors.back().u,
+      sectors.back().v,
+      sectors.back().t
     );
   }
 
@@ -305,31 +277,14 @@ int stRead(const char *fname) {
   }
 
   fclose(f);
-  fsc.r = 0;
   ++inited;
   using std::swap;
   swap(vc, vertexes);
   swap(lc, lines);
+  swap(sc, sectors);
   swap(oc, objects);
   return !0;
- end2:
   stClose();
   fclose(f);
   return 0;
-}
-
-int stGetSector(int *n, Sector* s) {
-  if (fsc.r == fsc.n) {
-    fsc.r = 0;
-    return 0;
-  }
-  *n = fsc.p[fsc.r].s;
-  s->f = fsc.p[fsc.r].f;
-  s->c = fsc.p[fsc.r].c;
-  s->l = fsc.p[fsc.r].l;
-  s->u = fsc.p[fsc.r].u;
-  s->v = fsc.p[fsc.r].v;
-  s->t = fsc.p[fsc.r].t;
-  ++fsc.r;
-  return !0;
 }
