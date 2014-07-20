@@ -1,3 +1,4 @@
+/* vim: set ts=2 sw=8 tw=0 et :*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -296,6 +297,14 @@ int stRead(const char *fname) {
   if (f == NULL) return 0;
   header_t hdr;
   if (stReadHeader(f, &hdr)) goto end1;
+  puts("stRead");
+  printf(
+    "%u vertices, %u lines, %u sectors, %u objects\n",
+    hdr.nVerteces,
+    hdr.nLines,
+    hdr.nSectors,
+    hdr.nObjects
+  );
   if (inited) stClose();
 
   fvc.alloc = fvc.n = hdr.nVerteces;
@@ -314,10 +323,53 @@ int stRead(const char *fname) {
   foc.p = (fobject_t *)malloc(foc.alloc * sizeof(fobject_t));
   if (foc.p == NULL) goto end2;
 
-  for (unsigned i = 0; i < fvc.n; ++i) if (stReadVertex(f, fvc.p + i)) goto end2;
-  for (unsigned i = 0; i < flc.n; ++i) if (stReadLine(f, flc.p + i)) goto end2;
-  for (unsigned i = 0; i < fsc.n; ++i) if (stReadSector(f, fsc.p + i)) goto end2;
-  for (unsigned i = 0; i < foc.n; ++i) if (stReadObject(f, foc.p + i)) goto end2;
+  for (unsigned i = 0; i < fvc.n; ++i) {
+    if (stReadVertex(f, fvc.p + i)) goto end2;
+    printf("vertex %u: x=%d y=%d\n", i, fvc.p[i].x, fvc.p[i].y);
+  }
+  for (unsigned i = 0; i < flc.n; ++i) {
+    if (stReadLine(f, flc.p + i)) goto end2;
+    printf(
+      "line %u: a=%u b=%u sf=%u sb=%u u=%u v=%u flg=%u tf=%u tb=%u du=%d\n",
+      i,
+      flc.p[i].a,
+      flc.p[i].b,
+      flc.p[i].sf,
+      flc.p[i].sb,
+      flc.p[i].u,
+      flc.p[i].v,
+      flc.p[i].flags,
+      flc.p[i].tf,
+      flc.p[i].tb,
+      flc.p[i].du
+    );
+  }
+  for (unsigned i = 0; i < fsc.n; ++i) {
+    if (stReadSector(f, fsc.p + i)) goto end2;
+    printf(
+      "sector %u: s=%u f=%d c=%d l=%u u=%u v=%u t=%d\n",
+      i,
+      fsc.p[i].s,
+      fsc.p[i].f,
+      fsc.p[i].c,
+      fsc.p[i].l,
+      fsc.p[i].u,
+      fsc.p[i].v,
+      fsc.p[i].t
+    );
+  }
+  for (unsigned i = 0; i < foc.n; ++i) {
+    if (stReadObject(f, foc.p + i)) goto end2;
+    printf(
+      "object %u: t=%d x=%d y=%d z=%d rot=%d\n",
+      i,
+      foc.p[i].type,
+      foc.p[i].x,
+      foc.p[i].y,
+      foc.p[i].z,
+      foc.p[i].rot
+    );
+  }
 
   fclose(f);
   fvc.r = flc.r = fsc.r = foc.r = 0;
