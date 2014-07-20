@@ -41,14 +41,6 @@ typedef struct {
   unsigned int t;
 } fsector_t;
 
-typedef struct {
-  short type;
-  short x;
-  short y;
-  short z;
-  short rot;
-} fobject_t;
-
 static struct {
   fline_t *p;
   unsigned n, alloc, r;
@@ -59,20 +51,9 @@ static struct {
   unsigned n, alloc, r;
 } fsc;
 
-static struct {
-  fobject_t *p;
-  unsigned n, alloc, r;
-} foc;
-
 static int inited = 0;
 
 void stClose() {
-  if (foc.p != NULL) {
-    free(foc.p);
-    foc.p = NULL;
-  }
-  foc.n = foc.alloc = 0;
-
   if (fsc.p != NULL) {
     free(fsc.p);
     fsc.p = NULL;
@@ -105,14 +86,6 @@ int stOpen() {
     return 0;
   }
   fsc.n = 0;
-
-  foc.alloc = 8;
-  foc.p = (fobject_t *)malloc(foc.alloc * sizeof(fobject_t));
-  if (foc.p == NULL) {
-    stClose();
-    return 0;
-  }
-  foc.n = 0;
 
   ++inited;
   return !0;
@@ -227,17 +200,21 @@ stWriteSector(FILE *fp, const Sector& s)
   return (fwrite(buf, 1, sizeof(buf), fp) == sizeof(buf)) ? 0 : -1;
 }
 
-static int
-stReadObject(FILE *fp, fobject_t *o)
+static Object
+stReadObject(FILE *fp)
 {
+  Object result;
   unsigned char buf[5 * 2], *p = buf;
-  if (fread(buf, 1, sizeof(buf), fp) != sizeof(buf)) return -1;
-  o->type = *(short *)p;
-  o->x = *(short *)(p + 2);
-  o->y = *(short *)(p + 4);
-  o->z = *(short *)(p + 6);
-  o->rot = *(short *)(p + 8);
-  return 0;
+  if (fread(buf, 1, sizeof(buf), fp) != sizeof(buf)) throw std::runtime_error("object");
+  result.what = ObjType::Type(*(short *)p);
+  result.x = *(short *)(p + 2);
+  result.y = *(short *)(p + 4);
+  result.z = *(short *)(p + 6);
+  const short rot = *(short *)(p + 8);
+  result.a = rot & 7;
+  result.b = (rot >> 3) & 7;
+  result.c = (rot >> 6) & 7;
+  return result;
 }
 
 static int
@@ -282,6 +259,8 @@ int stWrite(const char *fname) {
 }
 
 int stRead(const char *fname) {
+  Vertexes vertexes;
+  Objects objects;
   if (fname == NULL) return 0;
   FILE *f = fopen(fname, "rb");
   if (f == NULL) return 0;
@@ -305,15 +284,11 @@ int stRead(const char *fname) {
   fsc.p = (fsector_t *)malloc(fsc.alloc * sizeof(fsector_t));
   if (fsc.p == NULL) goto end2;
 
-  foc.alloc = foc.n = hdr.nObjects;
-  foc.p = (fobject_t *)malloc(foc.alloc * sizeof(fobject_t));
-  if (foc.p == NULL) goto end2;
-
-  vc.clear();
   for (unsigned i = 0; i < hdr.nVerteces; ++i) {
-    vc.push_back(stReadVertex(f));
-    printf("vertex %u: x=%d y=%d\n", i, vc.back().x, vc.back().y);
+    vertexes.push_back(stReadVertex(f));
+    printf("vertex %u: x=%d y=%d\n", i, vertexes.back().x, vertexes.back().y);
   }
+
   for (unsigned i = 0; i < flc.n; ++i) {
     if (stReadLine(f, flc.p + i)) goto end2;
     printf(
@@ -345,22 +320,28 @@ int stRead(const char *fname) {
       fsc.p[i].t
     );
   }
-  for (unsigned i = 0; i < foc.n; ++i) {
-    if (stReadObject(f, foc.p + i)) goto end2;
+
+  for (unsigned i = 0; i < hdr.nObjects; ++i) {
+    objects.push_back(stReadObject(f));
     printf(
-      "object %u: t=%d x=%d y=%d z=%d rot=%d\n",
+      "object %u: t=%d x=%d y=%d z=%d a=%d b=%d c=%d\n",
       i,
-      foc.p[i].type,
-      foc.p[i].x,
-      foc.p[i].y,
-      foc.p[i].z,
-      foc.p[i].rot
+      objects.back().what,
+      objects.back().x,
+      objects.back().y,
+      objects.back().z,
+      objects.back().a,
+      objects.back().b,
+      objects.back().c
     );
   }
 
   fclose(f);
-  flc.r = fsc.r = foc.r = 0;
+  flc.r = fsc.r = 0;
   ++inited;
+  using std::swap;
+  swap(vc, vertexes);
+  swap(oc, objects);
   return !0;
  end2:
   stClose();
@@ -401,21 +382,5 @@ int stGetSector(int *n, Sector* s) {
   s->v = fsc.p[fsc.r].v;
   s->t = fsc.p[fsc.r].t;
   ++fsc.r;
-  return !0;
-}
-
-int stGetObject(Object* o) {
-  if (foc.r == foc.n) {
-    foc.r = 0;
-    return 0;
-  }
-  o->what = ObjType::Type(foc.p[foc.r].type);
-  o->x = foc.p[foc.r].x;
-  o->y = foc.p[foc.r].y;
-  o->z = foc.p[foc.r].z;
-  o->a = foc.p[foc.r].rot & 7;
-  o->b = (foc.p[foc.r].rot >> 3) & 7;
-  o->c = (foc.p[foc.r].rot >> 6) & 7;
-  ++foc.r;
   return !0;
 }

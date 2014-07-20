@@ -239,16 +239,12 @@ void edLoad() {
   stRead("map.st");
   lc.clear();
   sc.clear();
-  oc.clear();
   while (stGetLine(&l)) {
     if (l.sb == l.sf) l.sb = 0;
     edAddLine(l.a, l.b, l.sf, l.sb, l.u, l.v, l.flags, l.tf, l.tb, l.du);
   }
   while (stGetSector(&n, &s)) {
     edAddSector(n, s.f, s.c, s.l, s.u, s.v, s.t);
-  }
-  while (stGetObject(&o)) {
-    edAddObject(o.what, o.x, o.y, o.z, o.a, o.b, o.c);
   }
   stClose();
 }

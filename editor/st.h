@@ -13,6 +13,5 @@ void stClose();
 
 int stGetLine(Line* l);
 int stGetSector(int* n, Sector* s);
-int stGetObject(Object* o);
 
 #endif /* _ST_H */
