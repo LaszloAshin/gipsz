@@ -12,13 +12,6 @@
 
 class Header {
 public:
-  Header()
-  : vertexCount_(0)
-  , lineCount_(0)
-  , sectorCount_(0)
-  , objectCount_(0)
-  {}
-
   Header(size_t vertexCount, size_t lineCount, size_t sectorCount, size_t objectCount)
   : vertexCount_(vertexCount)
   , lineCount_(lineCount)
