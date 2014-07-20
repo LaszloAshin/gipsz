@@ -167,7 +167,7 @@ void edScreen() {
   }
   switch (mode) {
     case MD_BSP:
-      bspShow();
+      bsp::bspShow();
       break;
     case MD_SECTOR:
       grSetColor(255);
@@ -263,7 +263,7 @@ edSaveSector(FILE *fp, Sector* s)
 
 void edBuildBSP() {
   edSave();
-  bspInit();
+  bsp::bspInit();
   int s = 0;
   for (unsigned i = 0; i < lc.size(); ++i) {
     if (lc[i].sf > s) s = lc[i].sf;
@@ -273,18 +273,18 @@ void edBuildBSP() {
     for (Lines::iterator l(lc.begin()); l != lc.end(); ++l) {
       int in = sc[j].f < sc[j].c;
       if (l->sf == j)
-        bspAddLine(j, vc[l->a].x, vc[l->a].y, vc[l->b].x, vc[l->b].y,
+        bsp::bspAddLine(j, vc[l->a].x, vc[l->a].y, vc[l->b].x, vc[l->b].y,
           l->u, l->v, l->flags, (in) ? l->tf : l->tb, l->du);
       if (l->sb == j)
-        bspAddLine(j, vc[l->b].x, vc[l->b].y, vc[l->a].x, vc[l->a].y,
+        bsp::bspAddLine(j, vc[l->b].x, vc[l->b].y, vc[l->a].x, vc[l->a].y,
           l->u, l->v, l->flags, (in) ? l->tb : l->tf, l->du);
     }
-  bspBuildTree();
+  bsp::bspBuildTree();
   FILE *f = fopen("map.bsp", "wb");
   ++s;
   fwrite(&s, sizeof(int), 1, f);
   for (Sector* sp = &sc.front(); sp < &sc.front() + s; ++sp) edSaveSector(f, sp);
-  bspSave(f);
+  bsp::bspSave(f);
   edSaveObjects(f);
   fclose(f);
 }
@@ -348,13 +348,13 @@ void edKeyboard(int key) {
       postQuit();
       break;
     case SDLK_SPACE:
-      if (mode == MD_BSP) bspDone();
+      if (mode == MD_BSP) bsp::bspDone();
       edBuildBSP();
       mode = MD_BSP;
       edApplyMode();
       break;
     case SDLK_TAB:
-      if (mode == MD_BSP) bspDone();
+      if (mode == MD_BSP) bsp::bspDone();
 	  mode = Mode(mode + 1);
       if (mode >= MD_LAST) mode = MD_FIRST;
       edApplyMode();

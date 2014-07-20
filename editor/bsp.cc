@@ -10,6 +10,8 @@
 #include <vector>
 #include <cassert>
 
+namespace bsp {
+
 typedef struct {
   int x, y;
   int s;
@@ -880,3 +882,5 @@ int bspSave(FILE *f) {
   bspSaveSub(f, root);
   return !0;
 }
+
+} // namespace bsp
