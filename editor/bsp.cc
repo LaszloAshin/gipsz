@@ -41,19 +41,19 @@ typedef struct node_s {
   struct node_s *l, *r;
 } node_t;
 
-typedef struct sector_s {
+struct Sector {
   int s;
   node_t *n;
-} bspsector_t;
+
+  Sector() : s(0), n(0) {}
+  Sector(int s0, node_t *n0) : s(s0), n(n0) {}
+};
 
 typedef std::vector<Vertex> Vertexes;
+typedef std::vector<Sector> Sectors;
 
 Vertexes vc;
-
-static struct {
-  bspsector_t *p;
-  unsigned alloc, n;
-} sc;
+Sectors sc;
 
 static node_t *root = NULL;
 
@@ -73,18 +73,11 @@ static int bspAddVertex(int x, int y) {
   return vc.size() - 1;
 }
 
-static int bspAddSector() {
-  if (sc.n == sc.alloc) {
-    sc.alloc *= 2;
-    bspsector_t *p = (bspsector_t *)malloc(sc.alloc * sizeof(bspsector_t));
-    if (p == NULL) return -1;
-    for (unsigned i = 0; i < sc.n; ++i) p[i] = sc.p[i];
-    free(sc.p);
-    sc.p = p;
-  }
-  sc.p[sc.n].s = 0;
-  sc.p[sc.n].n = NULL;
-  return sc.n++;
+static int
+bspAddSector()
+{
+  sc.push_back(Sector());
+  return sc.size() - 1;
 }
 
 static void
@@ -95,7 +88,7 @@ bspDuplicateNode(node_t *n, node_t **p)
   if (n->l == NULL && n->r == NULL) {
     int i;
     if ((i = bspAddSector()) < 0) return;
-    sc.p[i].n = *p;
+    sc[i].n = *p;
   }
   (*p)->alloc = (*p)->n = 0;
   (*p)->p = NULL;
@@ -110,13 +103,13 @@ static void bspDuplicateTree(node_t *n) {
 
 static node_t *bspGetNodeForSector(int s) {
   if (!s) return NULL;
-  for (unsigned i = 0; i < sc.n; ++i)
-    if (sc.p[i].s == s)
-      return sc.p[i].n;
-  for (unsigned i = 0; i < sc.n; ++i)
-    if (!sc.p[i].s) {
-      sc.p[i].s = sc.p[i].n->s = s;
-      return sc.p[i].n;
+  for (unsigned i = 0; i < sc.size(); ++i)
+    if (sc[i].s == s)
+      return sc[i].n;
+  for (unsigned i = 0; i < sc.size(); ++i)
+    if (!sc[i].s) {
+      sc[i].s = sc[i].n->s = s;
+      return sc[i].n;
     }
   node_t *p = (node_t *)malloc(sizeof(node_t));
   if (p == NULL) return p;
@@ -156,9 +149,9 @@ int bspAddLine(int s, int x1, int y1, int x2, int y2, int u, int v, int flags, i
   n->p[n->n].t = t;
   unsigned j;
   node_t *p;
-  for (i = 0; i < sc.n; ++i)
-    if (sc.p[i].s != s) {
-      p = sc.p[i].n;
+  for (i = 0; i < sc.size(); ++i)
+    if (sc[i].s != s) {
+      p = sc[i].n;
       for (j = 0; j < p->n; ++j)
         if (p->p[j].a == b && p->p[j].b == a) {
           n->p[n->n].neigh = p;
@@ -745,10 +738,8 @@ void bspBuildTree() {
 }
 
 int bspInit() {
-  sc.alloc = 8;
-  sc.p = (bspsector_t *)malloc(sc.alloc * sizeof(bspsector_t));
-  if (sc.p == NULL) goto end1;
-  sc.n = 1;
+  vc.clear();
+  sc.clear();
 
   root = (node_t *)malloc(sizeof(node_t));
   if (root == NULL) goto end2;
@@ -757,13 +748,10 @@ int bspInit() {
   root->p = NULL;
   root->n = 0;
 
-  sc.p[0].n = root;
-  sc.p[0].s = 0;
+  sc.push_back(Sector(0, root));
 
   return !0;
  end2:
-  free(sc.p);
- end1:
   return 0;
 }
 
@@ -778,8 +766,7 @@ bspDelNode(node_t *n)
 
 void bspDone() {
   if (root != NULL) bspDelNode(root);
-  free(sc.p);
-  sc.n = sc.alloc = 0;
+  sc.clear();
   vc.clear();
 }
 
