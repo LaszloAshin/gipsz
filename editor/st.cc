@@ -10,35 +10,71 @@
 #include <fstream>
 #include <iostream>
 
-struct Header {
-  unsigned nVerteces;
-  unsigned nLines;
-  unsigned nSectors;
-  unsigned nObjects;
+class Header {
+public:
+  Header()
+  : vertexCount_(0)
+  , lineCount_(0)
+  , sectorCount_(0)
+  , objectCount_(0)
+  {}
+
+  Header(size_t vertexCount, size_t lineCount, size_t sectorCount, size_t objectCount)
+  : vertexCount_(vertexCount)
+  , lineCount_(lineCount)
+  , sectorCount_(sectorCount)
+  , objectCount_(objectCount)
+  {}
+
+  static Header load(std::istream& is);
+  void save(std::ostream& os) const;
+  void print(std::ostream& os) const;
+
+  size_t vertexCount() const { return vertexCount_; }
+  size_t lineCount() const { return lineCount_; }
+  size_t sectorCount() const { return sectorCount_; }
+  size_t objectCount() const { return objectCount_; }
+
+private:
+  size_t vertexCount_;
+  size_t lineCount_;
+  size_t sectorCount_;
+  size_t objectCount_;
 };
 
-static Header
-stReadHeader(std::istream& is)
+Header
+Header::load(std::istream& is)
 {
-  Header result;
   char buf[4 * 4], *p = buf;
   is.read(buf, sizeof(buf));
-  result.nVerteces = *(unsigned *)p;
-  result.nLines = *(unsigned *)(p + 4);
-  result.nSectors = *(unsigned *)(p + 8);
-  result.nObjects = *(unsigned *)(p + 12);
-  return result;
+  const size_t vertexCount = *(unsigned *)p;
+  const size_t lineCount = *(unsigned *)(p + 4);
+  const size_t sectorCount = *(unsigned *)(p + 8);
+  const size_t objectCount = *(unsigned *)(p + 12);
+  return Header(vertexCount, lineCount, sectorCount, objectCount);
 }
 
-static void
-stWriteHeader(std::ostream& os)
+void
+Header::save(std::ostream& os)
+const
 {
   char buf[4 * 4], *p = buf;
-  *(unsigned *)p = vc.size();
-  *(unsigned *)(p + 4) = lc.size();
-  *(unsigned *)(p + 8) = sc.size() ? (sc.size() - 1) : 0;
-  *(unsigned *)(p + 12) = oc.size();
+  *(unsigned *)p = vertexCount();
+  *(unsigned *)(p + 4) = lineCount();
+  *(unsigned *)(p + 8) = sectorCount();
+  *(unsigned *)(p + 12) = objectCount();
   os.write(buf, sizeof(buf));
+}
+
+void
+Header::print(std::ostream& os)
+const
+{
+  os << vertexCount_ << " verteces";
+  os << ", " << lineCount_ << " lines";
+  os << ", " << sectorCount_ << " sectors";
+  os << ", " << objectCount_ << " objects";
+  os << std::endl;
 }
 
 static Line
@@ -145,7 +181,7 @@ stWrite(const char* fname)
   std::ofstream f(fname, std::ios::binary);
   f.exceptions(std::ios::failbit | std::ios::badbit);
   if (!f) throw std::runtime_error("failed to open map file for writing");
-  stWriteHeader(f);
+  Header(vc.size(), lc.size(), sc.size() ? (sc.size() - 1) : 0, oc.size()).save(f);
   for (Vertexes::const_iterator i(vc.begin()); i != vc.end(); ++i) i->save(f);
   for (Lines::const_iterator i(lc.begin()); i != lc.end(); ++i) stWriteLine(f, *i);
   {
@@ -163,24 +199,18 @@ stRead(const char* fname)
   std::ifstream f(fname, std::ios::binary);
   f.exceptions(std::ios::failbit | std::ios::badbit | std::ios::eofbit);
   if (!f) throw std::runtime_error("failed to open map file for reading");
-  const Header hdr(stReadHeader(f));
+  const Header hdr(Header::load(f));
   puts("stRead");
-  printf(
-    "%u vertices, %u lines, %u sectors, %u objects\n",
-    hdr.nVerteces,
-    hdr.nLines,
-    hdr.nSectors,
-    hdr.nObjects
-  );
+  hdr.print(std::cout);
 
   Vertexes vertexes;
-  for (unsigned i = 0; i < hdr.nVerteces; ++i) {
+  for (unsigned i = 0; i < hdr.vertexCount(); ++i) {
     vertexes.push_back(Vertex::load(f));
     vertexes.back().print(std::cout, i);
   }
 
   Lines lines;
-  for (unsigned i = 0; i < hdr.nLines; ++i) {
+  for (unsigned i = 0; i < hdr.lineCount(); ++i) {
     lines.push_back(stReadLine(f));
     printf(
       "line %u: a=%u b=%u sf=%u sb=%u u=%u v=%u flg=%u tf=%u tb=%u du=%d\n",
@@ -200,7 +230,7 @@ stRead(const char* fname)
 
   Sectors sectors;
   sectors.push_back(Sector());
-  for (unsigned i = 0; i < hdr.nSectors; ++i) {
+  for (unsigned i = 0; i < hdr.sectorCount(); ++i) {
     unsigned n;
     sectors.push_back(stReadSector(f, n));
     if (n != i + 1) throw std::runtime_error("sector number");
@@ -218,7 +248,7 @@ stRead(const char* fname)
   }
 
   Objects objects;
-  for (unsigned i = 0; i < hdr.nObjects; ++i) {
+  for (unsigned i = 0; i < hdr.objectCount(); ++i) {
     objects.push_back(stReadObject(f));
     printf(
       "object %u: t=%d x=%d y=%d z=%d a=%d b=%d c=%d\n",
