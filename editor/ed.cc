@@ -194,9 +194,9 @@ void edScreen() {
           grSetColor(255);
         edLine(vc[lc[i].a].x, vc[lc[i].a].y, vc[lc[i].b].x, vc[lc[i].b].y);
       }
-      for (unsigned i = 0; i < oc.n; ++i) {
-        edGetObjectProperties(oc.p[i].what, &r, &c);
-        edObject(oc.p[i].x, oc.p[i].y, oc.p[i].c, r, c);
+      for (unsigned i = 0; i < oc.size(); ++i) {
+        edGetObjectProperties(oc[i].what, &r, &c);
+        edObject(oc[i].x, oc[i].y, oc[i].c, r, c);
       }
       break;
     default:
@@ -228,7 +228,7 @@ void edSave() {
   for (unsigned i = 0; i < vc.size(); ++i) stPutVertex(&vc.at(i));
   for (unsigned i = 0; i < lc.size(); ++i) stPutLine(&lc.at(i));
   for (unsigned i = 1; i < sc.size(); ++i) stPutSector(i, &sc.at(i));
-  for (unsigned i = 0; i < oc.n; ++i) stPutObject(oc.p + i);
+  for (unsigned i = 0; i < oc.size(); ++i) stPutObject(&oc.at(i));
   stWrite("map.st");
   stClose();
 }
@@ -238,13 +238,13 @@ void edLoad() {
   Vertex v;
   Line l;
   Sector s;
-  object_t o;
+  Object o;
 
   stRead("map.st");
   vc.clear();
   lc.clear();
   sc.clear();
-  oc.n = 0;
+  oc.clear();
   while (stGetVertex(&v)) {
     edAddVertex(v.x, v.y);
   }
@@ -350,10 +350,6 @@ void edInit() {
   sx = -x;
   sy = -y;
 
-  oc.alloc = 8;
-  oc.p = (object_t *)malloc(oc.alloc * sizeof(object_t));
-  oc.n = 0;
-
   edLoad();
   edApplyMode();
   edScreen();
@@ -361,7 +357,6 @@ void edInit() {
 
 void edDone() {
   edSave();
-  free(oc.p);
 }
 
 void edKeyboard(int key) {

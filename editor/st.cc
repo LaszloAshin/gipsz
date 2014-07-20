@@ -486,7 +486,7 @@ int stGetSector(int *n, Sector* s) {
   return !0;
 }
 
-int stPutObject(object_t *o) {
+int stPutObject(Object* o) {
   if (foc.n == foc.alloc) {
     unsigned na = foc.alloc * 2;
     fobject_t *p = (fobject_t *)malloc(na * sizeof(fobject_t));
@@ -504,12 +504,12 @@ int stPutObject(object_t *o) {
   return foc.n++;
 }
 
-int stGetObject(object_t *o) {
+int stGetObject(Object* o) {
   if (foc.r == foc.n) {
     foc.r = 0;
     return 0;
   }
-  o->what = objtype_t(foc.p[foc.r].type);
+  o->what = ObjType::Type(foc.p[foc.r].type);
   o->x = foc.p[foc.r].x;
   o->y = foc.p[foc.r].y;
   o->z = foc.p[foc.r].z;

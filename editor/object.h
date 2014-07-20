@@ -1,41 +1,44 @@
+/* vim: set ts=2 sw=8 tw=0 et :*/
 #ifndef _OBJECT_H
 #define _OBJECT_H 1
 
-#include <stdio.h>
+#include <vector>
+#include <cstdio>
 
-typedef enum {
-  OT_START,
-  OT_TUBE,
-  OT_ELBOW,
-  OT_LAST
-} objtype_t;
+struct ObjType {
+  enum Type {
+    START,
+    TUBE,
+    ELBOW,
+    LAST
+  };
+};
 
-typedef struct {
-  objtype_t typ;
+struct ObjProp {
+  ObjType::Type typ;
   const char *name;
   int r; /* radius */
   int c; /* color */
-} objprop_t;
+};
 
-typedef struct {
-  objtype_t what;
+struct Object {
+  ObjType::Type what;
   int x, y, z;
   int a, b, c;
   int md;
-} object_t;
 
-typedef struct {
-  object_t *p;
-  unsigned alloc, n;
-} oc_t;
+  Object() : what(ObjType::START), x(0), y(0), z(0), a(0), b(0), c(0), md(0) {}
+};
 
-extern oc_t oc;
-extern object_t *so;
+typedef std::vector<Object> Objects;
 
-const char *edGetObjectProperties(objtype_t wh, int *r, int *c);
-object_t *edGetObject(int x, int y);
-int edAddObject(objtype_t wh, int x, int y, int z, int a, int b, int c);
-void edDelObject(object_t *o);
+extern Objects oc;
+extern Object* so;
+
+const char* edGetObjectProperties(ObjType::Type wh, int* r, int* c);
+Object* edGetObject(int x, int y);
+int edAddObject(ObjType::Type wh, int x, int y, int z, int a, int b, int c);
+void edDelObject(Object* o);
 void edMouseButtonObject(int mx, int my, int button);
 void edMouseMotionObject(int mx, int my, int umx, int umy);
 void edKeyboardObject(int key);

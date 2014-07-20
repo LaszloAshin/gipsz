@@ -1,21 +1,24 @@
+/* vim: set ts=2 sw=8 tw=0 et :*/
 #include <stdlib.h>
 #include <math.h>
 #include "object.h"
 #include "gr.h"
 #include "ed.h"
 
-oc_t oc;
+Objects oc;
 
-object_t *so = NULL;
+Object* so = 0;
 
-static const objprop_t objprop[] = {
-  { OT_START, "start", 16, 255 },
-  { OT_TUBE,  "tube",  8, 250 },
-  { OT_ELBOW, "elbow", 8, 250 },
-  { OT_START, NULL,     0,   0 }
+static const ObjProp objprop[] = {
+  { ObjType::START, "start", 16, 255 },
+  { ObjType::TUBE, "tube", 8, 250 },
+  { ObjType::ELBOW, "elbow", 8, 250 },
+  { ObjType::START, NULL, 0, 0 }
 };
 
-const char *edGetObjectProperties(objtype_t wh, int *r, int *c) {
+const char*
+edGetObjectProperties(ObjType::Type wh, int* r, int* c)
+{
   int i;
 
   for (i = 0; objprop[i].name != NULL; ++i)
@@ -27,46 +30,45 @@ const char *edGetObjectProperties(objtype_t wh, int *r, int *c) {
   return NULL;
 }
 
-object_t *edGetObject(int x, int y) {
-  for (unsigned i = 0; i < oc.n; ++i)
-    if (oc.p[i].x == x && oc.p[i].y == y)
-      return oc.p + i;
-  return NULL;
+Object*
+edGetObject(int x, int y)
+{
+  for (unsigned i = 0; i < oc.size(); ++i)
+    if (oc[i].x == x && oc[i].y == y)
+      return &oc.at(i);
+  return 0;
 }
 
-int edAddObject(objtype_t wh, int x, int y, int z, int a, int b, int c) {
-  if (oc.n == oc.alloc) {
-    const unsigned na = oc.alloc * 2;
-    object_t *p = (object_t *)malloc(na * sizeof(object_t));
-    if (p == NULL) return -1;
-    for (unsigned i = 0; i < oc.n; ++i) p[i] = oc.p[i];
-    free(oc.p);
-    oc.p = p;
-    oc.alloc = na;
-  }
-  oc.p[oc.n].x = x;
-  oc.p[oc.n].y = y;
-  oc.p[oc.n].z = z;
-  oc.p[oc.n].a = a;
-  oc.p[oc.n].b = b;
-  oc.p[oc.n].c = c;
-  oc.p[oc.n].what = wh;
-  return oc.n++;
+int
+edAddObject(ObjType::Type wh, int x, int y, int z, int a, int b, int c)
+{
+  Object o;
+  o.x = x;
+  o.y = y;
+  o.z = z;
+  o.a = a;
+  o.b = b;
+  o.c = c;
+  o.what = wh;
+  oc.push_back(o);
+  return oc.size() - 1;
 }
 
-void edDelObject(object_t *o) {
-  int i = o - oc.p;
-  if (i < 0) return;
-  oc.p[i] = oc.p[--oc.n];
+void
+edDelObject(Object* o) {
+  unsigned i = o - &oc.front();
+  if (i >= oc.size()) return;
+  oc[i] = oc.back();
+  oc.pop_back();
 }
 
 void edMouseButtonObject(int mx, int my, int button) {
-  object_t *o = edGetObject(mx, my);
+  Object* o = edGetObject(mx, my);
   if (button == 1) {
     if (o != NULL) {
       moving = 1;
     } else {
-      edAddObject(OT_START, mx, my, 0, 0, 0, 0);
+      edAddObject(ObjType::START, mx, my, 0, 0, 0, 0);
       edScreen();
     }
   } else {
@@ -85,7 +87,7 @@ void edMouseMotionObject(int mx, int my, int umx, int umy) {
   (void)umx;
   (void)umy;
   int dx, dy;
-  object_t *o;
+  Object* o;
   int r = 8, c = 0;
   const char *name = NULL;
 
@@ -112,11 +114,11 @@ void edMouseMotionObject(int mx, int my, int umx, int umy) {
     }
   } else {
     o = NULL;
-    for (unsigned i = 0; i < oc.n; ++i) {
-      dx = mx - oc.p[i].x;
-      dy = my - oc.p[i].y;
-      oc.p[i].md = dx * dx + dy * dy;
-      if (o == NULL || oc.p[i].md < o->md) o = oc.p + i;
+    for (unsigned i = 0; i < oc.size(); ++i) {
+      dx = mx - oc[i].x;
+      dy = my - oc[i].y;
+      oc[i].md = dx * dx + dy * dy;
+      if (o == NULL || oc[i].md < o->md) o = &oc.at(i);
     }
     if ((so != NULL || o != NULL) && o != so) {
       grBegin();
@@ -132,7 +134,7 @@ void edMouseMotionObject(int mx, int my, int umx, int umy) {
       if (o != NULL) {
         edStBegin();
         grprintf("object #%d - %s - x:%d y:%d z:%d a:%d b:%d c:%d",
-          o - oc.p, name, o->x, o->y, o->z, o->a, o->b, o->c);
+          o - &oc.front(), name, o->x, o->y, o->z, o->a, o->b, o->c);
         edStEnd();
       }
     }
@@ -150,10 +152,10 @@ void edKeyboardObject(int key) {
     edObject(so->x, so->y, so->c, r, 0);
     switch (key) {
       case SDLK_1:
-        if (so->what > 0) so->what = objtype_t(so->what - 1);
+        if (so->what > 0) so->what = ObjType::Type(so->what - 1);
         break;
       case SDLK_2:
-        if (so->what < OT_LAST-1) so->what = objtype_t(so->what + 1);
+        if (so->what < ObjType::LAST - 1) so->what = ObjType::Type(so->what + 1);
         break;
       case SDLK_3:
         so->z -= 8;
@@ -187,13 +189,13 @@ void edKeyboardObject(int key) {
     grEnd();
     edStBegin();
     grprintf("object #%d - %s - x:%d y:%d z:%d a:%d b:%d c:%d",
-      so - oc.p, name, so->x, so->y, so->z, so->a, so->b, so->c);
+      so - &oc.front(), name, so->x, so->y, so->z, so->a, so->b, so->c);
     edStEnd();
   }
 }
 
 static int
-edSaveObject(FILE *fp, object_t *o)
+edSaveObject(FILE *fp, Object* o)
 {
   unsigned char buf[2 + 3 * 2 + 2], *p = buf;
   *(short *)p = o->what;
@@ -205,9 +207,10 @@ edSaveObject(FILE *fp, object_t *o)
 }
 
 int edSaveObjects(FILE *fp) {
-  fwrite(&oc.n, sizeof(int), 1, fp);
-  for (object_t *o = oc.p; o < oc.p + oc.n; ++o) {
-    if (edSaveObject(fp, o)) return 0;
+  unsigned n = oc.size();
+  fwrite(&n, sizeof(unsigned), 1, fp);
+  for (Objects::iterator i(oc.begin()); i != oc.end(); ++i) {
+    if (edSaveObject(fp, &*i)) return 0;
   }
   return !0;
 }

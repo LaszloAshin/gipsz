@@ -16,8 +16,8 @@ int stGetVertex(Vertex* v);
 int stPutLine(Line* l);
 int stGetLine(Line* l);
 int stPutSector(int n, Sector* s);
-int stGetSector(int *n, Sector* s);
-int stPutObject(object_t *o);
-int stGetObject(object_t *o);
+int stGetSector(int* n, Sector* s);
+int stPutObject(Object* o);
+int stGetObject(Object* o);
 
 #endif /* _ST_H */
