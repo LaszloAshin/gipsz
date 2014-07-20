@@ -11,7 +11,6 @@ int stWrite(const char *fname);
 int stRead(const char *fname);
 void stClose();
 
-int stGetVertex(Vertex* v);
 int stGetLine(Line* l);
 int stGetSector(int* n, Sector* s);
 int stGetObject(Object* o);

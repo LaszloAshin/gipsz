@@ -9,6 +9,7 @@
 #include "object.h"
 
 #include <cassert>
+#include <stdexcept>
 
 typedef struct {
   unsigned nVerteces;
@@ -16,11 +17,6 @@ typedef struct {
   unsigned nSectors;
   unsigned nObjects;
 } header_t;
-
-typedef struct {
-  short x;
-  short y;
-} fvertex_t;
 
 typedef struct {
   unsigned short a;
@@ -52,11 +48,6 @@ typedef struct {
   short z;
   short rot;
 } fobject_t;
-
-static struct {
-  fvertex_t *p;
-  unsigned n, alloc, r;
-} fvc;
 
 static struct {
   fline_t *p;
@@ -94,25 +85,11 @@ void stClose() {
   }
   flc.n = flc.alloc = 0;
 
-  if (fvc.p != NULL) {
-    free(fvc.p);
-    fvc.p = NULL;
-  }
-  fvc.n = fvc.alloc = 0;
-
   inited = 0;
 }
 
 int stOpen() {
   if (inited) return 0;
-  fvc.alloc = 8;
-  fvc.p = (fvertex_t *)malloc(fvc.alloc * sizeof(fvertex_t));
-  if (fvc.p == NULL) {
-    stClose();
-    return 0;
-  }
-  fvc.n = 0;
-
   flc.alloc = 8;
   flc.p = (fline_t *)malloc(flc.alloc * sizeof(fline_t));
   if (flc.p == NULL) {
@@ -164,14 +141,15 @@ stWriteHeader(FILE *fp)
   return (fwrite(buf, 1, sizeof(buf), fp) == sizeof(buf)) ? 0 : -1;
 }
 
-static int
-stReadVertex(FILE *fp, fvertex_t *v)
+static Vertex
+stReadVertex(FILE *fp)
 {
+  Vertex result;
   unsigned char buf[2 * 2], *p = buf;
-  if (fread(buf, 1, sizeof(buf), fp) != sizeof(buf)) return -1;
-  v->x = *(short *)p;
-  v->y = *(short *)(p + 2);
-  return 0;
+  if (fread(buf, 1, sizeof(buf), fp) != sizeof(buf)) throw std::runtime_error("vertex");
+  result.x = *(short *)p;
+  result.y = *(short *)(p + 2);
+  return result;
 }
 
 static int
@@ -319,10 +297,6 @@ int stRead(const char *fname) {
   );
   if (inited) stClose();
 
-  fvc.alloc = fvc.n = hdr.nVerteces;
-  fvc.p = (fvertex_t *)malloc(fvc.alloc * sizeof(fvertex_t));
-  if (fvc.p == NULL) goto end2;
-
   flc.alloc = flc.n = hdr.nLines;
   flc.p = (fline_t *)malloc(flc.alloc * sizeof(fline_t));
   if (flc.p == NULL) goto end2;
@@ -335,9 +309,10 @@ int stRead(const char *fname) {
   foc.p = (fobject_t *)malloc(foc.alloc * sizeof(fobject_t));
   if (foc.p == NULL) goto end2;
 
-  for (unsigned i = 0; i < fvc.n; ++i) {
-    if (stReadVertex(f, fvc.p + i)) goto end2;
-    printf("vertex %u: x=%d y=%d\n", i, fvc.p[i].x, fvc.p[i].y);
+  vc.clear();
+  for (unsigned i = 0; i < hdr.nVerteces; ++i) {
+    vc.push_back(stReadVertex(f));
+    printf("vertex %u: x=%d y=%d\n", i, vc.back().x, vc.back().y);
   }
   for (unsigned i = 0; i < flc.n; ++i) {
     if (stReadLine(f, flc.p + i)) goto end2;
@@ -384,7 +359,7 @@ int stRead(const char *fname) {
   }
 
   fclose(f);
-  fvc.r = flc.r = fsc.r = foc.r = 0;
+  flc.r = fsc.r = foc.r = 0;
   ++inited;
   return !0;
  end2:
@@ -392,17 +367,6 @@ int stRead(const char *fname) {
  end1:
   fclose(f);
   return 0;
-}
-
-int stGetVertex(Vertex *v) {
-  if (fvc.r == fvc.n) {
-    fvc.r = 0;
-    return 0;
-  }
-  v->x = fvc.p[fvc.r].x;
-  v->y = fvc.p[fvc.r].y;
-  ++fvc.r;
-  return !0;
 }
 
 int stGetLine(Line* l) {

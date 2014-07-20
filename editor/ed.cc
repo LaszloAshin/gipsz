@@ -237,13 +237,9 @@ void edLoad() {
   Object o;
 
   stRead("map.st");
-  vc.clear();
   lc.clear();
   sc.clear();
   oc.clear();
-  while (stGetVertex(&v)) {
-    edAddVertex(v.x, v.y);
-  }
   while (stGetLine(&l)) {
     if (l.sb == l.sf) l.sb = 0;
     edAddLine(l.a, l.b, l.sf, l.sb, l.u, l.v, l.flags, l.tf, l.tb, l.du);
