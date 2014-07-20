@@ -1,3 +1,4 @@
+/* vim: set ts=2 sw=8 tw=0 et :*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -9,13 +10,17 @@
 
 #include <vector>
 #include <cassert>
+#include <stdexcept>
 
 namespace bsp {
 
-typedef struct {
+struct Vertex {
   int x, y;
   int s;
-} bspvertex_t;
+
+  Vertex() : x(0), y(0), s(0) {}
+  Vertex(int x0, int y0) : x(x0), y(y0), s(0) {}
+};
 
 struct node_s;
 
@@ -41,10 +46,9 @@ typedef struct sector_s {
   node_t *n;
 } bspsector_t;
 
-static struct {
-  bspvertex_t *p;
-  unsigned alloc, n;
-} vc;
+typedef std::vector<Vertex> Vertexes;
+
+Vertexes vc;
 
 static struct {
   bspsector_t *p;
@@ -54,8 +58,8 @@ static struct {
 static node_t *root = NULL;
 
 static int bspGetVertex(int x, int y) {
-  for (unsigned i = 0; i < vc.n; ++i)
-    if (vc.p[i].x == x && vc.p[i].y == y)
+  for (unsigned i = 0; i < vc.size(); ++i)
+    if (vc[i].x == x && vc[i].y == y)
       return i;
   return -1;
 }
@@ -65,17 +69,8 @@ static int bspAddVertex(int x, int y) {
     int i = bspGetVertex(x, y);
     if (i >= 0) return i;
   }
-  if (vc.n == vc.alloc) {
-    vc.alloc *= 2;
-    bspvertex_t *p = (bspvertex_t *)malloc(vc.alloc * sizeof(bspvertex_t));
-    if (p == NULL) return -1;
-    for (unsigned i = 0; i < vc.n; ++i) p[i] = vc.p[i];
-    free(vc.p);
-    vc.p = p;
-  }
-  vc.p[vc.n].x = x;
-  vc.p[vc.n].y = y;
-  return vc.n++;
+  vc.push_back(Vertex(x, y));
+  return vc.size() - 1;
 }
 
 static int bspAddSector() {
@@ -175,27 +170,32 @@ int bspAddLine(int s, int x1, int y1, int x2, int y2, int u, int v, int flags, i
   return n->n++;
 }
 
-static int bspIntersect(bspvertex_t p1, bspvertex_t p2, bspvertex_t p3, bspvertex_t p4, bspvertex_t *mp) {
-  double dx21 = p2.x - p1.x;
-  double dx43 = p4.x - p3.x;
-  double dy21 = p2.y - p1.y;
-  double dy43 = p4.y - p3.y;
-  double dy13 = p1.y - p3.y;
-  double t = dy43 * dx21 - dy21 * dx43;
-  if (!t) return 0; /* parallel */
-  double y, x = (dx21 * (dy13 * dx43 + dy43 * p3.x) - (dy21 * dx43 * p1.x)) / t;
+static bool
+bspIntersect(const Vertex& p1, const Vertex& p2, const Vertex& p3, const Vertex& p4, Vertex& mp)
+{
+  const double dx21 = p2.x - p1.x;
+  const double dx43 = p4.x - p3.x;
+  const double dy21 = p2.y - p1.y;
+  const double dy43 = p4.y - p3.y;
+  const double dy13 = p1.y - p3.y;
+  const double t = dy43 * dx21 - dy21 * dx43;
+  if (!t) return false; /* parallel */
+  double y;
+  const double x = (dx21 * (dy13 * dx43 + dy43 * p3.x) - (dy21 * dx43 * p1.x)) / t;
   if (abs(dx21) > abs(dx43)) {
-    if (dx21)
+    if (dx21) {
       y = p1.y + (x - p1.x) * dy21 / dx21;
-    else
-      return 0;
-  } else if (dx43)
+    } else {
+      return false;
+    }
+  } else if (dx43) {
     y = p3.y + (x - p3.x) * dy43 / dx43;
-  else
-    return 0;
-  mp->x = round(x);
-  mp->y = round(y);
-  return 1;
+  } else {
+    return false;
+  }
+  mp.x = round(x);
+  mp.y = round(y);
+  return true;
 }
 
 static void bspShowSub(node_t *n) {
@@ -204,14 +204,14 @@ static void bspShowSub(node_t *n) {
   if (n->p != NULL) {
     grSetColor((n->s * 343) | 3);
     for (unsigned i = 0; i < n->n; ++i)
-      edVector(vc.p[n->p[i].a].x, vc.p[n->p[i].a].y, vc.p[n->p[i].b].x, vc.p[n->p[i].b].y);
+      edVector(vc[n->p[i].a].x, vc[n->p[i].a].y, vc[n->p[i].b].x, vc[n->p[i].b].y);
   }
 }
 
 void bspShow() {
   if (root != NULL) bspShowSub(root);
   grSetColor(255);
-  for (unsigned i = 0; i < vc.n; ++i) edVertex(vc.p[i].x, vc.p[i].y);
+  for (unsigned i = 0; i < vc.size(); ++i) edVertex(vc[i].x, vc[i].y);
 }
 
 struct bsp_count_result {
@@ -239,11 +239,11 @@ bspCount(struct bsp_count_result *result)
 static void bspSortVerteces(unsigned *p, unsigned n) {
   if (n < 2) return;
   unsigned i, j, k;
-  if (abs(vc.p[p[1]].x - vc.p[p[0]].x) > abs(vc.p[p[1]].y - vc.p[p[0]].y)) {
+  if (abs(vc[p[1]].x - vc[p[0]].x) > abs(vc[p[1]].y - vc[p[0]].y)) {
     for (i = 0; i < n; ++i) {
       k = i;
       for (j = i + 1; j < n; ++j)
-        if (vc.p[p[j]].x > vc.p[p[k]].x) k = j;
+        if (vc[p[j]].x > vc[p[k]].x) k = j;
       if (k != i) {
         j = p[k];
         p[k] = p[i];
@@ -254,7 +254,7 @@ static void bspSortVerteces(unsigned *p, unsigned n) {
     for (i = 0; i < n; ++i) {
       k = i;
       for (j = i + 1; j < n; ++j)
-        if (vc.p[p[j]].y > vc.p[p[k]].y) k = j;
+        if (vc[p[j]].y > vc[p[k]].y) k = j;
       if (k != i) {
         j = p[k];
         p[k] = p[i];
@@ -348,14 +348,14 @@ bspBuildSub(node_t *n)
 //  printf("bspBuildSub(): %d\n", n->n);
   for (unsigned i = 0; i < n->n; ++i) {
     n->p[i].l = n->p[i].r = n->p[i].n = 0;
-    const int dx1 = vc.p[n->p[i].b].x - vc.p[n->p[i].a].x;
-    const int dy1 = vc.p[n->p[i].b].y - vc.p[n->p[i].a].y;
+    const int dx1 = vc[n->p[i].b].x - vc[n->p[i].a].x;
+    const int dy1 = vc[n->p[i].b].y - vc[n->p[i].a].y;
     for (unsigned j = 0; j < n->n; ++j) {
-      const int dx2a = vc.p[n->p[j].a].x - vc.p[n->p[i].a].x;
-      const int dy2a = vc.p[n->p[j].a].y - vc.p[n->p[i].a].y;
+      const int dx2a = vc[n->p[j].a].x - vc[n->p[i].a].x;
+      const int dy2a = vc[n->p[j].a].y - vc[n->p[i].a].y;
       const int da = dy1 * dx2a - dy2a * dx1;
-      const int dx2b = vc.p[n->p[j].b].x - vc.p[n->p[i].a].x;
-      const int dy2b = vc.p[n->p[j].b].y - vc.p[n->p[i].a].y;
+      const int dx2b = vc[n->p[j].b].x - vc[n->p[i].a].x;
+      const int dy2b = vc[n->p[j].b].y - vc[n->p[i].a].y;
       const int db = dy1 * dx2b - dy2b * dx1;
       if ((da < 0 && db > 0) || (da > 0 && db < 0)) {
         ++n->p[i].n;
@@ -377,38 +377,38 @@ bspBuildSub(node_t *n)
     if ((n->p[i].l || n->p[i].n) && ((da < db) || ((da == db) && (n->p[i].n < n->p[j].n)))) j = i;
   }
 //  printf("nodeline: %d r=%d l=%d\n", j, n->p[j].r, n->p[j].l);
-  const int dx1 = vc.p[n->p[j].b].x - vc.p[n->p[j].a].x;
-  const int dy1 = vc.p[n->p[j].b].y - vc.p[n->p[j].a].y;
+  const int dx1 = vc[n->p[j].b].x - vc[n->p[j].a].x;
+  const int dy1 = vc[n->p[j].b].y - vc[n->p[j].a].y;
   int l = 0;
   int e = 0;
   int r = 0;
   int f = 0;
-  for (unsigned i = 0; i < vc.n; ++i) vc.p[i].s = 0;
+  for (unsigned i = 0; i < vc.size(); ++i) vc[i].s = 0;
   int mina = 0;
   int maxa = 0;
   for (unsigned i = 0; i < n->n; ++i) {
     n->p[i].l = n->p[i].r = 0;
-    const int dx2a = vc.p[n->p[i].a].x - vc.p[n->p[j].a].x;
-    const int dy2a = vc.p[n->p[i].a].y - vc.p[n->p[j].a].y;
+    const int dx2a = vc[n->p[i].a].x - vc[n->p[j].a].x;
+    const int dy2a = vc[n->p[i].a].y - vc[n->p[j].a].y;
     int da = dy1 * dx2a - dy2a * dx1;
-    const int dx2b = vc.p[n->p[i].b].x - vc.p[n->p[j].a].x;
-    const int dy2b = vc.p[n->p[i].b].y - vc.p[n->p[j].a].y;
+    const int dx2b = vc[n->p[i].b].x - vc[n->p[j].a].x;
+    const int dy2b = vc[n->p[i].b].y - vc[n->p[j].a].y;
     const int db = dy1 * dx2b - dy2b * dx1;
     if (da < mina) mina = da;
     if (db < mina) mina = db;
     if (da > maxa) maxa = da;
     if (db > maxa) maxa = db;
-    if (!da && !vc.p[n->p[i].a].s) {
+    if (!da && !vc[n->p[i].a].s) {
       ++f;
-      ++vc.p[n->p[i].a].s;
+      ++vc[n->p[i].a].s;
     }
-    if (!db && !vc.p[n->p[i].b].s) {
+    if (!db && !vc[n->p[i].b].s) {
       ++f;
-      ++vc.p[n->p[i].b].s;
+      ++vc[n->p[i].b].s;
     }
     if (!da && !db) {
-      const int dx2 = vc.p[n->p[i].a].x - vc.p[n->p[i].b].x;
-      const int dy2 = vc.p[n->p[i].a].y - vc.p[n->p[i].b].y;
+      const int dx2 = vc[n->p[i].a].x - vc[n->p[i].b].x;
+      const int dy2 = vc[n->p[i].a].y - vc[n->p[i].b].y;
       da = dy1 * dy2 + dx1 * dx2;
     }
     if ((da < 0 && db <= 0) || (da <= 0 && db < 0)) {
@@ -478,14 +478,15 @@ bspBuildSub(node_t *n)
       if (n->p[i].neigh != NULL) bspNoticePair(n, i, n->l);
       continue;
     }
-    const int dx2a = vc.p[n->p[i].a].x - vc.p[n->p[j].a].x;
-    const int dy2a = vc.p[n->p[i].a].y - vc.p[n->p[j].a].y;
+    const int dx2a = vc[n->p[i].a].x - vc[n->p[j].a].x;
+    const int dy2a = vc[n->p[i].a].y - vc[n->p[j].a].y;
     const int da = dy1 * dx2a - dy2a * dx1;
-    bspvertex_t v;
-    v.x = v.y = 0;
-    bspIntersect(vc.p[n->p[j].a], vc.p[n->p[j].b], vc.p[n->p[i].a], vc.p[n->p[i].b], &v);
+    Vertex v;
+    if (!bspIntersect(vc[n->p[j].a], vc[n->p[j].b], vc[n->p[i].a], vc[n->p[i].b], v)) {
+      throw std::runtime_error("no intersection kutya");
+    }
     if ((e = bspGetVertex(v.x, v.y)) == -1) e = bspAddVertex(v.x, v.y);
-    vc.p[e].s = 1;
+    vc[e].s = 1;
     node_t * const ne = n->p[i].neigh;
     int t = (ne != NULL) ? bspGetPair(n, i) : -1;
     if (t >= 0) {
@@ -504,19 +505,19 @@ bspBuildSub(node_t *n)
     if (da > 0) {
       int dx2 = 0;
       int dy2 = 0;
-      if (abs(vc.p[n->p[i].b].x - vc.p[n->p[i].a].x) > abs(vc.p[n->p[i].b].y - vc.p[n->p[i].a].y)) {
-        dx2 = (n->p[i].u1 - n->p[i].u2) * (vc.p[n->p[i].b].x - v.x);
-        dx2 = n->p[i].u2 + (dx2 / (vc.p[n->p[i].b].x - vc.p[n->p[i].a].x));
+      if (abs(vc[n->p[i].b].x - vc[n->p[i].a].x) > abs(vc[n->p[i].b].y - vc[n->p[i].a].y)) {
+        dx2 = (n->p[i].u1 - n->p[i].u2) * (vc[n->p[i].b].x - v.x);
+        dx2 = n->p[i].u2 + (dx2 / (vc[n->p[i].b].x - vc[n->p[i].a].x));
         if (t) {
-          dy2 = (tl.u1 - tl.u2) * (v.x - vc.p[tl.b].x);
-          dy2 = tl.u2 + (dy2 / (vc.p[tl.a].x - vc.p[tl.b].x));
+          dy2 = (tl.u1 - tl.u2) * (v.x - vc[tl.b].x);
+          dy2 = tl.u2 + (dy2 / (vc[tl.a].x - vc[tl.b].x));
         }
       } else {
-        dx2 = (n->p[i].u1 - n->p[i].u2) * (vc.p[n->p[i].b].y - v.y);
-        dx2 = n->p[i].u2 + (dx2 / (vc.p[n->p[i].b].y - vc.p[n->p[i].a].y));
+        dx2 = (n->p[i].u1 - n->p[i].u2) * (vc[n->p[i].b].y - v.y);
+        dx2 = n->p[i].u2 + (dx2 / (vc[n->p[i].b].y - vc[n->p[i].a].y));
         if (t) {
-          dy2 = (tl.u1 - tl.u2) * (v.y - vc.p[tl.b].y);
-          dy2 = tl.u2 + (dy2 / (vc.p[tl.a].y - vc.p[tl.b].y));
+          dy2 = (tl.u1 - tl.u2) * (v.y - vc[tl.b].y);
+          dy2 = tl.u2 + (dy2 / (vc[tl.a].y - vc[tl.b].y));
         }
       }
       if (n->p[i].a != e) {
@@ -564,19 +565,19 @@ bspBuildSub(node_t *n)
     } else {
       int dx2 = 0;
       int dy2 = 0;
-      if (abs(vc.p[n->p[i].b].x - vc.p[n->p[i].a].x) > abs(vc.p[n->p[i].b].y - vc.p[n->p[i].a].y)) {
-        dx2 = (n->p[i].u1 - n->p[i].u2) * (vc.p[n->p[i].b].x - v.x);
-        dx2 = n->p[i].u2 + (dx2 / (vc.p[n->p[i].b].x - vc.p[n->p[i].a].x));
+      if (abs(vc[n->p[i].b].x - vc[n->p[i].a].x) > abs(vc[n->p[i].b].y - vc[n->p[i].a].y)) {
+        dx2 = (n->p[i].u1 - n->p[i].u2) * (vc[n->p[i].b].x - v.x);
+        dx2 = n->p[i].u2 + (dx2 / (vc[n->p[i].b].x - vc[n->p[i].a].x));
         if (t) {
-          dy2 = (tl.u1 - tl.u2) * (v.x - vc.p[tl.b].x);
-          dy2 = tl.u2 + (dy2 / (vc.p[tl.a].x - vc.p[tl.b].x));
+          dy2 = (tl.u1 - tl.u2) * (v.x - vc[tl.b].x);
+          dy2 = tl.u2 + (dy2 / (vc[tl.a].x - vc[tl.b].x));
         }
       } else {
-        dx2 = (n->p[i].u1 - n->p[i].u2) * (vc.p[n->p[i].b].y - v.y);
-        dx2 = n->p[i].u2 + (dx2 / (vc.p[n->p[i].b].y - vc.p[n->p[i].a].y));
+        dx2 = (n->p[i].u1 - n->p[i].u2) * (vc[n->p[i].b].y - v.y);
+        dx2 = n->p[i].u2 + (dx2 / (vc[n->p[i].b].y - vc[n->p[i].a].y));
         if (t) {
-          dy2 = (tl.u1 - tl.u2) * (v.y - vc.p[tl.b].y);
-          dy2 = tl.u2 + (dy2 / (vc.p[tl.a].y - vc.p[tl.b].y));
+          dy2 = (tl.u1 - tl.u2) * (v.y - vc[tl.b].y);
+          dy2 = tl.u2 + (dy2 / (vc[tl.a].y - vc[tl.b].y));
         }
       }
       if (n->p[i].a != e) {
@@ -633,10 +634,10 @@ bspBuildSub(node_t *n)
 
   std::vector<unsigned> p(f);
   int t = 0;
-  for (unsigned i = 0; i < vc.n; ++i) if (vc.p[i].s) p[t++] = i;
+  for (unsigned i = 0; i < vc.size(); ++i) if (vc[i].s) p[t++] = i;
   bspSortVerteces(&p.front(), t);
-  const int dx2 = vc.p[p[0]].x - vc.p[p[t-1]].x;
-  const int dy2 = vc.p[p[0]].y - vc.p[p[t-1]].y;
+  const int dx2 = vc[p[0]].x - vc[p[t-1]].x;
+  const int dy2 = vc[p[0]].y - vc[p[t-1]].y;
   --t;
   {
     int i = 0;
@@ -732,7 +733,7 @@ bspBuildSearch(node_t *n)
 
 void bspBuildTree() {
   bspCleanTree();
-  printf("bspBuildTree():\n vertex: %d\n", vc.n);
+  printf("bspBuildTree():\n vertex: %lu\n", vc.size());
   if (root != NULL) bspBuildSearch(root);
   printf("bspBuildTree(): done\n");
   struct bsp_count_result counts;
@@ -744,11 +745,6 @@ void bspBuildTree() {
 }
 
 int bspInit() {
-  vc.alloc = 8;
-  vc.p = (bspvertex_t *)malloc(vc.alloc * sizeof(bspvertex_t));
-  if (vc.p == NULL) return 0;
-  vc.n = 0;
-
   sc.alloc = 8;
   sc.p = (bspsector_t *)malloc(sc.alloc * sizeof(bspsector_t));
   if (sc.p == NULL) goto end1;
@@ -768,7 +764,6 @@ int bspInit() {
  end2:
   free(sc.p);
  end1:
-  free(vc.p);
   return 0;
 }
 
@@ -785,8 +780,7 @@ void bspDone() {
   if (root != NULL) bspDelNode(root);
   free(sc.p);
   sc.n = sc.alloc = 0;
-  free(vc.p);
-  vc.n = vc.alloc = 0;
+  vc.clear();
 }
 
 static void
@@ -804,7 +798,7 @@ void bspPrintTree() {
 }
 
 static int
-bspSaveVertex(FILE *fp, bspvertex_t *v)
+bspSaveVertex(FILE *fp, Vertex *v)
 {
   unsigned char buf[2 * 2], *p = buf;
   *(short *)p = v->x;
@@ -870,9 +864,10 @@ bspSaveSub(FILE *fp, node_t *n)
 }
 
 int bspSave(FILE *f) {
-  fwrite(&vc.n, sizeof(int), 1, f);
-  for (unsigned i = 0; i < vc.n; ++i) {
-    bspSaveVertex(f, vc.p + i);
+  const unsigned vertexCount = vc.size();
+  fwrite(&vertexCount, sizeof(unsigned), 1, f);
+  for (unsigned i = 0; i < vc.size(); ++i) {
+    bspSaveVertex(f, &vc.at(i));
   }
   struct bsp_count_result counts;
   bspCount(&counts);
