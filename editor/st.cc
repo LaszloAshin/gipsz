@@ -70,43 +70,6 @@ const
   os << std::endl;
 }
 
-static Line
-stReadLine(std::istream& is)
-{
-  Line result;
-  char buf[6 * 2 + 1 + 2 * 4 + 2], *p = buf;
-  is.read(buf, sizeof(buf));
-  result.a = *(unsigned short *)p;
-  result.b = *(unsigned short *)(p + 2);
-  result.sf = *(unsigned short *)(p + 4);
-  result.sb = *(unsigned short *)(p + 6);
-  result.u = *(unsigned short *)(p + 8);
-  result.v = *(unsigned short *)(p + 10);
-  result.flags = buf[12];
-  result.tf = *(unsigned *)(p + 13);
-  result.tb = *(unsigned *)(p + 17);
-  result.du = *(short *)(p + 21);
-  if (result.sb == result.sf) result.sb = 0;
-  return result;
-}
-
-static void
-stWriteLine(std::ostream& os, const Line& l)
-{
-  char buf[6 * 2 + 1 + 2 * 4 + 2], *p = buf;
-  *(unsigned short *)p = l.a;
-  *(unsigned short *)(p + 2) = l.b;
-  *(unsigned short *)(p + 4) = l.sf;
-  *(unsigned short *)(p + 6) = l.sb;
-  *(unsigned short *)(p + 8) = l.u;
-  *(unsigned short *)(p + 10) = l.v;
-  buf[12] = l.flags;
-  *(unsigned *)(p + 13) = l.tf;
-  *(unsigned *)(p + 17) = l.tb;
-  *(short *)(p + 21) = l.du;
-  os.write(buf, sizeof(buf));
-}
-
 static Sector
 stReadSector(std::istream& is, unsigned& n)
 {
@@ -176,7 +139,7 @@ stWrite(const char* fname)
   if (!f) throw std::runtime_error("failed to open map file for writing");
   Header(vc.size(), lc.size(), sc.size() ? (sc.size() - 1) : 0, oc.size()).save(f);
   for (Vertexes::const_iterator i(vc.begin()); i != vc.end(); ++i) i->save(f);
-  for (Lines::const_iterator i(lc.begin()); i != lc.end(); ++i) stWriteLine(f, *i);
+  for (Lines::const_iterator i(lc.begin()); i != lc.end(); ++i) i->save(f);
   {
     Sectors::const_iterator i(sc.begin());
     if (i != sc.end()) ++i;
@@ -204,21 +167,8 @@ stRead(const char* fname)
 
   Lines lines;
   for (unsigned i = 0; i < hdr.lineCount(); ++i) {
-    lines.push_back(stReadLine(f));
-    printf(
-      "line %u: a=%u b=%u sf=%u sb=%u u=%u v=%u flg=%u tf=%u tb=%u du=%d\n",
-      i,
-      lines.back().a,
-      lines.back().b,
-      lines.back().sf,
-      lines.back().sb,
-      lines.back().u,
-      lines.back().v,
-      lines.back().flags,
-      lines.back().tf,
-      lines.back().tb,
-      lines.back().du
-    );
+    lines.push_back(Line::load(f));
+    lines.back().print(std::cout, i);
   }
 
   Sectors sectors;

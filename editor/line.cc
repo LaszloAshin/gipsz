@@ -5,6 +5,62 @@
 #include "gr.h"
 #include "ed.h"
 
+Line
+Line::load(std::istream& is)
+{
+  Line result;
+  char buf[6 * 2 + 1 + 2 * 4 + 2], *p = buf;
+  is.read(buf, sizeof(buf));
+  result.a = *(unsigned short *)p;
+  result.b = *(unsigned short *)(p + 2);
+  result.sf = *(unsigned short *)(p + 4);
+  result.sb = *(unsigned short *)(p + 6);
+  result.u = *(unsigned short *)(p + 8);
+  result.v = *(unsigned short *)(p + 10);
+  result.flags = buf[12];
+  result.tf = *(unsigned *)(p + 13);
+  result.tb = *(unsigned *)(p + 17);
+  result.du = *(short *)(p + 21);
+  if (result.sb == result.sf) result.sb = 0;
+  return result;
+}
+
+void
+Line::save(std::ostream& os)
+const
+{
+  char buf[6 * 2 + 1 + 2 * 4 + 2], *p = buf;
+  *(unsigned short *)p = a;
+  *(unsigned short *)(p + 2) = b;
+  *(unsigned short *)(p + 4) = sf;
+  *(unsigned short *)(p + 6) = sb;
+  *(unsigned short *)(p + 8) = u;
+  *(unsigned short *)(p + 10) = v;
+  buf[12] = flags;
+  *(unsigned *)(p + 13) = tf;
+  *(unsigned *)(p + 17) = tb;
+  *(short *)(p + 21) = du;
+  os.write(buf, sizeof(buf));
+}
+
+void
+Line::print(std::ostream& os, int index)
+const
+{
+	os << "line #" << index;
+	os << ": a=" << a;
+	os << ", b=" << b;
+	os << ", sf=" << sf;
+	os << ", sb=" << sb;
+	os << ", u=" << u;
+	os << ", v=" << v;
+	os << ", flg=" << flags;
+	os << ", tf=" << tf;
+	os << ", tb=" << tb;
+	os << ", du=" << du;
+	os << std::endl;
+}
+
 Lines lc;
 Line* sl = 0, tmpline;
 
