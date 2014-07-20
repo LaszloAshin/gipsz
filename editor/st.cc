@@ -11,12 +11,12 @@
 #include <cassert>
 #include <stdexcept>
 
-typedef struct {
+struct Header {
   unsigned nVerteces;
   unsigned nLines;
   unsigned nSectors;
   unsigned nObjects;
-} header_t;
+};
 
 typedef struct {
   unsigned short a;
@@ -91,16 +91,17 @@ int stOpen() {
   return !0;
 }
 
-static int
-stReadHeader(FILE *fp, header_t *h)
+static Header
+stReadHeader(FILE *fp)
 {
+  Header result;
   unsigned char buf[4 * 4], *p = buf;
-  if (fread(buf, 1, sizeof(buf), fp) != sizeof(buf)) return -1;
-  h->nVerteces = *(unsigned *)p;
-  h->nLines = *(unsigned *)(p + 4);
-  h->nSectors = *(unsigned *)(p + 8);
-  h->nObjects = *(unsigned *)(p + 12);
-  return 0;
+  if (fread(buf, 1, sizeof(buf), fp) != sizeof(buf)) throw std::runtime_error("header");
+  result.nVerteces = *(unsigned *)p;
+  result.nLines = *(unsigned *)(p + 4);
+  result.nSectors = *(unsigned *)(p + 8);
+  result.nObjects = *(unsigned *)(p + 12);
+  return result;
 }
 
 static int
@@ -264,8 +265,7 @@ int stRead(const char *fname) {
   if (fname == NULL) return 0;
   FILE *f = fopen(fname, "rb");
   if (f == NULL) return 0;
-  header_t hdr;
-  if (stReadHeader(f, &hdr)) goto end1;
+  Header hdr(stReadHeader(f));
   puts("stRead");
   printf(
     "%u vertices, %u lines, %u sectors, %u objects\n",
@@ -345,7 +345,6 @@ int stRead(const char *fname) {
   return !0;
  end2:
   stClose();
- end1:
   fclose(f);
   return 0;
 }
