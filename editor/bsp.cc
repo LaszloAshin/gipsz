@@ -94,23 +94,18 @@ bspAddSector()
   return sc.size() - 1;
 }
 
-static void
-bspDuplicateNode(Node* n, Node** p) // XXX: reference
+static Node*
+bspDuplicateNode(Node* n) // XXX: reference
 {
-  *p = new Node();
+  Node* p = new Node();
   if (!n->l && !n->r) {
     int i = bspAddSector();
-    if (i < 0) return;
-    sc[i].n = *p;
+    if (i < 0) return p;
+    sc[i].n = p;
   }
-  if (n->l) bspDuplicateNode(n->l, &(*p)->l);
-  if (n->r) bspDuplicateNode(n->r, &(*p)->r);
-}
-
-static void
-bspDuplicateTree(Node* n)
-{
-  bspDuplicateNode(n->l, &n->r);
+  if (n->l) p->l = bspDuplicateNode(n->l);
+  if (n->r) p->r = bspDuplicateNode(n->r);
+  return p;
 }
 
 static Node*
@@ -127,7 +122,7 @@ bspGetNodeForSector(int s)
     }
   Node* p = new Node();
   p->l = root;
-  bspDuplicateTree(p);
+  p->r = bspDuplicateNode(root);
   root = p;
   return bspGetNodeForSector(s);
 }
