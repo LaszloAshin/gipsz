@@ -48,6 +48,7 @@ struct Node {
   Node* r;
 
   Node() : s(0), l(0), r(0) {}
+  ~Node() { delete l; delete r; }
 
 private:
   Node(const Node&);
@@ -638,16 +639,8 @@ int bspInit() {
   return !0;
 }
 
-static void
-bspDelNode(Node* n)
-{
-  if (n->l != NULL) bspDelNode(n->l);
-  if (n->r != NULL) bspDelNode(n->r);
-  delete n;
-}
-
 void bspDone() {
-  if (root != NULL) bspDelNode(root);
+  delete root;
   sc.clear();
   vc.clear();
 }
