@@ -45,13 +45,15 @@ typedef std::vector<Line> Lines;
 struct Node {
   Lines p;
   int s;
-  Node* l;
-  Node* r;
+  std::auto_ptr<Node> l, r;
 
-  Node() : s(0), l(0), r(0) {}
-  ~Node() { delete l; delete r; }
+  Node() : s(0) {}
 
   std::auto_ptr<Node> duplicate() const;
+  void show() const;
+  size_t countNodes() const;
+  size_t countLines() const;
+  bool empty() const { return p.empty() && !l.get() && !r.get(); }
 
 private:
   Node(const Node&);
@@ -72,7 +74,7 @@ typedef std::vector<Sector> Sectors;
 Vertexes vc;
 Sectors sc;
 
-static Node* root = 0;
+static std::auto_ptr<Node> root;
 
 static int bspGetVertex(int x, int y) {
   for (unsigned i = 0; i < vc.size(); ++i)
@@ -102,13 +104,13 @@ Node::duplicate()
 const
 {
   std::auto_ptr<Node> p(new Node());
-  if (!l && !r) {
+  if (!l.get() && !r.get()) {
     int i = bspAddSector();
     if (i < 0) return p;
     sc[i].n = p.get();
   }
-  if (l) p->l = l->duplicate().release();
-  if (r) p->r = r->duplicate().release();
+  if (l.get()) p->l = l->duplicate();
+  if (r.get()) p->r = r->duplicate();
   return p;
 }
 
@@ -124,10 +126,10 @@ bspGetNodeForSector(int s)
       sc[i].s = sc[i].n->s = s;
       return sc[i].n;
     }
-  Node* p = new Node();
-  p->l = root;
-  p->r = root->duplicate().release();
-  root = p;
+  std::auto_ptr<Node> p(new Node());
+  p->l.reset(root.release());
+  p->r = p->l->duplicate();
+  root.reset(p.release());
   return bspGetNodeForSector(s);
 }
 
@@ -183,42 +185,43 @@ bspIntersect(const Vertex& p1, const Vertex& p2, const Vertex& p3, const Vertex&
   return true;
 }
 
-static void bspShowSub(Node* n) {
-  if (n->l != NULL) bspShowSub(n->l);
-  if (n->r != NULL) bspShowSub(n->r);
-  if (!n->p.empty()) {
-    grSetColor((n->s * 343) | 3);
-    for (unsigned i = 0; i < n->p.size(); ++i)
-      edVector(vc[n->p[i].a].x, vc[n->p[i].a].y, vc[n->p[i].b].x, vc[n->p[i].b].y);
+void
+Node::show()
+const
+{
+  if (l.get()) l->show();
+  if (r.get()) r->show();
+  if (!p.empty()) {
+    grSetColor((s * 343) | 3);
+    for (unsigned i = 0; i < p.size(); ++i)
+      edVector(vc[p[i].a].x, vc[p[i].a].y, vc[p[i].b].x, vc[p[i].b].y);
   }
 }
 
 void bspShow() {
-  if (root != NULL) bspShowSub(root);
+  if (root.get()) root->show();
   grSetColor(255);
   for (unsigned i = 0; i < vc.size(); ++i) edVertex(vc[i].x, vc[i].y);
 }
 
-struct bsp_count_result {
-  unsigned node_count;
-  unsigned line_count;
-};
-
-static void
-bspCountSub(Node* n, struct bsp_count_result *result)
+size_t
+Node::countNodes()
+const
 {
-  ++result->node_count;
-  result->line_count += n->p.size();
-  if (n->l != NULL) bspCountSub(n->l, result);
-  if (n->r != NULL) bspCountSub(n->r, result);
+  size_t result = 1;
+  if (l.get()) result += l->countNodes();
+  if (r.get()) result += r->countNodes();
+  return result;
 }
 
-static void
-bspCount(struct bsp_count_result *result)
+size_t
+Node::countLines()
+const
 {
-  result->node_count = 0;
-  result->line_count = 0;
-  if (root != NULL) bspCountSub(root, result);
+  size_t result = p.size();
+  if (l.get()) result += l->countLines();
+  if (r.get()) result += r->countLines();
+  return result;
 }
 
 static void bspSortVerteces(unsigned *p, unsigned n) {
@@ -309,18 +312,15 @@ static void bspNoticePair(Node* n, unsigned l, Node* p) {
 }
 
 static void
-bspCleanSub(Node** n)
+bspCleanSub(std::auto_ptr<Node>& n)
 {
-  if ((*n)->l != NULL) bspCleanSub(&(*n)->l);
-  if ((*n)->r != NULL) bspCleanSub(&(*n)->r);
-  if ((*n)->l == NULL && (*n)->r == NULL && (*n)->p.empty()) {
-    delete *n;
-    *n = 0;
-  }
+  if (n->l.get()) bspCleanSub(n->l);
+  if (n->r.get()) bspCleanSub(n->r);
+  if (n->empty()) n.reset();
 }
 
 void bspCleanTree() {
-  if (root != NULL) bspCleanSub(&root);
+  if (root.get()) bspCleanSub(root);
 }
 
 //int bspLoad(FILE *f);
@@ -416,10 +416,10 @@ bspBuildSub(Node* n)
 //  printf("f=%d mina=%d maxa=%d\n", f, mina, maxa);
     if (mina >= 10 || maxa <= 10) return;
 
-    n->l = new Node();
+    n->l.reset(new Node());
     n->l->p.reserve(l + e + f);
 
-    n->r = new Node();
+    n->r.reset(new Node());
     n->r->p.reserve(r + e + f);
   }
 
@@ -429,12 +429,12 @@ bspBuildSub(Node* n)
   for (unsigned i = 0; i < n->p.size(); ++i) {
     if (n->p[i].r) {
       n->r->p.push_back(n->p[i]);
-      if (n->p[i].neigh != NULL) bspNoticePair(n, i, n->r);
+      if (n->p[i].neigh) bspNoticePair(n, i, n->r.get());
       continue;
     }
     if (n->p[i].l) {
       n->l->p.push_back(n->p[i]);
-      if (n->p[i].neigh != NULL) bspNoticePair(n, i, n->l);
+      if (n->p[i].neigh) bspNoticePair(n, i, n->l.get());
       continue;
     }
     const int dx2a = vc[n->p[i].a].x - vc[n->p[j].a].x;
@@ -477,7 +477,7 @@ bspBuildSub(Node* n)
         if (t) {
           line2.neigh = ne;
           Line line(e, tl.b, dy2, tl.u2, tl.v, 0, tl.t);
-          line.neigh = n->l;
+          line.neigh = n->l.get();
           ne->p.push_back(line);
         }
         n->l->p.push_back(line2);
@@ -487,7 +487,7 @@ bspBuildSub(Node* n)
         if (t) {
           line2.neigh = ne;
           Line line(tl.a, e, tl.u1, dy2, tl.v, 0, tl.t);
-          line.neigh = n->r;
+          line.neigh = n->r.get();
           ne->p.push_back(line);
         }
         n->r->p.push_back(line2);
@@ -515,7 +515,7 @@ bspBuildSub(Node* n)
         if (t) {
           line2.neigh = ne;
           Line line(e, tl.b, dy2, tl.u2, tl.v, 0, tl.t);
-          line.neigh = n->r;
+          line.neigh = n->r.get();
           ne->p.push_back(line);
         }
         n->r->p.push_back(line2);
@@ -525,7 +525,7 @@ bspBuildSub(Node* n)
         if (t) {
           line2.neigh = ne;
           Line line(tl.a, e, tl.u1, dy2, tl.v, 0, tl.t);
-          line.neigh = n->l;
+          line.neigh = n->l.get();
           ne->p.push_back(line);
         }
         n->l->p.push_back(line2);
@@ -546,40 +546,40 @@ bspBuildSub(Node* n)
     int i = 0;
     if (dy1 * dy2 + dx1 * dx2 > 0) {
       do {
-        const int da = bspALine(n->r, p[i]);
-        const int db = bspBLine(n->l, p[i]);
+        const int da = bspALine(n->r.get(), p[i]);
+        const int db = bspBLine(n->l.get(), p[i]);
         ++i;
         j = 0;
-        if (da && bspMayConnect(n->r, p[i], p[i-1])) {
+        if (da && bspMayConnect(n->r.get(), p[i], p[i-1])) {
           Line line(p[i], p[i - 1], 0, 0, 0, ::Line::Flag::NOTHING, 0);
           n->r->p.push_back(line);
           ++j;
         }
-        if (db && bspMayConnect(n->l, p[i-1], p[i])) {
+        if (db && bspMayConnect(n->l.get(), p[i-1], p[i])) {
           Line line(p[i - 1], p[i], 0, 0, 0, ::Line::Flag::NOTHING, 0);
           if (j) {
-            n->r->p.back().neigh = n->l;
-            line.neigh = n->r;
+            n->r->p.back().neigh = n->l.get();
+            line.neigh = n->r.get();
           }
           n->l->p.push_back(line);
         }
       } while (i < t);
     } else {
       do {
-        const int da = bspALine(n->l, p[i]);
-        const int db = bspBLine(n->r, p[i]);
+        const int da = bspALine(n->l.get(), p[i]);
+        const int db = bspBLine(n->r.get(), p[i]);
         ++i;
         j = 0;
-        if (da && bspMayConnect(n->l, p[i], p[i-1])) {
+        if (da && bspMayConnect(n->l.get(), p[i], p[i-1])) {
           Line line(p[i], p[i - 1], 0, 0, 0, ::Line::Flag::NOTHING, 0);
           n->l->p.push_back(line);
           ++j;
         }
-        if (db && bspMayConnect(n->r, p[i-1], p[i])) {
+        if (db && bspMayConnect(n->r.get(), p[i-1], p[i])) {
           Line line(p[i - 1], p[i], 0, 0, 0, ::Line::Flag::NOTHING, 0);
           if (j) {
-            line.neigh = n->l;
-            n->l->p.back().neigh = n->r;
+            line.neigh = n->l.get();
+            n->l->p.back().neigh = n->r.get();
           }
           n->r->p.push_back(line);
         }
@@ -593,11 +593,11 @@ bspBuildSub(Node* n)
   for (unsigned i = 0; i < n->l->p.size(); ++i) n->l->p[i].c = e;
 
   grBegin();
-  bspShowSub(n);
+  n->show();
   grEnd();
 //  SDL_Delay(100);
-  bspBuildSub(n->l);
-  bspBuildSub(n->r);
+  bspBuildSub(n->l.get());
+  bspBuildSub(n->r.get());
   n->p.clear();
 }
 
@@ -605,8 +605,8 @@ static void
 bspBuildSearch(Node* n)
 {
   if (n->p.empty()) {
-    if (n->l != NULL) bspBuildSearch(n->l);
-    if (n->r != NULL) bspBuildSearch(n->r);
+    if (n->l.get()) bspBuildSearch(n->l.get());
+    if (n->r.get()) bspBuildSearch(n->r.get());
   } else {
     int e = rand() | 3;
     for (unsigned i = 0; i < n->p.size(); ++i) n->p[i].c = e;
@@ -615,13 +615,15 @@ bspBuildSearch(Node* n)
 }
 
 void bspBuildTree() {
+  if (!root.get()) {
+    printf("no tree to build\n");
+    return;
+  }
   bspCleanTree();
   printf("bspBuildTree():\n vertex: %lu\n", vc.size());
-  if (root != NULL) bspBuildSearch(root);
+  bspBuildSearch(root.get());
   printf("bspBuildTree(): done\n");
-  struct bsp_count_result counts;
-  bspCount(&counts);
-  printf("nodes:%u lines:%u\n", counts.node_count, counts.line_count);
+  printf("nodes:%lu lines:%lu\n", root->countNodes(), root->countLines());
 /*  FILE *fp = fopen("map.bsp", "rb");
   bspLoad(fp);
   fclose(fp);*/
@@ -631,31 +633,31 @@ int bspInit() {
   vc.clear();
   sc.clear();
 
-  root = new Node();
+  root.reset(new Node());
 
-  sc.push_back(Sector(0, root));
+  sc.push_back(Sector(0, root.get()));
 
   return !0;
 }
 
 void bspDone() {
-  delete root;
+  root.reset();
   sc.clear();
   vc.clear();
 }
 
 static void
-bspPrintTreeSub(Node* n, unsigned d)
+bspPrintTreeSub(Node* n, unsigned d = 0)
 {
   for (unsigned i = 0; i < d; ++i) putchar(' ');
   printf("%lu\n", n->p.size());
   ++d;
-  if (n->l != NULL) bspPrintTreeSub(n->l, d);
-  if (n->r != NULL) bspPrintTreeSub(n->r, d);
+  if (n->l.get()) bspPrintTreeSub(n->l.get(), d);
+  if (n->r.get()) bspPrintTreeSub(n->r.get(), d);
 }
 
 void bspPrintTree() {
-  if (root != NULL) bspPrintTreeSub(root, 0);
+  if (root.get()) bspPrintTreeSub(root.get());
 }
 
 static int
@@ -720,8 +722,8 @@ bspSaveSub(FILE* fp, Node* n)
       }
     }
   }
-  bspSaveSub(fp, n->l);
-  bspSaveSub(fp, n->r);
+  bspSaveSub(fp, n->l.get());
+  bspSaveSub(fp, n->r.get());
 }
 
 int bspSave(FILE *f) {
@@ -730,12 +732,12 @@ int bspSave(FILE *f) {
   for (unsigned i = 0; i < vc.size(); ++i) {
     bspSaveVertex(f, &vc.at(i));
   }
-  struct bsp_count_result counts;
-  bspCount(&counts);
 //  bspPrintTree();
-  fwrite(&counts.node_count, sizeof(unsigned), 1, f);
-  fwrite(&counts.line_count, sizeof(unsigned), 1, f);
-  bspSaveSub(f, root);
+  unsigned nodeCount = root->countNodes();
+  unsigned lineCount = root->countLines();
+  fwrite(&nodeCount, sizeof(unsigned), 1, f);
+  fwrite(&lineCount, sizeof(unsigned), 1, f);
+  bspSaveSub(f, root.get());
   return !0;
 }
 
