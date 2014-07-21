@@ -11,6 +11,7 @@
 #include <vector>
 #include <cassert>
 #include <stdexcept>
+#include <memory>
 
 namespace bsp {
 
@@ -49,6 +50,8 @@ struct Node {
 
   Node() : s(0), l(0), r(0) {}
   ~Node() { delete l; delete r; }
+
+  std::auto_ptr<Node> duplicate() const;
 
 private:
   Node(const Node&);
@@ -94,17 +97,18 @@ bspAddSector()
   return sc.size() - 1;
 }
 
-static Node*
-bspDuplicateNode(Node* n) // XXX: reference
+std::auto_ptr<Node>
+Node::duplicate()
+const
 {
-  Node* p = new Node();
-  if (!n->l && !n->r) {
+  std::auto_ptr<Node> p(new Node());
+  if (!l && !r) {
     int i = bspAddSector();
     if (i < 0) return p;
-    sc[i].n = p;
+    sc[i].n = p.get();
   }
-  if (n->l) p->l = bspDuplicateNode(n->l);
-  if (n->r) p->r = bspDuplicateNode(n->r);
+  if (l) p->l = l->duplicate().release();
+  if (r) p->r = r->duplicate().release();
   return p;
 }
 
@@ -122,7 +126,7 @@ bspGetNodeForSector(int s)
     }
   Node* p = new Node();
   p->l = root;
-  p->r = bspDuplicateNode(root);
+  p->r = root->duplicate().release();
   root = p;
   return bspGetNodeForSector(s);
 }
