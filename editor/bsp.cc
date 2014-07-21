@@ -53,6 +53,7 @@ struct Node {
   void show() const;
   size_t countNodes() const;
   size_t countLines() const;
+  bool mayConnect(int a, int b);
   bool empty() const { return p.empty() && !l.get() && !r.get(); }
 
 private:
@@ -252,13 +253,14 @@ static void bspSortVerteces(unsigned *p, unsigned n) {
   }
 }
 
-static int bspMayConnect(Node* n, int a, int b) {
-  for (unsigned i = 0; i < n->p.size(); ++i) {
-    if ((n->p[i].a == a && n->p[i].b == b))
-      return 0;
-    n->p[i].n = 0;
+bool
+Node::mayConnect(int a, int b)
+{
+  for (Lines::iterator i(p.begin()); i != p.end(); ++i) {
+    if ((i->a == a && i->b == b)) return false;
+    i->n = 0;
   }
-  return !0;
+  return true;
 }
 
 static int bspALine(Node* n, int a) {
@@ -550,12 +552,12 @@ bspBuildSub(Node* n)
         const int db = bspBLine(n->l.get(), p[i]);
         ++i;
         j = 0;
-        if (da && bspMayConnect(n->r.get(), p[i], p[i-1])) {
+        if (da && n->r->mayConnect(p[i], p[i - 1])) {
           Line line(p[i], p[i - 1], 0, 0, 0, ::Line::Flag::NOTHING, 0);
           n->r->p.push_back(line);
           ++j;
         }
-        if (db && bspMayConnect(n->l.get(), p[i-1], p[i])) {
+        if (db && n->l->mayConnect(p[i - 1], p[i])) {
           Line line(p[i - 1], p[i], 0, 0, 0, ::Line::Flag::NOTHING, 0);
           if (j) {
             n->r->p.back().neigh = n->l.get();
@@ -570,12 +572,12 @@ bspBuildSub(Node* n)
         const int db = bspBLine(n->r.get(), p[i]);
         ++i;
         j = 0;
-        if (da && bspMayConnect(n->l.get(), p[i], p[i-1])) {
+        if (da && n->l->mayConnect(p[i], p[i - 1])) {
           Line line(p[i], p[i - 1], 0, 0, 0, ::Line::Flag::NOTHING, 0);
           n->l->p.push_back(line);
           ++j;
         }
-        if (db && bspMayConnect(n->r.get(), p[i-1], p[i])) {
+        if (db && n->r->mayConnect(p[i - 1], p[i])) {
           Line line(p[i - 1], p[i], 0, 0, 0, ::Line::Flag::NOTHING, 0);
           if (j) {
             line.neigh = n->l.get();
