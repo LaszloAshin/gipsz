@@ -3,6 +3,8 @@
 
 #include "bbox.h"
 
+#include <cstdio>
+
 typedef struct {
   float x, y, z;
 } vec3d_t;
@@ -44,6 +46,23 @@ typedef enum {
   NF_VISIBLE	= 0x01
 } nodeflag_t;
 
+class Plane2d {
+public:
+  Plane2d() : a_(), b_(), c_() {}
+  Plane2d(const vertex_t& v1, const vertex_t& v2)
+  : a_(v2.y - v1.y)
+  , b_(v1.x - v2.x)
+  , c_(-(a_ * v1.x + b_ * v1.y))
+  {}
+
+  int determine(const vertex_t& v) const { return a_ * v.x + b_ * v.y + c_; }
+  int dot(int dx, int dy) const { return a_ * dy - b_ * dx; }
+  void load(FILE* fp);
+
+private:
+  int a_, b_, c_;
+};
+
 typedef struct node_s {
   line_t *p;
   unsigned n;
@@ -51,6 +70,7 @@ typedef struct node_s {
   sector_t *s;
   struct node_s *l, *r, *ow;
   nodeflag_t flags;
+  Plane2d div;
 } node_t;
 
 typedef struct {

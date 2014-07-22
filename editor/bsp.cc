@@ -25,6 +25,7 @@ struct Vertex {
 
 class Plane2d {
 public:
+  Plane2d() : a_(), b_(), c_() {}
   Plane2d(const Vertex& v1, const Vertex& v2)
   : a_(v2.y - v1.y)
   , b_(v1.x - v2.x)
@@ -33,10 +34,19 @@ public:
 
   int determine(const Vertex& v) const { return a_ * v.x + b_ * v.y + c_; }
   int dot(int dx, int dy) const { return a_ * dy - b_ * dx; }
+  void save(FILE* fp);
 
 private:
   int a_, b_, c_;
 };
+
+void
+Plane2d::save(FILE* fp)
+{
+  fwrite(&a_, sizeof(a_), 1, fp);
+  fwrite(&b_, sizeof(b_), 1, fp);
+  fwrite(&c_, sizeof(c_), 1, fp);
+}
 
 struct Node;
 
@@ -61,6 +71,7 @@ struct Node {
   Lines p;
   int s;
   std::auto_ptr<Node> l, r;
+  Plane2d div;
 
   Node() : s(0) {}
 
@@ -374,7 +385,7 @@ bspBuildSub(Node* n)
     if ((n->p[i].l || n->p[i].n) && ((da < db) || ((da == db) && (n->p[i].n < n->p[j].n)))) j = i;
   }
 //  printf("nodeline: %d r=%d l=%d\n", j, n->p[j].r, n->p[j].l);
-  const Plane2d div(vc[n->p[j].a], vc[n->p[j].b]);
+  n->div = Plane2d(vc[n->p[j].a], vc[n->p[j].b]);
   for (unsigned i = 0; i < vc.size(); ++i) vc[i].s = 0;
   int mina = 0;
   int maxa = 0;
@@ -385,8 +396,8 @@ bspBuildSub(Node* n)
     int r = 0;
     for (unsigned i = 0; i < n->p.size(); ++i) {
       n->p[i].l = n->p[i].r = 0;
-      int da = div.determine(vc[n->p[i].a]);
-      const int db = div.determine(vc[n->p[i].b]);
+      int da = n->div.determine(vc[n->p[i].a]);
+      const int db = n->div.determine(vc[n->p[i].b]);
       if (da < mina) mina = da;
       if (db < mina) mina = db;
       if (da > maxa) maxa = da;
@@ -402,7 +413,7 @@ bspBuildSub(Node* n)
       if (!da && !db) {
         const int dx2 = vc[n->p[i].a].x - vc[n->p[i].b].x;
         const int dy2 = vc[n->p[i].a].y - vc[n->p[i].b].y;
-        da = div.dot(dx2, dy2);
+        da = n->div.dot(dx2, dy2);
       }
       if ((da < 0 && db <= 0) || (da <= 0 && db < 0)) {
         ++n->p[i].r;
@@ -444,7 +455,7 @@ bspBuildSub(Node* n)
       if (n->p[i].neigh) bspNoticePair(n, i, n->l.get());
       continue;
     }
-    const int da = div.determine(vc[n->p[i].a]);
+    const int da = n->div.determine(vc[n->p[i].a]);
     Vertex v;
     if (!bspIntersect(vc[n->p[j].a], vc[n->p[j].b], vc[n->p[i].a], vc[n->p[i].b], v)) {
       throw std::runtime_error("no intersection kutya");
@@ -549,7 +560,7 @@ bspBuildSub(Node* n)
   --t;
   {
     int i = 0;
-    if (div.dot(dx2, dy2) > 0) {
+    if (n->div.dot(dx2, dy2) > 0) {
       do {
         const int da = bspALine(n->r.get(), p[i]);
         const int db = bspBLine(n->l.get(), p[i]);
@@ -700,6 +711,7 @@ bspSaveSub(FILE* fp, Node* n)
     unsigned i = n->p.size() + 1;
     fwrite(&i, sizeof(int), 1, fp);
   }
+  n->div.save(fp);
   fwrite(&n->s, sizeof(int), 1, fp);
   if (!n->p.empty()) {
     int j = n->p[0].a;

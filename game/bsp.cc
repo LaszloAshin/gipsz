@@ -12,6 +12,14 @@
 #include "model.h"
 #include "obj.h"
 
+void
+Plane2d::load(FILE* fp)
+{
+  fread(&a_, sizeof(a_), 1, fp);
+  fread(&b_, sizeof(b_), 1, fp);
+  fread(&c_, sizeof(c_), 1, fp);
+}
+
 vc_t vc;
 sc_t sc;
 
@@ -310,6 +318,7 @@ bspLoadNode(struct bsp_load_ctx * const blc)
   --blc->rn;
   node_t *n = blc->np++;
   n->n = lineCount - 1;
+  n->div.load(blc->f);
   unsigned someCount;
   if (!fread(&someCount, sizeof(unsigned), 1, blc->f)) { ++blc->err; return n; }
   if (someCount) {
