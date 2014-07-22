@@ -23,6 +23,21 @@ struct Vertex {
   Vertex(int x0, int y0) : x(x0), y(y0), s(0) {}
 };
 
+class Plane2d {
+public:
+  Plane2d(const Vertex& v1, const Vertex& v2)
+  : a_(v2.y - v1.y)
+  , b_(v1.x - v2.x)
+  , c_(-(a_ * v1.x + b_ * v1.y))
+  {}
+
+  int determine(const Vertex& v) const { return a_ * v.x + b_ * v.y + c_; }
+  int dot(int dx, int dy) const { return a_ * dy - b_ * dx; }
+
+private:
+  int a_, b_, c_;
+};
+
 struct Node;
 
 struct Line {
@@ -335,15 +350,10 @@ bspBuildSub(Node* n)
 //  printf("bspBuildSub(): %d\n", n->n);
   for (unsigned i = 0; i < n->p.size(); ++i) {
     n->p[i].l = n->p[i].r = n->p[i].n = 0;
-    const int dx1 = vc[n->p[i].b].x - vc[n->p[i].a].x;
-    const int dy1 = vc[n->p[i].b].y - vc[n->p[i].a].y;
+    const Plane2d div(vc[n->p[i].a], vc[n->p[i].b]);
     for (unsigned j = 0; j < n->p.size(); ++j) {
-      const int dx2a = vc[n->p[j].a].x - vc[n->p[i].a].x;
-      const int dy2a = vc[n->p[j].a].y - vc[n->p[i].a].y;
-      const int da = dy1 * dx2a - dy2a * dx1;
-      const int dx2b = vc[n->p[j].b].x - vc[n->p[i].a].x;
-      const int dy2b = vc[n->p[j].b].y - vc[n->p[i].a].y;
-      const int db = dy1 * dx2b - dy2b * dx1;
+      const int da = div.determine(vc[n->p[j].a]);
+      const int db = div.determine(vc[n->p[j].b]);
       if ((da < 0 && db > 0) || (da > 0 && db < 0)) {
         ++n->p[i].n;
         continue;
@@ -364,8 +374,7 @@ bspBuildSub(Node* n)
     if ((n->p[i].l || n->p[i].n) && ((da < db) || ((da == db) && (n->p[i].n < n->p[j].n)))) j = i;
   }
 //  printf("nodeline: %d r=%d l=%d\n", j, n->p[j].r, n->p[j].l);
-  const int dx1 = vc[n->p[j].b].x - vc[n->p[j].a].x;
-  const int dy1 = vc[n->p[j].b].y - vc[n->p[j].a].y;
+  const Plane2d div(vc[n->p[j].a], vc[n->p[j].b]);
   for (unsigned i = 0; i < vc.size(); ++i) vc[i].s = 0;
   int mina = 0;
   int maxa = 0;
@@ -376,12 +385,8 @@ bspBuildSub(Node* n)
     int r = 0;
     for (unsigned i = 0; i < n->p.size(); ++i) {
       n->p[i].l = n->p[i].r = 0;
-      const int dx2a = vc[n->p[i].a].x - vc[n->p[j].a].x;
-      const int dy2a = vc[n->p[i].a].y - vc[n->p[j].a].y;
-      int da = dy1 * dx2a - dy2a * dx1;
-      const int dx2b = vc[n->p[i].b].x - vc[n->p[j].a].x;
-      const int dy2b = vc[n->p[i].b].y - vc[n->p[j].a].y;
-      const int db = dy1 * dx2b - dy2b * dx1;
+      int da = div.determine(vc[n->p[i].a]);
+      const int db = div.determine(vc[n->p[i].b]);
       if (da < mina) mina = da;
       if (db < mina) mina = db;
       if (da > maxa) maxa = da;
@@ -397,7 +402,7 @@ bspBuildSub(Node* n)
       if (!da && !db) {
         const int dx2 = vc[n->p[i].a].x - vc[n->p[i].b].x;
         const int dy2 = vc[n->p[i].a].y - vc[n->p[i].b].y;
-        da = dy1 * dy2 + dx1 * dx2;
+        da = div.dot(dx2, dy2);
       }
       if ((da < 0 && db <= 0) || (da <= 0 && db < 0)) {
         ++n->p[i].r;
@@ -439,16 +444,14 @@ bspBuildSub(Node* n)
       if (n->p[i].neigh) bspNoticePair(n, i, n->l.get());
       continue;
     }
-    const int dx2a = vc[n->p[i].a].x - vc[n->p[j].a].x;
-    const int dy2a = vc[n->p[i].a].y - vc[n->p[j].a].y;
-    const int da = dy1 * dx2a - dy2a * dx1;
+    const int da = div.determine(vc[n->p[i].a]);
     Vertex v;
     if (!bspIntersect(vc[n->p[j].a], vc[n->p[j].b], vc[n->p[i].a], vc[n->p[i].b], v)) {
       throw std::runtime_error("no intersection kutya");
     }
     if ((e = bspGetVertex(v.x, v.y)) == -1) e = bspAddVertex(v.x, v.y);
     vc[e].s = 1;
-    Node * const ne = n->p[i].neigh;
+    Node* const ne = n->p[i].neigh;
     int t = (ne != NULL) ? bspGetPair(n, i) : -1;
     if (t >= 0) {
       tl = ne->p[t];
@@ -546,7 +549,7 @@ bspBuildSub(Node* n)
   --t;
   {
     int i = 0;
-    if (dy1 * dy2 + dx1 * dx2 > 0) {
+    if (div.dot(dx2, dy2) > 0) {
       do {
         const int da = bspALine(n->r.get(), p[i]);
         const int db = bspBLine(n->l.get(), p[i]);
