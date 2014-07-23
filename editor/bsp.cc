@@ -81,6 +81,8 @@ struct Node {
   size_t countLines() const;
   bool mayConnect(int a, int b);
   bool empty() const { return p.empty() && !l.get() && !r.get(); }
+  int aLine(int a) const;
+  int bLine(int b) const;
 
 private:
   Node(const Node&);
@@ -289,36 +291,42 @@ Node::mayConnect(int a, int b)
   return true;
 }
 
-static int bspALine(Node* n, int a) {
+int
+Node::aLine(int a)
+const
+{
   unsigned j = 0;
   int bo;
-  for (unsigned i = 0; i < n->p.size(); ++i)
-    if (n->p[i].a == a) {
+  for (unsigned i = 0; i < p.size(); ++i)
+    if (p[i].a == a) {
       bo = 0;
-      for (; j < n->p.size(); ++j)
-        if (n->p[j].b == a) {
+      for (; j < p.size(); ++j)
+        if (p[j].b == a) {
           ++j;
           ++bo;
           break;
         }
-      if (!bo) return n->s;
+      if (!bo) return s;
     }
   return 0;
 }
 
-static int bspBLine(Node* n, int b) {
+int
+Node::bLine(int b)
+const
+{
   unsigned j = 0;
   int bo;
-  for (unsigned i = 0; i < n->p.size(); ++i)
-    if (n->p[i].b == b) {
+  for (unsigned i = 0; i < p.size(); ++i)
+    if (p[i].b == b) {
       bo = 0;
-      for (; j < n->p.size(); ++j)
-        if (n->p[j].a == b) {
+      for (; j < p.size(); ++j)
+        if (p[j].a == b) {
           ++j;
           ++bo;
           break;
         }
-      if (!bo) return n->s;
+      if (!bo) return s;
     }
   return 0;
 }
@@ -562,8 +570,8 @@ bspBuildSub(Node* n)
     int i = 0;
     if (n->div.dot(dx2, dy2) > 0) {
       do {
-        const int da = bspALine(n->r.get(), p[i]);
-        const int db = bspBLine(n->l.get(), p[i]);
+        const int da = n->r->aLine(p[i]);
+        const int db = n->l->bLine(p[i]);
         ++i;
         j = 0;
         if (da && n->r->mayConnect(p[i], p[i - 1])) {
@@ -582,8 +590,8 @@ bspBuildSub(Node* n)
       } while (i < t);
     } else {
       do {
-        const int da = bspALine(n->l.get(), p[i]);
-        const int db = bspBLine(n->r.get(), p[i]);
+        const int da = n->l->aLine(p[i]);
+        const int db = n->r->bLine(p[i]);
         ++i;
         j = 0;
         if (da && n->l->mayConnect(p[i], p[i - 1])) {
