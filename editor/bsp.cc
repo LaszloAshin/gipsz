@@ -12,6 +12,7 @@
 #include <cassert>
 #include <stdexcept>
 #include <memory>
+#include <algorithm>
 
 namespace bsp {
 
@@ -263,31 +264,24 @@ const
   return result;
 }
 
-static void bspSortVerteces(unsigned *p, unsigned n) {
-  if (n < 2) return;
-  unsigned i, j, k;
-  if (abs(vc[p[1]].x - vc[p[0]].x) > abs(vc[p[1]].y - vc[p[0]].y)) {
-    for (i = 0; i < n; ++i) {
-      k = i;
-      for (j = i + 1; j < n; ++j)
-        if (vc[p[j]].x > vc[p[k]].x) k = j;
-      if (k != i) {
-        j = p[k];
-        p[k] = p[i];
-        p[i] = j;
-      }
-    }
+struct VertexLessX : public std::binary_function<unsigned, unsigned, bool> {
+  bool operator()(unsigned lhs, unsigned rhs) const { return vc[rhs].x < vc[lhs].x; }
+};
+
+struct VertexLessY : public std::binary_function<unsigned, unsigned, bool> {
+  bool operator()(unsigned lhs, unsigned rhs) const { return vc[rhs].y < vc[lhs].y; }
+};
+
+template <class Iterator>
+static void
+bspSortVerteces(Iterator first, Iterator last)
+{
+  if (first == last || first + 1 == last) return;
+  Iterator second = first + 1;
+  if (abs(vc[*second].x - vc[*first].x) > abs(vc[*second].y - vc[*first].y)) {
+    std::sort(first, last, VertexLessX());
   } else {
-    for (i = 0; i < n; ++i) {
-      k = i;
-      for (j = i + 1; j < n; ++j)
-        if (vc[p[j]].y > vc[p[k]].y) k = j;
-      if (k != i) {
-        j = p[k];
-        p[k] = p[i];
-        p[i] = j;
-      }
-    }
+    std::sort(first, last, VertexLessY());
   }
 }
 
@@ -574,7 +568,7 @@ bspBuildSub(Node* n)
   std::vector<unsigned> p(f);
   int t = 0;
   for (unsigned i = 0; i < vc.size(); ++i) if (vc[i].s) p[t++] = i;
-  bspSortVerteces(&p.front(), t);
+  bspSortVerteces(p.begin(), p.end());
   const int dx2 = vc[p[0]].x - vc[p[t-1]].x;
   const int dy2 = vc[p[0]].y - vc[p[t-1]].y;
   --t;
