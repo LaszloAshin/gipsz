@@ -58,6 +58,7 @@ public:
   int determine(const vertex_t& v) const { return a_ * v.x + b_ * v.y + c_; }
   int dot(int dx, int dy) const { return a_ * dy - b_ * dx; }
   void load(FILE* fp);
+  void print() const;
 
 private:
   int a_, b_, c_;

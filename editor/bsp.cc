@@ -34,7 +34,8 @@ public:
 
   int determine(const Vertex& v) const { return a_ * v.x + b_ * v.y + c_; }
   int dot(int dx, int dy) const { return a_ * dy - b_ * dx; }
-  void save(FILE* fp);
+  void save(FILE* fp) const;
+  void print() const;
 
 private:
   int a_, b_, c_;
@@ -42,10 +43,18 @@ private:
 
 void
 Plane2d::save(FILE* fp)
+const
 {
   fwrite(&a_, sizeof(a_), 1, fp);
   fwrite(&b_, sizeof(b_), 1, fp);
   fwrite(&c_, sizeof(c_), 1, fp);
+}
+
+void
+Plane2d::print()
+const
+{
+	printf("Plane2d a=%d b=%d c=%d\n", a_, b_, c_);
 }
 
 struct Node;
@@ -58,10 +67,11 @@ struct Line {
   unsigned flags;
   Node* neigh;
   int t;
+  int s;
 
-  Line() : a(0), b(0), c(0), l(0), r(0), n(0), pd(0), u1(0), u2(0), v(0), flags(0), neigh(0), t(0) {}
-  Line(int a0, int b0, int u10, int u20, int v0, unsigned flags0, int t0)
-  : a(a0), b(b0), c(0), l(0), r(0), n(0), pd(0), u1(u10), u2(u20), v(v0), flags(flags0), neigh(0), t(t0)
+  Line() : a(0), b(0), c(0), l(0), r(0), n(0), pd(0), u1(0), u2(0), v(0), flags(0), neigh(0), t(0), s(0) {}
+  Line(int a0, int b0, int u10, int u20, int v0, unsigned flags0, int t0, int s0)
+  : a(a0), b(b0), c(0), l(0), r(0), n(0), pd(0), u1(u10), u2(u20), v(v0), flags(flags0), neigh(0), t(t0), s(s0)
   {}
 };
 
@@ -79,7 +89,7 @@ struct Node {
   void show() const;
   size_t countNodes() const;
   size_t countLines() const;
-  bool mayConnect(int a, int b);
+  bool isConnected(int a, int b) const;
   bool empty() const { return p.empty() && !l.get() && !r.get(); }
   int aLine(int a) const;
   int bLine(int b) const;
@@ -168,7 +178,7 @@ int bspAddLine(int s, int x1, int y1, int x2, int y2, int u, int v, int flags, i
   Node* n = bspGetNodeForSector(s);
   if (n == NULL) return -1;
   if (a < 0 || b < 0) return -1;
-  Line line(a, b, u + sqrtf((x2-x1)*(x2-x1) + (y2-y1)*(y2-y1)) + du, u, v, flags, t);
+  Line line(a, b, u + sqrtf((x2-x1)*(x2-x1) + (y2-y1)*(y2-y1)) + du, u, v, flags, t, s);
   for (unsigned i = 0; i < sc.size(); ++i) {
     if (sc[i].s != s) {
       Node* p = sc[i].n;
@@ -282,13 +292,13 @@ static void bspSortVerteces(unsigned *p, unsigned n) {
 }
 
 bool
-Node::mayConnect(int a, int b)
+Node::isConnected(int a, int b)
+const
 {
-  for (Lines::iterator i(p.begin()); i != p.end(); ++i) {
-    if ((i->a == a && i->b == b)) return false;
-    i->n = 0;
+  for (Lines::const_iterator i(p.begin()); i != p.end(); ++i) {
+    if (i->a == a && i->b == b) return true;
   }
-  return true;
+  return false;
 }
 
 int
@@ -394,6 +404,8 @@ bspBuildSub(Node* n)
   }
 //  printf("nodeline: %d r=%d l=%d\n", j, n->p[j].r, n->p[j].l);
   n->div = Plane2d(vc[n->p[j].a], vc[n->p[j].b]);
+  printf("%p\n", static_cast<void*>(n));
+  n->div.print();
   for (unsigned i = 0; i < vc.size(); ++i) vc[i].s = 0;
   int mina = 0;
   int maxa = 0;
@@ -497,20 +509,20 @@ bspBuildSub(Node* n)
         }
       }
       if (n->p[i].a != e) {
-        Line line2(n->p[i].a, e, n->p[i].u1, dx2, n->p[i].v, 0, n->p[i].t);
+        Line line2(n->p[i].a, e, n->p[i].u1, dx2, n->p[i].v, 0, n->p[i].t, n->p[i].s);
         if (t) {
           line2.neigh = ne;
-          Line line(e, tl.b, dy2, tl.u2, tl.v, 0, tl.t);
+          Line line(e, tl.b, dy2, tl.u2, tl.v, 0, tl.t, tl.s);
           line.neigh = n->l.get();
           ne->p.push_back(line);
         }
         n->l->p.push_back(line2);
       }
       if (n->p[i].b != e) {
-        Line line2(e, n->p[i].b, dx2, n->p[i].u2, n->p[i].v, 0, n->p[i].t);
+        Line line2(e, n->p[i].b, dx2, n->p[i].u2, n->p[i].v, 0, n->p[i].t, n->p[i].s);
         if (t) {
           line2.neigh = ne;
-          Line line(tl.a, e, tl.u1, dy2, tl.v, 0, tl.t);
+          Line line(tl.a, e, tl.u1, dy2, tl.v, 0, tl.t, tl.s);
           line.neigh = n->r.get();
           ne->p.push_back(line);
         }
@@ -535,20 +547,20 @@ bspBuildSub(Node* n)
         }
       }
       if (n->p[i].a != e) {
-        Line line2(n->p[i].a, e, n->p[i].u1, dx2, n->p[i].v, 0, n->p[i].t);
+        Line line2(n->p[i].a, e, n->p[i].u1, dx2, n->p[i].v, 0, n->p[i].t, n->p[i].s);
         if (t) {
           line2.neigh = ne;
-          Line line(e, tl.b, dy2, tl.u2, tl.v, 0, tl.t);
+          Line line(e, tl.b, dy2, tl.u2, tl.v, 0, tl.t, tl.s);
           line.neigh = n->r.get();
           ne->p.push_back(line);
         }
         n->r->p.push_back(line2);
       }
       if (n->p[i].b != e) {
-        Line line2(e, n->p[i].b, dx2, n->p[i].u2, n->p[i].v, 0, n->p[i].t);
+        Line line2(e, n->p[i].b, dx2, n->p[i].u2, n->p[i].v, 0, n->p[i].t, n->p[i].s);
         if (t) {
           line2.neigh = ne;
-          Line line(tl.a, e, tl.u1, dy2, tl.v, 0, tl.t);
+          Line line(tl.a, e, tl.u1, dy2, tl.v, 0, tl.t, tl.s);
           line.neigh = n->l.get();
           ne->p.push_back(line);
         }
@@ -567,47 +579,24 @@ bspBuildSub(Node* n)
   const int dy2 = vc[p[0]].y - vc[p[t-1]].y;
   --t;
   {
-    int i = 0;
-    if (n->div.dot(dx2, dy2) > 0) {
-      do {
-        const int da = n->r->aLine(p[i]);
-        const int db = n->l->bLine(p[i]);
-        ++i;
-        j = 0;
-        if (da && n->r->mayConnect(p[i], p[i - 1])) {
-          Line line(p[i], p[i - 1], 0, 0, 0, ::Line::Flag::NOTHING, 0);
-          n->r->p.push_back(line);
-          ++j;
+    const bool det = n->div.dot(dx2, dy2) > 0;
+    Node* const na = (det ? n->r : n->l).get();
+    Node* const nb = (det ? n->l : n->r).get();
+    for (int i = 0; i < t; ++i) {
+      const bool ba = na->aLine(p[i]) && !na->isConnected(p[i + 1], p[i]);
+      const bool bb = nb->bLine(p[i]) && !nb->isConnected(p[i], p[i + 1]);
+      if (ba) {
+        Line line(p[i + 1], p[i], 0, 0, 0, ::Line::Flag::NOTHING, 0, na->s);
+        na->p.push_back(line);
+      }
+      if (bb) {
+        Line line(p[i], p[i + 1], 0, 0, 0, ::Line::Flag::NOTHING, 0, nb->s);
+        nb->p.push_back(line);
+        if (ba) {
+          na->p.back().neigh = nb;
+          nb->p.back().neigh = na;
         }
-        if (db && n->l->mayConnect(p[i - 1], p[i])) {
-          Line line(p[i - 1], p[i], 0, 0, 0, ::Line::Flag::NOTHING, 0);
-          if (j) {
-            n->r->p.back().neigh = n->l.get();
-            line.neigh = n->r.get();
-          }
-          n->l->p.push_back(line);
-        }
-      } while (i < t);
-    } else {
-      do {
-        const int da = n->l->aLine(p[i]);
-        const int db = n->r->bLine(p[i]);
-        ++i;
-        j = 0;
-        if (da && n->l->mayConnect(p[i], p[i - 1])) {
-          Line line(p[i], p[i - 1], 0, 0, 0, ::Line::Flag::NOTHING, 0);
-          n->l->p.push_back(line);
-          ++j;
-        }
-        if (db && n->r->mayConnect(p[i - 1], p[i])) {
-          Line line(p[i - 1], p[i], 0, 0, 0, ::Line::Flag::NOTHING, 0);
-          if (j) {
-            line.neigh = n->l.get();
-            n->l->p.back().neigh = n->r.get();
-          }
-          n->r->p.push_back(line);
-        }
-      } while (i < t);
+      }
     }
   }
 
@@ -619,7 +608,7 @@ bspBuildSub(Node* n)
   grBegin();
   n->show();
   grEnd();
-//  SDL_Delay(100);
+  SDL_Delay(10);
   bspBuildSub(n->l.get());
   bspBuildSub(n->r.get());
   n->p.clear();
@@ -628,6 +617,7 @@ bspBuildSub(Node* n)
 static void
 bspBuildSearch(Node* n)
 {
+  printf("zizi: %p\n", static_cast<void*>(n));
   if (n->p.empty()) {
     if (n->l.get()) bspBuildSearch(n->l.get());
     if (n->r.get()) bspBuildSearch(n->r.get());

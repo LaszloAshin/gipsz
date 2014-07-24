@@ -1,3 +1,4 @@
+/* vim: set ts=2 sw=8 tw=0 et :*/
 #include <stdlib.h>
 #include <math.h>
 #include <SDL/SDL_opengl.h>
@@ -209,10 +210,17 @@ rDrawPlanes(node_t *n)
 static void
 rDrawNode(node_t *n)
 {
-  if (!bbVisible(&n->bb)) return;
-  if (n->l != NULL) rDrawNode(n->l);
-  if (n->r != NULL) rDrawNode(n->r);
-  if (!(n->flags & NF_VISIBLE) || n->s == NULL || !n->n) return;
+//  if (!bbVisible(&n->bb)) return;
+  vertex_t camv;
+  camv.x = cam.x;
+  camv.y = cam.y;
+  const int det = n->div.determine(camv);
+  if (det > 0) {
+    if (n->r) rDrawNode(n->r);
+  } else {
+    if (n->l) rDrawNode(n->l);
+  }
+  if (/*(n->flags & NF_VISIBLE) &&*/ n->s && n->n && det) {
   glColor3ub(n->s->l, n->s->l, n->s->l);
 //  glColor3f(1.0, 1.0, 1.0);
 /*  texLoadTexture(0xc, 0);
@@ -227,6 +235,12 @@ rDrawNode(node_t *n)
   glDisable(GL_TEXTURE_2D);
   glActiveTexture(GL_TEXTURE0);*/
   ++visnodes;
+  }
+  if (det > 0) {
+    if (n->l) rDrawNode(n->l);
+  } else {
+    if (n->r) rDrawNode(n->r);
+  }
 }
 
 static void

@@ -20,6 +20,13 @@ Plane2d::load(FILE* fp)
   fread(&c_, sizeof(c_), 1, fp);
 }
 
+void
+Plane2d::print()
+const
+{
+	printf("Plane2d a=%d b=%d c=%d\n", a_, b_, c_);
+}
+
 vc_t vc;
 sc_t sc;
 
@@ -305,11 +312,13 @@ struct bsp_load_ctx {
 };
 
 static node_t *
-bspLoadNode(struct bsp_load_ctx * const blc)
+bspLoadNode(struct bsp_load_ctx * const blc, size_t level)
 {
   unsigned lineCount;
   if (!fread(&lineCount, sizeof(unsigned), 1, blc->f)) { ++blc->err; return NULL; }
   if (!lineCount) return NULL;
+  for (size_t i = 0; i < level * 2; ++i) putchar(' ');
+  printf("## node with %u lines\n", lineCount);
   if (!blc->rn) {
     cmsg(MLERR, "bspLoadNode: out of preallocated nodes");
     ++blc->err;
@@ -319,10 +328,12 @@ bspLoadNode(struct bsp_load_ctx * const blc)
   node_t *n = blc->np++;
   n->n = lineCount - 1;
   n->div.load(blc->f);
-  unsigned someCount;
-  if (!fread(&someCount, sizeof(unsigned), 1, blc->f)) { ++blc->err; return n; }
-  if (someCount) {
-    n->s = sc.p + someCount;
+  n->div.print();
+  unsigned sectorId;
+  if (!fread(&sectorId, sizeof(unsigned), 1, blc->f)) { ++blc->err; return n; }
+  printf("sectorId: %u\n", sectorId);
+  if (sectorId) {
+    n->s = sc.p + sectorId;
     texLoadTexture(GET_TEXTURE(n->s->t, 0), 0);
     texLoadTexture(GET_TEXTURE(n->s->t, 1), 0);
   } else {
@@ -353,8 +364,8 @@ bspLoadNode(struct bsp_load_ctx * const blc)
       n->p[i].ny = y * l;
     }
   }
-  n->l = bspLoadNode(blc);
-  n->r = bspLoadNode(blc);
+  n->l = bspLoadNode(blc, level + 1);
+  n->r = bspLoadNode(blc, level + 1);
   n->ow = NULL;
   int j = 0;
   if (n->l != NULL) {
@@ -467,7 +478,7 @@ bspLoadTree(FILE *f) {
   if (root == NULL) return 0;
   blc.lp = linepool = (line_t *)mmAlloc(blc.rl * sizeof(line_t));
   if (linepool == NULL) return 0;
-  bspLoadNode(&blc);
+  bspLoadNode(&blc, 0);
   cmsg(MLINFO, "%d nodes, %d lines", blc.np - root, blc.lp - linepool);
   cmsg(MLINFO, "%d textures", texGetNofTextures());
   bspNeighSub(&blc, root);
