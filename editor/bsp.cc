@@ -37,6 +37,7 @@ public:
   int dot(int dx, int dy) const { return a_ * dy - b_ * dx; }
   void save(FILE* fp) const;
   void print() const;
+  friend Vertex intersect(const Plane2d& lhs, const Plane2d& rhs);
 
 private:
   int a_, b_, c_;
@@ -56,6 +57,16 @@ Plane2d::print()
 const
 {
 	printf("Plane2d a=%d b=%d c=%d\n", a_, b_, c_);
+}
+
+Vertex
+intersect(const Plane2d& lhs, const Plane2d& rhs)
+{
+  const int q = rhs.a_ * lhs.b_ - lhs.a_ * rhs.b_;
+  if (!q) throw std::overflow_error("parallel planes do not intersect each other");
+  const int x = round(float(rhs.b_ * lhs.c_ - lhs.b_ * rhs.c_) / q);
+  const int y = round(float(lhs.a_ * rhs.c_ - rhs.a_ * lhs.c_) / q);
+  return Vertex(x, y);
 }
 
 struct Node;
@@ -195,34 +206,6 @@ int bspAddLine(int s, int x1, int y1, int x2, int y2, int u, int v, int flags, i
   }
   n->p.push_back(line);
   return n->p.size() - 1;
-}
-
-static bool
-bspIntersect(const Vertex& p1, const Vertex& p2, const Vertex& p3, const Vertex& p4, Vertex& mp)
-{
-  const double dx21 = p2.x - p1.x;
-  const double dx43 = p4.x - p3.x;
-  const double dy21 = p2.y - p1.y;
-  const double dy43 = p4.y - p3.y;
-  const double dy13 = p1.y - p3.y;
-  const double t = dy43 * dx21 - dy21 * dx43;
-  if (!t) return false; /* parallel */
-  double y;
-  const double x = (dx21 * (dy13 * dx43 + dy43 * p3.x) - (dy21 * dx43 * p1.x)) / t;
-  if (abs(dx21) > abs(dx43)) {
-    if (dx21) {
-      y = p1.y + (x - p1.x) * dy21 / dx21;
-    } else {
-      return false;
-    }
-  } else if (dx43) {
-    y = p3.y + (x - p3.x) * dy43 / dx43;
-  } else {
-    return false;
-  }
-  mp.x = round(x);
-  mp.y = round(y);
-  return true;
 }
 
 void
@@ -470,10 +453,7 @@ bspBuildSub(Node* n)
       continue;
     }
     const int da = n->div.determine(vc[n->p[i].a]);
-    Vertex v;
-    if (!bspIntersect(vc[n->p[j].a], vc[n->p[j].b], vc[n->p[i].a], vc[n->p[i].b], v)) {
-      throw std::runtime_error("no intersection kutya");
-    }
+    const Vertex v(intersect(n->div, Plane2d(vc[n->p[i].a], vc[n->p[i].b])));
     if ((e = bspGetVertex(v.x, v.y)) == -1) e = bspAddVertex(v.x, v.y);
     vc[e].s = 1;
     Node* const ne = n->p[i].neigh;
