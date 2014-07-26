@@ -13,7 +13,7 @@ print-flags:
 	@echo "===="
 
 #ifndef V
-Q := @
+#Q := @
 #endif
 
 define compile-c-steps
