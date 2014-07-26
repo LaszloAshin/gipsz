@@ -1,5 +1,5 @@
 .PHONY: all
-all: | print-flags
+all:
 
 .PHONY: print-flags
 print-flags:
@@ -12,9 +12,9 @@ print-flags:
 	@echo " LOADLIBES := $(LOADLIBES)"
 	@echo "===="
 
-#ifndef V
-#Q := @
-#endif
+ifndef V
+Q := @
+endif
 
 define compile-c-steps
 	$(if $Q,@echo "  CC    $(subst $(abspath $Od/)/,,$(abspath $@))")
