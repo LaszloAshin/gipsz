@@ -1,7 +1,7 @@
 # editor/module.mk
 
 editor_SOURCES := \
-	bsp.cc \
+	bsp2.cc \
 	ed.cc \
 	gr.cc \
 	line.cc \
