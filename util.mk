@@ -1,9 +1,20 @@
 .PHONY: all
-all:
+all: | print-flags
 
-ifndef V
+.PHONY: print-flags
+print-flags:
+	@echo "===="
+	@echo "  CPPFLAGS := $(CPPFLAGS)"
+	@echo "    CFLAGS := $(CFLAGS)"
+	@echo "  CXXFLAGS := $(CXXFLAGS)"
+	@echo "   LDFLAGS := $(LDFLAGS)"
+	@echo "    LDLIBS := $(LDLIBS)"
+	@echo " LOADLIBES := $(LOADLIBES)"
+	@echo "===="
+
+#ifndef V
 Q := @
-endif
+#endif
 
 define compile-c-steps
 	$(if $Q,@echo "  CC    $(subst $(abspath $Od/)/,,$(abspath $@))")
