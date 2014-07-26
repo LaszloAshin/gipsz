@@ -582,7 +582,7 @@ bspBuildSub(Node* n)
   grBegin();
   n->show();
   grEnd();
-  SDL_Delay(10);
+//  SDL_Delay(10);
   bspBuildSub(n->l.get());
   bspBuildSub(n->r.get());
   n->p.clear();
