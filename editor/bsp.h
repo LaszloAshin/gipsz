@@ -1,6 +1,8 @@
 #ifndef _BSP_H
 #define _BSP_H 1
 
+#include <cstdio>
+
 namespace bsp {
 
 int bspInit();
