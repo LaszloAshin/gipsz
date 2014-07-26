@@ -11,7 +11,7 @@ CPPFLAGS += -O2 -g
 CPPFLAGS += -MD
 
 CPPFLAGS += $(shell sdl-config --cflags)
-LDFLAGS += $(shell sdl-config --libs)
+LDLIBS += $(shell sdl-config --libs)
 
 include game/module.mk
 include editor/module.mk
