@@ -118,22 +118,44 @@ Renderer::draw(const Plane2d& p)
 
 class SplitStats {
 public:
-	SplitStats() : balance_(), splitCount_() {}
+	SplitStats() : front_(), back_(), splitted_() {}
 
-	void wallIsFront() { ++balance_; }
-	void wallIsBack() { --balance_; }
-	void wallIsSplit() { ++splitCount_; }
+	void wallIsFront() { ++front_; }
+	void wallIsBack() { ++back_; }
+	void wallIsSplit() { ++splitted_; }
 
-	int balance() const { return balance_; }
-	size_t splitCount() const { return splitCount_; }
-	int score() const { return abs(balance()) + splitCount() * 10; }
+	size_t front() const { return front_; }
+	size_t back() const { return back_; }
+	size_t splitted() const { return splitted_; }
 
-	SplitStats& operator+=(const SplitStats& rhs) { balance_ += rhs.balance(); splitCount_ += rhs.splitCount(); return *this; }
-	void print(std::ostream& os) const { os << "SplitStats(" << balance() << ", " << splitCount() << ", " << score() << ")"; }
+	int
+	score()
+	const
+	{
+		if (!front() || !back()) return -1;
+		return abs(front() - back()) + splitted() * 10;
+	}
+
+	SplitStats&
+	operator+=(const SplitStats& rhs)
+	{
+		front_ += rhs.front();
+		back_ += rhs.back();
+		splitted_ += rhs.splitted();
+		return *this;
+	}
+
+	void
+	print(std::ostream& os)
+	const
+	{
+		os << "SplitStats(f=" << front() << " b=" << back() << " sp=" << splitted() << " sc=" << score() << ")";
+	}
 
 private:
-	int balance_;
-	size_t splitCount_;
+	size_t front_;
+	size_t back_;
+	size_t splitted_;
 };
 
 class Sector {
@@ -237,7 +259,10 @@ Node::findBestPlane()
 		for (Sector::const_iterator j(i->begin()); j != i->end(); ++j) {
 			const Plane2d p(j->a(), j->b());
 			const SplitStats s(computeStats(p));
-			if (!bestFound || s.score() < bestStat.score()) {
+			p.print(std::cerr);
+			s.print(std::cerr);
+			std::cerr << std::endl;
+			if (!bestFound || (s.score() >= 0 && s.score() < bestStat.score())) {
 				bestFound = true;
 				plane_ = p;
 				bestStat = s;
