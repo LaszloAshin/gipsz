@@ -22,11 +22,25 @@ public:
 	float x() const { return x_; }
 	float y() const { return y_; }
 
+	Vertex operator-() const { return Vertex(-x(), -y()); }
+	Vertex& operator+=(const Vertex& rhs) { x_ += rhs.x(); y_ += rhs.y(); return *this; }
+	Vertex& operator-=(const Vertex& rhs) {  return operator+=(-rhs); }
+
 private:
 	float x_, y_;
 };
 
 std::ostream& operator<<(std::ostream& os, const Vertex& v) { return os << "(" << v.x() << ", " << v.y() << ")"; }
+Vertex operator+(Vertex lhs, const Vertex& rhs) { return lhs += rhs; }
+Vertex operator-(Vertex lhs, const Vertex& rhs) { return lhs -= rhs; }
+
+inline bool operator==(Vertex d, const Vertex& rhs) {
+	d -= rhs;
+	const float e = std::numeric_limits<float>::epsilon();
+	return d.x() > -e && d.x() < e && d.y() > -e && d.y() < e;
+}
+
+inline bool operator!=(const Vertex& lhs, const Vertex& rhs) { return !(lhs == rhs); }
 
 class Plane2d {
 public:
@@ -174,6 +188,12 @@ public:
 	void add(const Wall& w) { walls_.push_back(w); }
 	SplitStats computeStats(const Plane2d& plane) const;
 
+	bool hasPartInFrontOf(const Plane2d& plane) const;
+	bool hasPartBehind(const Plane2d& plane) const;
+	Sector inFrontOf(const Plane2d& plane) const;
+	Sector behind(const Plane2d& plane) const;
+	void sortWalls();
+
 private:
 	int id_;
 	Walls walls_;
@@ -195,6 +215,53 @@ SplitStats Sector::computeStats(const Plane2d& plane) const {
 	return result;
 }
 
+bool Sector::hasPartInFrontOf(const Plane2d& plane) const {
+	for (const_iterator i(begin()); i != end(); ++i) {
+		if (plane.determine(i->a()) > std::numeric_limits<float>::epsilon()) return true;
+		if (plane.determine(i->b()) > std::numeric_limits<float>::epsilon()) return true;
+	}
+	return false;
+}
+
+bool Sector::hasPartBehind(const Plane2d& plane) const {
+	for (const_iterator i(begin()); i != end(); ++i) {
+		if (plane.determine(i->a()) < -std::numeric_limits<float>::epsilon()) return true;
+		if (plane.determine(i->b()) < -std::numeric_limits<float>::epsilon()) return true;
+	}
+	return false;
+}
+
+Sector Sector::inFrontOf(const Plane2d& plane) const {
+	Sector result(id());
+	for (const_iterator i(begin()); i != end(); ++i) {
+		const float da = plane.determine(i->a());
+		const float db = plane.determine(i->b());
+		if (da * db < 0) {
+			const Vertex isp(intersect(plane, Plane2d(i->a(), i->b())));
+			if (da < 0) {
+				result.add(Wall(isp, i->b()));
+			} else {
+				result.add(Wall(i->a(), isp));
+			}
+		} else if (da + db > std::numeric_limits<float>::epsilon()) {
+			result.add(*i);
+		} else if (da + db > -std::numeric_limits<float>::epsilon()) {
+			if (plane.dot(i->b() - i->a()) < 0) {
+				result.add(*i);
+			}
+		}
+	}
+	return result;
+}
+
+Sector Sector::behind(const Plane2d&) const {
+	Sector result(id());
+	return result;
+}
+
+void Sector::sortWalls() {
+}
+
 void
 Renderer::operator()(const Sector& s)
 {
@@ -208,8 +275,16 @@ class Node {
 public:
 	typedef Sectors::const_iterator const_iterator;
 
+	Node() {}
+
 	const_iterator begin() const { return sectors_.begin(); }
 	const_iterator end() const { return sectors_.end(); }
+	bool hasFront() const { return front_.get(); }
+	bool hasBack() const { return back_.get(); }
+	Node& front() { return *front_; }
+	Node& back() { return *back_; }
+	const Node& front() const { return *front_; }
+	const Node& back() const{ return *back_; }
 
 	void build();
 	void save(FILE*) const {}
@@ -217,17 +292,24 @@ public:
 	Plane2d plane() const { return plane_; }
 
 private:
+	Node(const Node&);
+	Node& operator=(const Node&);
+
 	SplitStats computeStats(const Plane2d& plane) const;
-	void findBestPlane();
+	bool findBestPlane();
+	void sortWalls() { std::for_each(sectors_.begin(), sectors_.end(), std::mem_fun_ref(&Sector::sortWalls)); }
 
 	Sectors sectors_;
 	Plane2d plane_;
+	std::auto_ptr<Node> front_, back_;
 };
 
 void
 Renderer::draw(const Node& n)
 {
 	std::for_each(n.begin(), n.end(), *this);
+	if (n.hasFront()) draw(n.front());
+	if (n.hasBack()) draw(n.back());
 	grSetColor(0xe0);
 	draw(n.plane());
 }
@@ -249,7 +331,7 @@ Node::add(int sectorId, const Wall& w)
 	sectors_.back().add(w);
 }
 
-void
+bool
 Node::findBestPlane()
 {
 	bool bestFound = false;
@@ -269,12 +351,21 @@ Node::findBestPlane()
 			}
 		}
 	}
+	return bestFound;
 }
 
 void
 Node::build()
 {
-	findBestPlane();
+	sortWalls();
+	if (!findBestPlane()) return;
+	front_.reset(new Node);
+	back_.reset(new Node);
+	for (Sectors::const_iterator i(sectors_.begin()); i != sectors_.end(); ++i) {
+		if (i->hasPartInFrontOf(plane_)) front_->sectors_.push_back(i->inFrontOf(plane_));
+		if (i->hasPartBehind(plane_)) back_->sectors_.push_back(i->behind(plane_));
+	}
+	sectors_.clear();
 }
 
 class Tree {
