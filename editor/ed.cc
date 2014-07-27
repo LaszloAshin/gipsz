@@ -471,3 +471,14 @@ void edMouseMotion(int mx, int my, int state) {
   omx = mx;
   omy = my;
 }
+
+void
+edGetViewPort(int* x1, int* y1, int* x2, int* y2)
+{
+  *x1 = 0;
+  *y1 = 0;
+  *x2 = tv.x2 - tv.x1;
+  *y2 = tv.y2 - tv.y1;
+  itr(x1, y1);
+  itr(x2, y2);
+}

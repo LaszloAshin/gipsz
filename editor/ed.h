@@ -19,5 +19,7 @@ void edObject(int x, int y, int alpha, int r, int c);
 void edScreen();
 void edStBegin();
 void edStEnd();
+void edGetViewPort(int* x1, int* y1, int* x2, int* y2);
+void edLine(int x1, int y1, int x2, int y2);
 
 #endif /* _ED_H */
