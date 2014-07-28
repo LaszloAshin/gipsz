@@ -11,6 +11,7 @@
 #include <stdexcept>
 #include <numeric>
 #include <iostream>
+#include <iterator>
 
 namespace bsp {
 
@@ -83,6 +84,8 @@ public:
 private:
 	Vertex a_, b_;
 };
+
+std::ostream& operator<<(std::ostream& os, const Wall& w) { return os << "Wall(" << w.a() << ", " << w.b() << ")"; }
 
 class Sector;
 class Node;
@@ -192,9 +195,12 @@ public:
 	bool hasPartBehind(const Plane2d& plane) const;
 	Sector inFrontOf(const Plane2d& plane) const;
 	Sector behind(const Plane2d& plane) const;
-	void sortWalls();
+	void checkWalls() const;
+	void print(std::ostream& os) const;
 
 private:
+	void checkWallsSub() const;
+
 	int id_;
 	Walls walls_;
 };
@@ -259,7 +265,63 @@ Sector Sector::behind(const Plane2d&) const {
 	return result;
 }
 
-void Sector::sortWalls() {
+template <class T>
+T pick(std::vector<T>& v, typename std::vector<T>::iterator i) {
+	T result(*i);
+	*i = v.back();
+	v.pop_back();
+	return result;
+}
+
+void Sector::checkWallsSub() const {
+	const bool debug = true;
+	Walls w(walls_);
+	Vertex first, last;
+	bool open = false;
+	if (debug) std::cerr << "sector #" << id() << std::endl;
+	while (!w.empty()) {
+		if (w.front().a() == w.front().b()) throw std::runtime_error("zero-length wall detected");
+		if (!open) {
+			if (w.size() < 3) throw std::runtime_error("every sector must have three walls at least");
+			Wall wall(pick(w, w.begin()));
+			first = wall.a();
+			last = wall.b();
+			if (debug) std::cerr << "new first: " << first << std::endl;
+			if (debug) std::cerr << "add: " << wall << std::endl;
+			open = true;
+			continue;
+		}
+		bool found = false;
+		for (Walls::iterator i(w.begin()); i != w.end(); ++i) {
+			if (i->a() == last) {
+				Wall wall(pick(w, i));
+				last = wall.b();
+				if (last == first) open = false;
+				if (debug) std::cerr << "add: " << wall << std::endl;
+				found = true;
+				break;
+			}
+		}
+		if (!found) throw std::runtime_error("open sector");
+	}
+	if (open) throw std::runtime_error("open sector at the end");
+	if (debug) std::cerr << "sector done" << std::endl;
+}
+
+void Sector::checkWalls() const {
+	try {
+		checkWallsSub();
+	} catch (const std::exception& e) {
+		std::cerr << "checking walls failed for a sector: " << e.what() << std::endl;
+		std::cerr << "Sector details:" << std::endl;
+		print(std::cerr);
+		throw;
+	}
+}
+
+void Sector::print(std::ostream& os) const {
+	os << "Sector(id=" << id() << ")" << std::endl;
+	std::copy(walls_.begin(), walls_.end(), std::ostream_iterator<Wall>(os, "\n"));
 }
 
 void
@@ -297,7 +359,7 @@ private:
 
 	SplitStats computeStats(const Plane2d& plane) const;
 	bool findBestPlane();
-	void sortWalls() { std::for_each(sectors_.begin(), sectors_.end(), std::mem_fun_ref(&Sector::sortWalls)); }
+	void checkWalls() const { std::for_each(sectors_.begin(), sectors_.end(), std::mem_fun_ref(&Sector::checkWalls)); }
 
 	Sectors sectors_;
 	Plane2d plane_;
@@ -357,7 +419,7 @@ Node::findBestPlane()
 void
 Node::build()
 {
-	sortWalls();
+	checkWalls();
 	if (!findBestPlane()) return;
 	front_.reset(new Node);
 	back_.reset(new Node);
