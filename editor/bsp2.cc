@@ -66,8 +66,11 @@ public:
 	void save(FILE* fp) const { fwrite(&a_, sizeof(a_), 1, fp); fwrite(&b_, sizeof(b_), 1, fp); fwrite(&c_, sizeof(c_), 1, fp); }
 	void print(std::ostream& os) const { os << "Plane2d(" << a_ << ", " << b_ << ", " << c_ << ")"; }
 	friend Vertex intersect(const Plane2d& lhs, const Plane2d& rhs);
+	Plane2d operator-() const { return Plane2d(-a_, -b_, -c_); }
 
 private:
+	Plane2d(float a, float b, float c) : a_(a), b_(b), c_(c) {}
+
 	float a_, b_, c_;
 };
 
@@ -145,10 +148,11 @@ Renderer::draw(const Plane2d& p)
 class SplitStats {
 public:
 	SplitStats() : front_(), back_(), splitted_() {}
+	SplitStats(size_t front, size_t back, size_t splitted) : front_(front), back_(back), splitted_(splitted) {}
 
 	void wallIsFront() { ++front_; }
 	void wallIsBack() { ++back_; }
-	void wallIsSplit() { ++splitted_; }
+	void wallIsSplit() { ++splitted_; wallIsFront(); wallIsBack(); }
 
 	size_t front() const { return front_; }
 	size_t back() const { return back_; }
@@ -200,13 +204,11 @@ public:
 	void add(const Wall& w) { walls_.push_back(w); }
 	SplitStats computeStats(const Plane2d& plane) const;
 
-	bool hasPartInFrontOf(const Plane2d& plane) const;
-	bool hasPartBehind(const Plane2d& plane) const;
-	Sector inFrontOf(const Plane2d& plane) const;
-	Sector behind(const Plane2d& plane) const;
+	Sector slice(const Plane2d& plane) const;
 	void checkWalls() const;
 	void print(std::ostream& os) const;
 	size_t countWalls() const { return walls_.size(); }
+	bool empty() const { return walls_.empty(); }
 
 private:
 	void checkWallsSub() const;
@@ -231,23 +233,7 @@ SplitStats Sector::computeStats(const Plane2d& plane) const {
 	return result;
 }
 
-bool Sector::hasPartInFrontOf(const Plane2d& plane) const {
-	for (const_iterator i(begin()); i != end(); ++i) {
-		if (plane.determine(i->a()) > std::numeric_limits<float>::epsilon()) return true;
-		if (plane.determine(i->b()) > std::numeric_limits<float>::epsilon()) return true;
-	}
-	return false;
-}
-
-bool Sector::hasPartBehind(const Plane2d& plane) const {
-	for (const_iterator i(begin()); i != end(); ++i) {
-		if (plane.determine(i->a()) < -std::numeric_limits<float>::epsilon()) return true;
-		if (plane.determine(i->b()) < -std::numeric_limits<float>::epsilon()) return true;
-	}
-	return false;
-}
-
-Sector Sector::inFrontOf(const Plane2d& plane) const {
+Sector Sector::slice(const Plane2d& plane) const {
 	typedef std::map<Vertex, size_t> Degs;
 	Degs degs;
 	Sector result(id());
@@ -280,48 +266,6 @@ Sector Sector::inFrontOf(const Plane2d& plane) const {
 		if (!(i->second & 1)) continue;
 		if (open) {
 			result.add((plane.dot(last - i->first) < 0) ? Wall(i->first, last) : Wall(last, i->first));
-		} else {
-			last = i->first;
-		}
-		open = !open;
-	}
-	if (open) throw std::runtime_error("open sector after split");
-	return result;
-}
-
-Sector Sector::behind(const Plane2d& plane) const {
-	typedef std::map<Vertex, size_t> Degs;
-	Degs degs;
-	Sector result(id());
-	for (const_iterator i(begin()); i != end(); ++i) {
-		const float da = plane.determine(i->a());
-		const float db = plane.determine(i->b());
-		if (da * db < 0) {
-			const Vertex isp(intersect(plane, Plane2d(i->a(), i->b())));
-			++degs[isp];
-			if (db < 0) {
-				result.add(Wall(isp, i->b()));
-				++degs[i->b()];
-			} else {
-				result.add(Wall(i->a(), isp));
-				++degs[i->a()];
-			}
-		} else if (da + db < -std::numeric_limits<float>::epsilon()) {
-			result.add(*i);
-			++degs[i->a()], ++degs[i->b()];
-		} else if (da + db < std::numeric_limits<float>::epsilon()) {
-			if (plane.dot(i->a() - i->b()) < 0) {
-				result.add(*i);
-				++degs[i->a()], ++degs[i->b()];
-			}
-		}
-	}
-	Vertex last;
-	bool open = false;
-	for (Degs::const_iterator i(degs.begin()); i != degs.end(); ++i) {
-		if (!(i->second & 1)) continue;
-		if (open) {
-			result.add((plane.dot(i->first - last) < 0) ? Wall(i->first, last) : Wall(last, i->first));
 		} else {
 			last = i->first;
 		}
@@ -419,6 +363,7 @@ public:
 	void add(int sectorId, const Wall& w);
 	Plane2d plane() const { return plane_; }
 	size_t countWalls() const;
+	void print(std::ostream& os) const;
 
 private:
 	Node(const Node&);
@@ -473,7 +418,8 @@ Node::findBestPlane()
 			p.print(std::cerr);
 			s.print(std::cerr);
 			std::cerr << std::endl;
-			if (!bestFound || (s.score() >= 0 && s.score() < bestStat.score())) {
+			if (s.score() < 0) continue;
+			if (!bestFound || s.score() < bestStat.score()) {
 				bestFound = true;
 				plane_ = p;
 				bestStat = s;
@@ -486,27 +432,37 @@ Node::findBestPlane()
 void
 Node::build()
 {
-//	static int k = 3;
-//	if (k-- <= 0) return;
+//	static int k = 0;
 	checkWalls();
+//	std::cerr << "k=" << k << std::endl;
+	print(std::cerr);
 	if (!findBestPlane()) return;
+	std::cerr << "best plane is:";
+	plane_.print(std::cerr);
+	std::cerr << std::endl;
 	{
 		std::auto_ptr<Node> front(new Node);
 		std::auto_ptr<Node> back(new Node);
 		for (Sectors::const_iterator i(sectors_.begin()); i != sectors_.end(); ++i) {
-			if (i->hasPartInFrontOf(plane_)) front->sectors_.push_back(i->inFrontOf(plane_));
-			if (i->hasPartBehind(plane_)) back->sectors_.push_back(i->behind(plane_));
+			const Sector frontSlice(i->slice(plane_));
+			if (!frontSlice.empty()) front->sectors_.push_back(frontSlice);
+			const Sector backSlice(i->slice(-plane_));
+			if (!backSlice.empty()) back->sectors_.push_back(backSlice);
 		}
-		if (!front->countWalls() || !back->countWalls()) return;
+		if (!front->countWalls() || !back->countWalls()) {
+			throw std::runtime_error("ough");
+			return;
+		}
+//		if (k++ >= 9) return;
 		front_.reset(front.release());
-		back_.reset(back.release());
+//		back_.reset(back.release());
 	}
 	sectors_.clear();
 /*	grBegin();
 	Renderer().draw(*front_);
 	grEnd();*/
 	front_->build();
-	back_->build();
+//	back_->build();
 }
 
 size_t Node::countWalls() const {
@@ -515,6 +471,13 @@ size_t Node::countWalls() const {
 		result += i->countWalls();
 	}
 	return result;
+}
+
+void Node::print(std::ostream& os) const {
+	os << "Node" << std::endl;
+	for (Sectors::const_iterator i(sectors_.begin()); i != sectors_.end(); ++i) {
+		i->print(os);
+	}
 }
 
 class Tree {
