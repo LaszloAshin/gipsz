@@ -12,6 +12,7 @@
 #include <numeric>
 #include <iostream>
 #include <iterator>
+#include <map>
 
 namespace bsp {
 
@@ -39,6 +40,14 @@ inline bool operator==(Vertex d, const Vertex& rhs) {
 	d -= rhs;
 	const float e = std::numeric_limits<float>::epsilon();
 	return d.x() > -e && d.x() < e && d.y() > -e && d.y() < e;
+}
+
+inline bool operator<(const Vertex& lhs, Vertex d) {
+	d -= lhs;
+	const float e = std::numeric_limits<float>::epsilon();
+	if (d.y() < -e) return true;
+	if (d.y() > e) return false;
+	return d.x() < -e;
 }
 
 inline bool operator!=(const Vertex& lhs, const Vertex& rhs) { return !(lhs == rhs); }
@@ -197,6 +206,7 @@ public:
 	Sector behind(const Plane2d& plane) const;
 	void checkWalls() const;
 	void print(std::ostream& os) const;
+	size_t countWalls() const { return walls_.size(); }
 
 private:
 	void checkWallsSub() const;
@@ -238,30 +248,86 @@ bool Sector::hasPartBehind(const Plane2d& plane) const {
 }
 
 Sector Sector::inFrontOf(const Plane2d& plane) const {
+	typedef std::map<Vertex, size_t> Degs;
+	Degs degs;
 	Sector result(id());
 	for (const_iterator i(begin()); i != end(); ++i) {
 		const float da = plane.determine(i->a());
 		const float db = plane.determine(i->b());
 		if (da * db < 0) {
 			const Vertex isp(intersect(plane, Plane2d(i->a(), i->b())));
+			++degs[isp];
 			if (da < 0) {
 				result.add(Wall(isp, i->b()));
+				++degs[i->b()];
 			} else {
 				result.add(Wall(i->a(), isp));
+				++degs[i->a()];
 			}
 		} else if (da + db > std::numeric_limits<float>::epsilon()) {
 			result.add(*i);
+			++degs[i->a()], ++degs[i->b()];
 		} else if (da + db > -std::numeric_limits<float>::epsilon()) {
 			if (plane.dot(i->b() - i->a()) < 0) {
 				result.add(*i);
+				++degs[i->a()], ++degs[i->b()];
 			}
 		}
 	}
+	Vertex last;
+	bool open = false;
+	for (Degs::const_iterator i(degs.begin()); i != degs.end(); ++i) {
+		if (!(i->second & 1)) continue;
+		if (open) {
+			result.add((plane.dot(last - i->first) < 0) ? Wall(i->first, last) : Wall(last, i->first));
+		} else {
+			last = i->first;
+		}
+		open = !open;
+	}
+	if (open) throw std::runtime_error("open sector after split");
 	return result;
 }
 
-Sector Sector::behind(const Plane2d&) const {
+Sector Sector::behind(const Plane2d& plane) const {
+	typedef std::map<Vertex, size_t> Degs;
+	Degs degs;
 	Sector result(id());
+	for (const_iterator i(begin()); i != end(); ++i) {
+		const float da = plane.determine(i->a());
+		const float db = plane.determine(i->b());
+		if (da * db < 0) {
+			const Vertex isp(intersect(plane, Plane2d(i->a(), i->b())));
+			++degs[isp];
+			if (db < 0) {
+				result.add(Wall(isp, i->b()));
+				++degs[i->b()];
+			} else {
+				result.add(Wall(i->a(), isp));
+				++degs[i->a()];
+			}
+		} else if (da + db < -std::numeric_limits<float>::epsilon()) {
+			result.add(*i);
+			++degs[i->a()], ++degs[i->b()];
+		} else if (da + db < std::numeric_limits<float>::epsilon()) {
+			if (plane.dot(i->a() - i->b()) < 0) {
+				result.add(*i);
+				++degs[i->a()], ++degs[i->b()];
+			}
+		}
+	}
+	Vertex last;
+	bool open = false;
+	for (Degs::const_iterator i(degs.begin()); i != degs.end(); ++i) {
+		if (!(i->second & 1)) continue;
+		if (open) {
+			result.add((plane.dot(i->first - last) < 0) ? Wall(i->first, last) : Wall(last, i->first));
+		} else {
+			last = i->first;
+		}
+		open = !open;
+	}
+	if (open) throw std::runtime_error("open sector after split");
 	return result;
 }
 
@@ -274,7 +340,7 @@ T pick(std::vector<T>& v, typename std::vector<T>::iterator i) {
 }
 
 void Sector::checkWallsSub() const {
-	const bool debug = true;
+	const bool debug = false;
 	Walls w(walls_);
 	Vertex first, last;
 	bool open = false;
@@ -352,6 +418,7 @@ public:
 	void save(FILE*) const {}
 	void add(int sectorId, const Wall& w);
 	Plane2d plane() const { return plane_; }
+	size_t countWalls() const;
 
 private:
 	Node(const Node&);
@@ -419,21 +486,42 @@ Node::findBestPlane()
 void
 Node::build()
 {
+//	static int k = 3;
+//	if (k-- <= 0) return;
 	checkWalls();
 	if (!findBestPlane()) return;
-	front_.reset(new Node);
-	back_.reset(new Node);
-	for (Sectors::const_iterator i(sectors_.begin()); i != sectors_.end(); ++i) {
-		if (i->hasPartInFrontOf(plane_)) front_->sectors_.push_back(i->inFrontOf(plane_));
-		if (i->hasPartBehind(plane_)) back_->sectors_.push_back(i->behind(plane_));
+	{
+		std::auto_ptr<Node> front(new Node);
+		std::auto_ptr<Node> back(new Node);
+		for (Sectors::const_iterator i(sectors_.begin()); i != sectors_.end(); ++i) {
+			if (i->hasPartInFrontOf(plane_)) front->sectors_.push_back(i->inFrontOf(plane_));
+			if (i->hasPartBehind(plane_)) back->sectors_.push_back(i->behind(plane_));
+		}
+		if (!front->countWalls() || !back->countWalls()) return;
+		front_.reset(front.release());
+		back_.reset(back.release());
 	}
 	sectors_.clear();
+/*	grBegin();
+	Renderer().draw(*front_);
+	grEnd();*/
+	front_->build();
+	back_->build();
+}
+
+size_t Node::countWalls() const {
+	size_t result = 0;
+	for (Sectors::const_iterator i(sectors_.begin()); i != sectors_.end(); ++i) {
+		result += i->countWalls();
+	}
+	return result;
 }
 
 class Tree {
 public:
 	void clear() { root_.reset(new Node); }
-	void build() { if(root_.get()) root_->build(); }
+	void build() { try{if (root_.get()) root_->build();}catch(...){} }
+//	void build() { if (root_.get()) root_->build(); }
 	void show() const { if (root_.get()) Renderer().draw(*root_); }
 	void save(FILE* fp) const { if (root_.get()) root_->save(fp); }
 	void add(int sectorId, const Wall& w) { if (root_.get()) root_->add(sectorId, w); }
