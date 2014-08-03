@@ -220,7 +220,7 @@ rDrawNode(node_t *n)
   } else {
     if (n->l) rDrawNode(n->l);
   }
-  if ((n->flags & NF_VISIBLE) && n->s && n->n && det) {
+  if (/*(n->flags & NF_VISIBLE) &&*/ n->s && n->n) {
   glColor3ub(n->s->l, n->s->l, n->s->l);
 //  glColor3f(1.0, 1.0, 1.0);
 /*  texLoadTexture(0xc, 0);

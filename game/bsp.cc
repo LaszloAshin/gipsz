@@ -1,3 +1,4 @@
+/* vim: set ts=2 sw=8 tw=0 et :*/
 #include <stdlib.h>
 #include <math.h>
 #include "bsp.h"
@@ -12,6 +13,8 @@
 #include "model.h"
 #include "obj.h"
 
+#include <cassert>
+
 void
 Plane2d::load(FILE* fp)
 {
@@ -24,7 +27,7 @@ void
 Plane2d::print()
 const
 {
-	printf("Plane2d a=%d b=%d c=%d\n", a_, b_, c_);
+	printf("Plane2d a=%f b=%f c=%f\n", a_, b_, c_);
 }
 
 vc_t vc;
@@ -314,59 +317,70 @@ struct bsp_load_ctx {
 static node_t *
 bspLoadNode(struct bsp_load_ctx * const blc, size_t level)
 {
-  unsigned lineCount;
-  if (!fread(&lineCount, sizeof(unsigned), 1, blc->f)) { ++blc->err; return NULL; }
-  if (!lineCount) return NULL;
+  int isLeaf;
+  if (!fread(&isLeaf, sizeof(isLeaf), 1, blc->f)) { ++blc->err; return NULL; }
   for (size_t i = 0; i < level * 2; ++i) putchar(' ');
-  printf("## node with %u lines\n", lineCount);
+  printf("## node is %s\n", isLeaf ? "leaf" : "not leaf");
   if (!blc->rn) {
     cmsg(MLERR, "bspLoadNode: out of preallocated nodes");
     ++blc->err;
     return NULL;
   }
   --blc->rn;
-  node_t *n = blc->np++;
-  n->n = lineCount - 1;
-  n->div.load(blc->f);
-  n->div.print();
-  unsigned sectorId;
-  if (!fread(&sectorId, sizeof(unsigned), 1, blc->f)) { ++blc->err; return n; }
-  printf("sectorId: %u\n", sectorId);
-  if (sectorId) {
-    n->s = sc.p + sectorId;
-    texLoadTexture(GET_TEXTURE(n->s->t, 0), 0);
-    texLoadTexture(GET_TEXTURE(n->s->t, 1), 0);
+  node_t* n = blc->np++;
+  n->p = 0;
+  n->n = 0;
+  n->bb.x1 = n->bb.y1 = n->bb.x2 = n->bb.y2 = 0;
+  n->s = 0;
+  n->l = n->r = 0;
+  n->ow = 0;
+  n->flags = NF_NOTHING;
+  if (isLeaf) {
+    unsigned lineCount;
+    if (!fread(&lineCount, sizeof(unsigned), 1, blc->f)) { ++blc->err; return NULL; }
+    assert(lineCount);
+    n->n = lineCount;
+    unsigned sectorId;
+    if (!fread(&sectorId, sizeof(unsigned), 1, blc->f)) { ++blc->err; return n; }
+    printf("sectorId: %u\n", sectorId);
+    if (sectorId) {
+      n->s = sc.p + sectorId;
+      texLoadTexture(GET_TEXTURE(n->s->t, 0), 0);
+      texLoadTexture(GET_TEXTURE(n->s->t, 1), 0);
+    }
+    if (n->n) {
+      if (n->n > blc->rl) {
+        cmsg(MLERR, "bspLoadNode: out of preallocated lines");
+        ++blc->err;
+        return n;
+      }
+      blc->rl -= n->n;
+      n->p = blc->lp;
+      blc->lp += n->n;
+      for (unsigned i = 0; i < n->n; ++i) {
+        if (bspReadLine(n->p + i, blc->f)) { ++blc->err; return n; }
+        texLoadTexture(GET_TEXTURE(n->p[i].t, 0), 0);
+        texLoadTexture(GET_TEXTURE(n->p[i].t, 1), 0);
+        texLoadTexture(GET_TEXTURE(n->p[i].t, 2), 0);
+      }
+      for (unsigned i = 0; i < n->n; ++i) {
+        const float x = vc.p[n->p[i].a].y - vc.p[n->p[i].b].y;
+        const float y = vc.p[n->p[i].b].x - vc.p[n->p[i].a].x;
+        float l = 1 / sqrtf(x * x + y * y);
+        if (n->s->c < n->s->f) l = -l;
+        n->p[i].nx = x * l;
+        n->p[i].ny = y * l;
+      }
+    }
   } else {
-    n->s = NULL;
+    n->div.load(blc->f);
+    n->div.print();
+    n->l = bspLoadNode(blc, level + 1);
+    n->r = bspLoadNode(blc, level + 1);
   }
-  n->p = NULL;
-  if (n->n) {
-    if (n->n > blc->rl) {
-      cmsg(MLERR, "bspLoadNode: out of preallocated lines");
-      ++blc->err;
-      return n;
-    }
-    blc->rl -= n->n;
-    n->p = blc->lp;
-    blc->lp += n->n;
-    for (unsigned i = 0; i < n->n; ++i) {
-      if (bspReadLine(n->p + i, blc->f)) { ++blc->err; return n; }
-      texLoadTexture(GET_TEXTURE(n->p[i].t, 0), 0);
-      texLoadTexture(GET_TEXTURE(n->p[i].t, 1), 0);
-      texLoadTexture(GET_TEXTURE(n->p[i].t, 2), 0);
-    }
-    for (unsigned i = 0; i < n->n; ++i) {
-      const float x = vc.p[n->p[i].a].y - vc.p[n->p[i].b].y;
-      const float y = vc.p[n->p[i].b].x - vc.p[n->p[i].a].x;
-      float l = 1 / sqrtf(x * x + y * y);
-      if (n->s->c < n->s->f) l = -l;
-      n->p[i].nx = x * l;
-      n->p[i].ny = y * l;
-    }
-  }
-  n->l = bspLoadNode(blc, level + 1);
-  n->r = bspLoadNode(blc, level + 1);
-  n->ow = NULL;
+
+
+
   int j = 0;
   if (n->l != NULL) {
     n->bb.x1 = n->l->bb.x1;
@@ -474,12 +488,13 @@ bspLoadTree(FILE *f) {
   cmsg(MLINFO, "%d verteces", vc.n);
   if (!fread(&blc.rn, sizeof(unsigned), 1, f)) return 0;
   if (!fread(&blc.rl, sizeof(unsigned), 1, f)) return 0;
+  cmsg(MLINFO, "%d nodes, %d lines", blc.rn, blc.rl);
   blc.np = root = (node_t *)mmAlloc(blc.rn * sizeof(node_t));
   if (root == NULL) return 0;
   blc.lp = linepool = (line_t *)mmAlloc(blc.rl * sizeof(line_t));
   if (linepool == NULL) return 0;
   bspLoadNode(&blc, 0);
-  cmsg(MLINFO, "%d nodes, %d lines", blc.np - root, blc.lp - linepool);
+  cmsg(MLINFO, "really %d nodes, %d lines", blc.np - root, blc.lp - linepool);
   cmsg(MLINFO, "%d textures", texGetNofTextures());
   bspNeighSub(&blc, root);
   bspSearchOutsiders(&blc, root);
