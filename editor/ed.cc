@@ -272,12 +272,14 @@ void edBuildBSP() {
   for (int j = s; j; --j)
     for (Lines::iterator l(lc.begin()); l != lc.end(); ++l) {
       int in = sc[j].f < sc[j].c;
+      int flags = l->flags;
+      if (l->sf && l->sb) flags |= Line::Flag::TWOSIDED;
       if (l->sf == j)
         bsp::bspAddLine(j, vc[l->a].x, vc[l->a].y, vc[l->b].x, vc[l->b].y,
-          l->u, l->v, l->flags, (in) ? l->tf : l->tb, l->du);
+          l->u, l->v, flags, (in) ? l->tf : l->tb, l->du);
       if (l->sb == j)
         bsp::bspAddLine(j, vc[l->b].x, vc[l->b].y, vc[l->a].x, vc[l->a].y,
-          l->u, l->v, l->flags, (in) ? l->tb : l->tf, l->du);
+          l->u, l->v, flags, (in) ? l->tb : l->tf, l->du);
     }
   bsp::bspBuildTree();
   FILE *f = fopen("map.bsp", "wb");

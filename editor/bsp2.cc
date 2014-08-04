@@ -1,6 +1,7 @@
 #include "bsp.h"
 #include "ed.h"
 #include "gr.h"
+#include "line.h"
 
 #include <vector>
 #include <memory>
@@ -99,17 +100,21 @@ intersect(const Plane2d& lhs, const Plane2d& rhs)
 
 class Wall {
 public:
-	Wall(const Vertex& a, const Vertex& b, int tex) : a_(a), b_(b), tex_(tex) {}
+	Wall(const Vertex& a, const Vertex& b, int tex = 0, int flags = Line::Flag::TWOSIDED)
+	: a_(a), b_(b), tex_(tex), flags_(flags)
+	{}
 
 	Vertex a() const { return a_; }
 	Vertex b() const { return b_; }
 	int tex() const { return tex_; }
+	int flags() const { return flags_; }
 
 	void save(FILE* fp, const Vertexes& vs) const;
 
 private:
 	Vertex a_, b_;
 	int tex_;
+	int flags_;
 };
 
 std::ostream& operator<<(std::ostream& os, const Wall& w) { return os << "Wall(" << w.a() << ", " << w.b() << ")"; }
@@ -124,9 +129,9 @@ void Wall::save(FILE* fp, const Vertexes& vs) const {
 	unsigned char buf[2 * 2 + 1 + 3 * 2 + 4], *p = buf;
 	*(short *)p = getVertexIndex(vs, a());
 	*(short *)(p + 2) = getVertexIndex(vs, b());
-	p[4] = 0;
+	p[4] = flags();
 	*(unsigned short *)(p + 5) = 0;
-	*(unsigned short *)(p + 7) = 0;
+	*(unsigned short *)(p + 7) = 64;
 	*(unsigned short *)(p + 9) = 0;
 	*(unsigned *)(p + 11) = tex();
 	fwrite(buf, 1, sizeof(buf), fp);
@@ -344,10 +349,10 @@ Sector Sector::partition(const Plane2d& plane) const {
 			const Vertex isp(intersect(plane, Plane2d(i->a(), i->b())));
 			++degs[isp];
 			if (da < 0) {
-				result.add(Wall(isp, i->b(), i->tex()));
+				result.add(Wall(isp, i->b(), i->tex(), i->flags()));
 				++degs[i->b()];
 			} else {
-				result.add(Wall(i->a(), isp, i->tex()));
+				result.add(Wall(i->a(), isp, i->tex(), i->flags()));
 				++degs[i->a()];
 			}
 		} else if (da + db > std::numeric_limits<float>::epsilon()) {
@@ -365,7 +370,7 @@ Sector Sector::partition(const Plane2d& plane) const {
 	for (Degs::const_iterator i(degs.begin()); i != degs.end(); ++i) {
 		if (!(i->second & 1)) continue;
 		if (open) {
-			result.add((plane.dot(last - i->first) < 0) ? Wall(i->first, last, 0) : Wall(last, i->first, 0));
+			result.add((plane.dot(last - i->first) < 0) ? Wall(i->first, last) : Wall(last, i->first));
 		} else {
 			last = i->first;
 		}
@@ -647,9 +652,9 @@ void bspShow() { tree.show(); }
 int bspSave(FILE* f) { tree.save(f); return 0; }
 
 int
-bspAddLine(int s, int x1, int y1, int x2, int y2, int, int, int, int tex, int)
+bspAddLine(int s, int x1, int y1, int x2, int y2, int, int, int flags, int tex, int)
 {
-	tree.add(s, Wall(Vertex(x1, y1), Vertex(x2, y2), tex));
+	tree.add(s, Wall(Vertex(x1, y1), Vertex(x2, y2), tex, flags));
 	return 0;
 }
 
