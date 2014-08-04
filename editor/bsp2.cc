@@ -19,6 +19,9 @@
 
 namespace bsp {
 
+class Vertex;
+float dot(const Vertex& lhs, const Vertex& rhs);
+
 class Vertex {
 public:
 	Vertex() : x_(0.0f), y_(0.0f) {}
@@ -30,6 +33,7 @@ public:
 	Vertex operator-() const { return Vertex(-x(), -y()); }
 	Vertex& operator+=(const Vertex& rhs) { x_ += rhs.x(); y_ += rhs.y(); return *this; }
 	Vertex& operator-=(const Vertex& rhs) {  return operator+=(-rhs); }
+	float length() const { return sqrtf(dot(*this, *this)); }
 
 private:
 	float x_, y_;
@@ -38,6 +42,8 @@ private:
 std::ostream& operator<<(std::ostream& os, const Vertex& v) { return os << "(" << v.x() << ", " << v.y() << ")"; }
 Vertex operator+(Vertex lhs, const Vertex& rhs) { return lhs += rhs; }
 Vertex operator-(Vertex lhs, const Vertex& rhs) { return lhs -= rhs; }
+
+float dot(const Vertex& lhs, const Vertex& rhs) { return lhs.x() * rhs.x() + lhs.y() * rhs.y(); }
 
 inline bool operator==(Vertex d, const Vertex& rhs) {
 	d -= rhs;
@@ -98,22 +104,44 @@ intersect(const Plane2d& lhs, const Plane2d& rhs)
 	return Vertex(x, y);
 }
 
+class Surface {
+public:
+	Surface() : textureId_(0), u1_(), u2_(), v_() {}
+	Surface(int textureId, int u1, int u2, int v) : textureId_(textureId), u1_(u1), u2_(u2), v_(v) {}
+
+	void save(FILE* fp) const;
+	void cropLeft(float q) { u1_ = (1.0f - q) * u1_ + q * u2_; std::cerr << "q=" << q << std::endl; }
+	void cropRight(float q) { u2_ = q * u1_ + (1.0f - q) * u2_; }
+
+private:
+	unsigned textureId_;
+	unsigned short u1_, u2_;
+	unsigned short v_;
+};
+
+void Surface::save(FILE* fp) const {
+	fwrite(&u1_, sizeof(u1_), 1, fp);
+	fwrite(&u2_, sizeof(u2_), 1, fp);
+	fwrite(&v_, sizeof(v_), 1, fp);
+	fwrite(&textureId_, sizeof(textureId_), 1, fp);
+}
+
 class Wall {
 public:
-	Wall(const Vertex& a, const Vertex& b, int tex = 0, int flags = Line::Flag::TWOSIDED)
-	: a_(a), b_(b), tex_(tex), flags_(flags)
+	Wall(const Vertex& a, const Vertex& b, const Surface& surface = Surface(), int flags = Line::Flag::TWOSIDED)
+	: a_(a), b_(b), surface_(surface), flags_(flags)
 	{}
 
 	Vertex a() const { return a_; }
 	Vertex b() const { return b_; }
-	int tex() const { return tex_; }
+	Surface surface() const { return surface_; }
 	int flags() const { return flags_; }
 
 	void save(FILE* fp, const Vertexes& vs) const;
 
 private:
 	Vertex a_, b_;
-	int tex_;
+	Surface surface_;
 	int flags_;
 };
 
@@ -126,15 +154,12 @@ int getVertexIndex(const Vertexes& vs, const Vertex& v) {
 }
 
 void Wall::save(FILE* fp, const Vertexes& vs) const {
-	unsigned char buf[2 * 2 + 1 + 3 * 2 + 4], *p = buf;
+	unsigned char buf[2 * 2 + 1], *p = buf;
 	*(short *)p = getVertexIndex(vs, a());
 	*(short *)(p + 2) = getVertexIndex(vs, b());
 	p[4] = flags();
-	*(unsigned short *)(p + 5) = 0;
-	*(unsigned short *)(p + 7) = 64;
-	*(unsigned short *)(p + 9) = 0;
-	*(unsigned *)(p + 11) = tex();
 	fwrite(buf, 1, sizeof(buf), fp);
+	surface().save(fp);
 }
 
 class Sector;
@@ -347,14 +372,18 @@ Sector Sector::partition(const Plane2d& plane) const {
 		const float db = plane.determine(i->b());
 		if (da * db < 0) {
 			const Vertex isp(intersect(plane, Plane2d(i->a(), i->b())));
-			++degs[isp];
+			Vertex a(i->a());
+			Vertex b(i->b());
+			Surface sface(i->surface());
 			if (da < 0) {
-				result.add(Wall(isp, i->b(), i->tex(), i->flags()));
-				++degs[i->b()];
+				a = isp;
+				sface.cropLeft(da / (da - db));
 			} else {
-				result.add(Wall(i->a(), isp, i->tex(), i->flags()));
-				++degs[i->a()];
+				b = isp;
+				sface.cropRight(db / (db - da));
 			}
+			result.add(Wall(a, b, sface, i->flags()));
+			++degs[a], ++degs[b];
 		} else if (da + db > std::numeric_limits<float>::epsilon()) {
 			result.add(*i);
 			++degs[i->a()], ++degs[i->b()];
@@ -652,9 +681,11 @@ void bspShow() { tree.show(); }
 int bspSave(FILE* f) { tree.save(f); return 0; }
 
 int
-bspAddLine(int s, int x1, int y1, int x2, int y2, int, int, int flags, int tex, int)
+bspAddLine(int s, int x1, int y1, int x2, int y2, int u, int v, int flags, int tex, int du)
 {
-	tree.add(s, Wall(Vertex(x1, y1), Vertex(x2, y2), tex, flags));
+	const Vertex a(x1, y1);
+	const Vertex b(x2, y2);
+	tree.add(s, Wall(a, b, Surface(tex, u, u + (b - a).length() + du, v), flags));
 	return 0;
 }
 
