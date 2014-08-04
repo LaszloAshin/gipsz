@@ -283,8 +283,8 @@ void rBuildFrame() {
   glLoadIdentity();
   glMatrixMode(GL_MODELVIEW);
   glLoadIdentity();
-  glDisable(GL_DEPTH_TEST);
-  glDepthFunc(GL_LEQUAL);
+  glEnable(GL_DEPTH_TEST);
+  glDepthFunc(GL_ALWAYS);
   rTraceTreeForVisibles();
   glEnable(GL_TEXTURE_2D);
   rDrawTree();
@@ -306,6 +306,8 @@ void rBuildFrame() {
 //  glEnable(GL_LIGHTING);
   glEnable(GL_LIGHT1);
   glMaterialfv(GL_FRONT, GL_DIFFUSE, white);
+  glEnable(GL_DEPTH_TEST);
+  glDepthFunc(GL_LEQUAL);
   objDrawObjects();
 //  glShadeModel(GL_SMOOTH);
   glDisable(GL_LIGHT1);
