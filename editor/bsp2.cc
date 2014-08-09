@@ -98,9 +98,8 @@ intersect(const Plane2d& lhs, const Plane2d& rhs)
 	const float e = std::numeric_limits<float>::epsilon();
 	const float q = rhs.a_ * lhs.b_ - lhs.a_ * rhs.b_;
 	if (q > -e && q < e) throw std::overflow_error("parallel planes do not intersect each other");
-	const float p = 1.0f / q;
-	const float x = (rhs.b_ * lhs.c_ - lhs.b_ * rhs.c_) * p;
-	const float y = (lhs.a_ * rhs.c_ - rhs.a_ * lhs.c_) * p;
+	const float x = (rhs.b_ * lhs.c_ - lhs.b_ * rhs.c_) / q;
+	const float y = (lhs.a_ * rhs.c_ - rhs.a_ * lhs.c_) / q;
 	return Vertex(x, y);
 }
 
@@ -110,7 +109,7 @@ public:
 	Surface(int textureId, int u1, int u2, int v) : textureId_(textureId), u1_(u1), u2_(u2), v_(v) {}
 
 	void save(FILE* fp) const;
-	void cropLeft(float q) { u1_ = (1.0f - q) * u1_ + q * u2_; std::cerr << "q=" << q << std::endl; }
+	void cropLeft(float q) { u1_ = (1.0f - q) * u1_ + q * u2_; }
 	void cropRight(float q) { u2_ = q * u1_ + (1.0f - q) * u2_; }
 
 private:
@@ -372,6 +371,10 @@ Sector Sector::partition(const Plane2d& plane) const {
 		const float db = plane.determine(i->b());
 		if (da * db < 0) {
 			const Vertex isp(intersect(plane, Plane2d(i->a(), i->b())));
+			const float di = plane.determine(isp);
+			std::cerr << "di = " << di << " epsilon = " << std::numeric_limits<float>::epsilon() << std::endl;
+			assert(di < std::numeric_limits<float>::epsilon());
+			assert(di > -std::numeric_limits<float>::epsilon());
 			Vertex a(i->a());
 			Vertex b(i->b());
 			Surface sface(i->surface());
