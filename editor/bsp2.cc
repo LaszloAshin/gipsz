@@ -372,9 +372,9 @@ Sector Sector::partition(const Plane2d& plane) const {
 		if (da * db < 0) {
 			const Vertex isp(intersect(plane, Plane2d(i->a(), i->b())));
 			const float di = plane.determine(isp);
+			const float e = std::numeric_limits<float>::epsilon();
 			std::cerr << "di = " << di << " epsilon = " << std::numeric_limits<float>::epsilon() << std::endl;
-			assert(di < std::numeric_limits<float>::epsilon());
-			assert(di > -std::numeric_limits<float>::epsilon());
+			if (di > e || di < -e) throw std::runtime_error("intersection point is not on the intersection plane");
 			Vertex a(i->a());
 			Vertex b(i->b());
 			Surface sface(i->surface());
@@ -655,7 +655,7 @@ private:
 };
 
 void Tree::save(FILE* fp) const {
-	assert(root_.get());
+/*	assert(root_.get());
 	Vertexes vertexes;
 	root_->collect(vertexes);
 	{
@@ -673,7 +673,7 @@ void Tree::save(FILE* fp) const {
 	fwrite(&nodeCount, sizeof(unsigned), 1, fp);
 	fwrite(&lineCount, sizeof(unsigned), 1, fp);
 	root_->save(fp, vertexes);
-}
+*/}
 
 namespace { Tree tree; }
 
