@@ -19,44 +19,46 @@
 
 namespace bsp {
 
+static const double epsilon = std::numeric_limits<double>::epsilon();
+static const double thickness = 0.1f;
+//static const double epsilon = 0.00001f;
+
 class Vertex;
-float dot(const Vertex& lhs, const Vertex& rhs);
+double dot(const Vertex& lhs, const Vertex& rhs);
 
 class Vertex {
 public:
 	Vertex() : x_(0.0f), y_(0.0f) {}
-	Vertex(float x, float y) : x_(x), y_(y) {}
+	Vertex(double x, double y) : x_(x), y_(y) {}
 
-	float x() const { return x_; }
-	float y() const { return y_; }
+	double x() const { return x_; }
+	double y() const { return y_; }
 
 	Vertex operator-() const { return Vertex(-x(), -y()); }
 	Vertex& operator+=(const Vertex& rhs) { x_ += rhs.x(); y_ += rhs.y(); return *this; }
 	Vertex& operator-=(const Vertex& rhs) {  return operator+=(-rhs); }
-	float length() const { return sqrtf(dot(*this, *this)); }
+	double length() const { return sqrtf(dot(*this, *this)); }
 
 private:
-	float x_, y_;
+	double x_, y_;
 };
 
 std::ostream& operator<<(std::ostream& os, const Vertex& v) { return os << "(" << v.x() << ", " << v.y() << ")"; }
 Vertex operator+(Vertex lhs, const Vertex& rhs) { return lhs += rhs; }
 Vertex operator-(Vertex lhs, const Vertex& rhs) { return lhs -= rhs; }
 
-float dot(const Vertex& lhs, const Vertex& rhs) { return lhs.x() * rhs.x() + lhs.y() * rhs.y(); }
+double dot(const Vertex& lhs, const Vertex& rhs) { return lhs.x() * rhs.x() + lhs.y() * rhs.y(); }
 
 inline bool operator==(Vertex d, const Vertex& rhs) {
 	d -= rhs;
-	const float e = std::numeric_limits<float>::epsilon();
-	return d.x() > -e && d.x() < e && d.y() > -e && d.y() < e;
+	return d.x() > -epsilon && d.x() < epsilon && d.y() > -epsilon && d.y() < epsilon;
 }
 
 inline bool operator<(const Vertex& lhs, Vertex d) {
 	d -= lhs;
-	const float e = std::numeric_limits<float>::epsilon();
-	if (d.y() < -e) return true;
-	if (d.y() > e) return false;
-	return d.x() < -e;
+	if (d.y() < -epsilon) return true;
+	if (d.y() > epsilon) return false;
+	return d.x() < -epsilon;
 }
 
 inline bool operator!=(const Vertex& lhs, const Vertex& rhs) { return !(lhs == rhs); }
@@ -79,27 +81,35 @@ public:
 	, c_(-(a_ * v1.x() + b_ * v1.y()))
 	{}
 
-	float determine(const Vertex& v) const { return a_ * v.x() + b_ * v.y() + c_; }
-	float dot(const Vertex& v) const { return a_ * v.y() - b_ * v.x(); }
+	double determine(const Vertex& v) const { return a_ * v.x() + b_ * v.y() + c_; }
+	double dot(const Vertex& v) const { return a_ * v.y() - b_ * v.x(); }
 	void save(FILE* fp) const { fwrite(&a_, sizeof(a_), 1, fp); fwrite(&b_, sizeof(b_), 1, fp); fwrite(&c_, sizeof(c_), 1, fp); }
 	void print(std::ostream& os) const { os << "Plane2d(" << a_ << ", " << b_ << ", " << c_ << ")"; }
 	friend Vertex intersect(const Plane2d& lhs, const Plane2d& rhs);
 	Plane2d operator-() const { return Plane2d(-a_, -b_, -c_); }
 
 private:
-	Plane2d(float a, float b, float c) : a_(a), b_(b), c_(c) {}
+	Plane2d(double a, double b, double c) : a_(a), b_(b), c_(c) {}
 
-	float a_, b_, c_;
+	double a_, b_, c_;
 };
 
 Vertex
 intersect(const Plane2d& lhs, const Plane2d& rhs)
 {
-	const float e = std::numeric_limits<float>::epsilon();
-	const float q = rhs.a_ * lhs.b_ - lhs.a_ * rhs.b_;
-	if (q > -e && q < e) throw std::overflow_error("parallel planes do not intersect each other");
-	const float x = (rhs.b_ * lhs.c_ - lhs.b_ * rhs.c_) / q;
-	const float y = (lhs.a_ * rhs.c_ - rhs.a_ * lhs.c_) / q;
+	const double q = rhs.a_ * lhs.b_ - lhs.a_ * rhs.b_;
+	if (q > -epsilon && q < epsilon) throw std::overflow_error("parallel planes do not intersect each other");
+/*	if (abs(lhs.a_) > abs(lhs.b_)) {
+		const double y = (lhs.a_ * rhs.c_ - rhs.a_ * lhs.c_) / q;
+		const double x = (-lhs.b_ * y - lhs.c_) / lhs.a_;
+		return Vertex(x, y);
+	} else {
+		const double x = (rhs.b_ * lhs.c_ - lhs.b_ * rhs.c_) / q;
+		const double y = (-lhs.a_ * x - lhs.c_) / lhs.b_;
+		return Vertex(x, y);
+	}*/
+	const double x = (rhs.b_ * lhs.c_ - lhs.b_ * rhs.c_) / q;
+	const double y = (lhs.a_ * rhs.c_ - rhs.a_ * lhs.c_) / q;
 	return Vertex(x, y);
 }
 
@@ -109,8 +119,8 @@ public:
 	Surface(int textureId, int u1, int u2, int v) : textureId_(textureId), u1_(u1), u2_(u2), v_(v) {}
 
 	void save(FILE* fp) const;
-	void cropLeft(float q) { u1_ = (1.0f - q) * u1_ + q * u2_; }
-	void cropRight(float q) { u2_ = q * u1_ + (1.0f - q) * u2_; }
+	void cropLeft(double q) { u1_ = (1.0f - q) * u1_ + q * u2_; }
+	void cropRight(double q) { u2_ = q * u1_ + (1.0f - q) * u2_; }
 
 private:
 	unsigned textureId_;
@@ -302,7 +312,10 @@ T pick(std::vector<T>& v, typename std::vector<T>::iterator i) {
 }
 
 void Sector::saveSorted(FILE* fp, const Vertexes& vs) const {
-	assert(walls_.size() >= 3);
+	if (walls_.size() < 3) {
+		std::cerr << walls_.size() << std::endl;
+		throw std::runtime_error("too few walls in a sector");
+	}
 	Walls ws(walls_);
 	Vertex first, last;
 	bool open = false;
@@ -349,13 +362,15 @@ void Sector::save(FILE* fp, const Vertexes& vs) const {
 SplitStats Sector::computeStats(const Plane2d& plane) const {
 	SplitStats result;
 	for (const_iterator i(begin()); i != end(); ++i) {
-		const float da = plane.determine(i->a());
-		const float db = plane.determine(i->b());
-		if (da * db < 0) {
+		const double da = plane.determine(i->a());
+		const double db = plane.determine(i->b());
+		const int ia = (da < -0.5f * thickness) ? -1 : ((da > 0.5f * thickness) ? 1 : 0);
+		const int ib = (db < -0.5f * thickness) ? -1 : ((db > 0.5f * thickness) ? 1 : 0);
+		if (ia * ib < 0) {
 			result.wallIsSplit();
-		} else if (da + db > std::numeric_limits<float>::epsilon()) {
+		} else if (ia + ib > 0) {
 			result.wallIsFront();
-		} else if (da + db < -std::numeric_limits<float>::epsilon()) {
+		} else if (ia + ib < 0) {
 			result.wallIsBack();
 		}
 	}
@@ -367,18 +382,19 @@ Sector Sector::partition(const Plane2d& plane) const {
 	Degs degs;
 	Sector result(id());
 	for (const_iterator i(begin()); i != end(); ++i) {
-		const float da = plane.determine(i->a());
-		const float db = plane.determine(i->b());
-		if (da * db < 0) {
+		const double da = plane.determine(i->a());
+		const double db = plane.determine(i->b());
+		const int ia = (da < -0.5f * thickness) ? -1 : ((da > 0.5f * thickness) ? 1 : 0);
+		const int ib = (db < -0.5f * thickness) ? -1 : ((db > 0.5f * thickness) ? 1 : 0);
+		if (ia * ib < 0) {
 			const Vertex isp(intersect(plane, Plane2d(i->a(), i->b())));
-			const float di = plane.determine(isp);
-			const float e = std::numeric_limits<float>::epsilon();
-			std::cerr << "di = " << di << " epsilon = " << std::numeric_limits<float>::epsilon() << std::endl;
-			if (di > e || di < -e) throw std::runtime_error("intersection point is not on the intersection plane");
+			const double di = plane.determine(isp);
+			std::cerr << "di = " << di << " epsilon = " << epsilon << std::endl;
+			if (di > epsilon || di < -epsilon) throw std::runtime_error("intersection point is not on the intersection plane");
 			Vertex a(i->a());
 			Vertex b(i->b());
 			Surface sface(i->surface());
-			if (da < 0) {
+			if (ia < 0) {
 				a = isp;
 				sface.cropLeft(da / (da - db));
 			} else {
@@ -387,14 +403,12 @@ Sector Sector::partition(const Plane2d& plane) const {
 			}
 			result.add(Wall(a, b, sface, i->flags()));
 			++degs[a], ++degs[b];
-		} else if (da + db > std::numeric_limits<float>::epsilon()) {
+		} else if (ia + ib > 0) {
 			result.add(*i);
 			++degs[i->a()], ++degs[i->b()];
-		} else if (da + db > -std::numeric_limits<float>::epsilon()) {
-			if (plane.dot(i->b() - i->a()) < 0) {
-				result.add(*i);
-				++degs[i->a()], ++degs[i->b()];
-			}
+		} else if (ia + ib >= 0 && plane.dot(i->b() - i->a()) < 0) {
+			result.add(*i);
+			++degs[i->a()], ++degs[i->b()];
 		}
 	}
 	Vertex last;
@@ -629,7 +643,7 @@ void Node::save(FILE* fp, const Vertexes& vs) const {
 	if (isLeaf) {
 		assert(!front_.get());
 		assert(!back_.get());
-		assert(sectors_.size() == 1);
+		if (sectors_.size() != 1) throw std::runtime_error("no single sector in node");
 		sectors_.front().save(fp, vs);
 	} else {
 		assert(front_.get());
@@ -644,18 +658,20 @@ void Node::save(FILE* fp, const Vertexes& vs) const {
 class Tree {
 public:
 	void clear() { root_.reset(new Node); }
-	void build() { try{if (root_.get()) root_->build();}catch(...){} }
+	void build() { try{if (root_.get()) root_->build();}catch(const std::exception& e){std::cerr << e.what() << std::endl;} }
 //	void build() { if (root_.get()) root_->build(); }
 	void show() const { if (root_.get()) Renderer().draw(*root_); }
-	void save(FILE* fp) const;
+	void save(FILE* fp) const { try{trySave(fp);}catch(const std::exception& e){std::cerr << e.what() << std::endl;} }
 	void add(int sectorId, const Wall& w) { if (root_.get()) root_->add(sectorId, w); }
 
 private:
+	void trySave(FILE* fp) const;
+
 	std::auto_ptr<Node> root_;
 };
 
-void Tree::save(FILE* fp) const {
-/*	assert(root_.get());
+void Tree::trySave(FILE* fp) const {
+	assert(root_.get());
 	Vertexes vertexes;
 	root_->collect(vertexes);
 	{
@@ -673,7 +689,7 @@ void Tree::save(FILE* fp) const {
 	fwrite(&nodeCount, sizeof(unsigned), 1, fp);
 	fwrite(&lineCount, sizeof(unsigned), 1, fp);
 	root_->save(fp, vertexes);
-*/}
+}
 
 namespace { Tree tree; }
 

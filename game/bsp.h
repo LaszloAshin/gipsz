@@ -55,13 +55,13 @@ public:
   , c_(-(a_ * v1.x + b_ * v1.y))
   {}
 
-  float determine(const vertex_t& v) const { return a_ * v.x + b_ * v.y + c_; }
-  float dot(float dx, float dy) const { return a_ * dy - b_ * dx; }
+  double determine(const vertex_t& v) const { return a_ * v.x + b_ * v.y + c_; }
+  double dot(double dx, double dy) const { return a_ * dy - b_ * dx; }
   void load(FILE* fp);
   void print() const;
 
 private:
-  float a_, b_, c_;
+  double a_, b_, c_;
 };
 
 typedef struct node_s {
