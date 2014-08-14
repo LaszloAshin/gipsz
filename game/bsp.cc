@@ -144,8 +144,8 @@ bspCollideNode(struct collide_param_rec *pr, node_t *n)
       *pr->dz = (n->s->c - 16 - pr->z) * 0.1;
       pz = pr->z + *pr->dz;
     }
-    const sector_t *ns = (l->nn != NULL) ? l->nn->s : NULL;
-    if (ns != NULL) {
+    const sector_t* const ns = l->backSectorId ? (sc.p + l->backSectorId) : 0;
+    if (ns) {
       if (n->s->f < n->s->c) {
         dx1 = n->s->f;
         if (ns->f > dx1) dx1 = ns->f;
@@ -292,17 +292,18 @@ bspReadVertex(vertex_t *v, FILE *f)
 static int
 bspReadLine(line_t *l, FILE *f)
 {
-  unsigned char buf[2 + 2 + 1 + 2 + 2 + 2 + 4], *p = buf;
+  unsigned char buf[2 + 2 + 1 + 2 + 2 + 2 + 2 + 4], *p = buf;
   const size_t rd = fread(buf, 1, sizeof(buf), f);
   if (rd != sizeof(buf)) return -1;
   l->a = *(short *)p;
   l->b = *(short *)(p + 2);
   l->flags = lineflag_t(p[4]);
-  l->u1 = (double)(*(unsigned short *)(p + 5)) * 1.0f / 64.0f;
-  l->u2 = (double)(*(unsigned short *)(p + 7)) * 1.0f / 64.0f;
-  l->v = *(unsigned short *)(p + 9);
-  l->t = *(unsigned *)(p + 11);
-  l->nn = 0;
+  l->backSectorId = *(short *)(p + 5);
+  l->u1 = (double)(*(unsigned short *)(p + 7)) * 1.0f / 64.0f;
+  l->u2 = (double)(*(unsigned short *)(p + 9)) * 1.0f / 64.0f;
+  l->v = *(unsigned short *)(p + 11);
+  l->t = *(unsigned *)(p + 13);
+  l->neighNode = 0;
   return 0;
 }
 
@@ -428,8 +429,8 @@ static void
 bspNeighSub(struct bsp_load_ctx * const blc, node_t *n)
 {
   for (unsigned i = 0; i < n->n; ++i) {
-    if ((n->p[i].flags & LF_TWOSIDED) && n->p[i].nn == NULL) {
-      n->p[i].nn = bspGetNodeForLine(n->p[i].b, n->p[i].a);
+    if ((n->p[i].flags & LF_TWOSIDED) && !n->p[i].neighNode) {
+      n->p[i].neighNode = bspGetNodeForLine(n->p[i].b, n->p[i].a);
     }
   }
   if (n->l != NULL) bspNeighSub(blc, n->l);

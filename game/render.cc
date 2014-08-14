@@ -26,9 +26,9 @@ rSetVisible(node_t *n, nodeflag_t vis)
 static int
 rSeeThrough(node_t *n, int i)
 {
-  sector_t *s = n->s;
-  sector_t *ns = n->p[i].nn->s;
-  if (s == NULL || ns == NULL) return 0;
+  const sector_t* const s = n->s;
+  const sector_t* const ns = n->p[i].backSectorId ? (sc.p + n->p[i].backSectorId) : 0;
+  if (!s || !ns) return 0;
   int f = s->f;
   if (ns->f > f) f = ns->f;
   int c = s->c;
@@ -48,8 +48,8 @@ rTraceNode(node_t *n)
     const float dx = b.x - a.x;
     const float dy = b.y - a.y;
     if (dx * a.y > dy * a.x) continue;
-    if (n->p[i].nn != NULL && rSeeThrough(n, i) && !(n->p[i].nn->flags & NF_VISIBLE))
-      rTraceNode(n->p[i].nn);
+    if (n->p[i].neighNode != NULL && rSeeThrough(n, i) && !(n->p[i].neighNode->flags & NF_VISIBLE))
+      rTraceNode(n->p[i].neighNode);
   }
 }
 
@@ -122,7 +122,7 @@ rDrawWalls(node_t *n)
   for (line_t *l = n->p; l < n->p + n->n; ++l) {
     vertex_t *a = vc.p + l->a;
     vertex_t *b = vc.p + l->b;
-    sector_t *ns = (l->nn != NULL) ? l->nn->s : NULL;
+    const sector_t* const ns = l->backSectorId ? (sc.p + l->backSectorId) : 0;
     unsigned t;
     if (n->s->f < n->s->c) {
       if ((b->x - a->x) * (b->y - cam.y) > (b->y - a->y) * (b->x - cam.x)) continue;

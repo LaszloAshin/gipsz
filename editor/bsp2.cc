@@ -137,12 +137,13 @@ void Surface::save(FILE* fp) const {
 
 class Wall {
 public:
-	Wall(const Vertex& a, const Vertex& b, const Surface& surface = Surface(), int flags = Line::Flag::TWOSIDED)
-	: a_(a), b_(b), surface_(surface), flags_(flags)
+	Wall(const Vertex& a, const Vertex& b, int backSectorId = 0, const Surface& surface = Surface(), int flags = Line::Flag::TWOSIDED)
+	: a_(a), b_(b), backSectorId_(backSectorId), surface_(surface), flags_(flags)
 	{}
 
 	Vertex a() const { return a_; }
 	Vertex b() const { return b_; }
+	int backSectorId() const { return backSectorId_; }
 	Surface surface() const { return surface_; }
 	int flags() const { return flags_; }
 
@@ -150,6 +151,7 @@ public:
 
 private:
 	Vertex a_, b_;
+	int backSectorId_;
 	Surface surface_;
 	int flags_;
 };
@@ -163,10 +165,11 @@ int getVertexIndex(const Vertexes& vs, const Vertex& v) {
 }
 
 void Wall::save(FILE* fp, const Vertexes& vs) const {
-	unsigned char buf[2 * 2 + 1], *p = buf;
+	unsigned char buf[2 * 2 + 1 + 2], *p = buf;
 	*(short *)p = getVertexIndex(vs, a());
 	*(short *)(p + 2) = getVertexIndex(vs, b());
 	p[4] = flags();
+	*(short *)(p + 5) = backSectorId();
 	fwrite(buf, 1, sizeof(buf), fp);
 	surface().save(fp);
 }
@@ -401,7 +404,7 @@ Sector Sector::partition(const Plane2d& plane) const {
 				b = isp;
 				sface.cropRight(db / (db - da));
 			}
-			result.add(Wall(a, b, sface, i->flags()));
+			result.add(Wall(a, b, i->backSectorId(), sface, i->flags()));
 			++degs[a], ++degs[b];
 		} else if (ia + ib > 0) {
 			result.add(*i);
@@ -416,7 +419,7 @@ Sector Sector::partition(const Plane2d& plane) const {
 	for (Degs::const_iterator i(degs.begin()); i != degs.end(); ++i) {
 		if (!(i->second & 1)) continue;
 		if (open) {
-			result.add((plane.dot(last - i->first) < 0) ? Wall(i->first, last) : Wall(last, i->first));
+			result.add((plane.dot(last - i->first) < 0) ? Wall(i->first, last, id()) : Wall(last, i->first, id()));
 		} else {
 			last = i->first;
 		}
@@ -700,11 +703,11 @@ void bspShow() { tree.show(); }
 int bspSave(FILE* f) { tree.save(f); return 0; }
 
 int
-bspAddLine(int s, int x1, int y1, int x2, int y2, int u, int v, int flags, int tex, int du)
+bspAddLine(int sf, int sb, int x1, int y1, int x2, int y2, int u, int v, int flags, int tex, int du)
 {
 	const Vertex a(x1, y1);
 	const Vertex b(x2, y2);
-	tree.add(s, Wall(a, b, Surface(tex, u, u + (b - a).length() + du, v), flags));
+	tree.add(sf, Wall(a, b, sb, Surface(tex, u, u + (b - a).length() + du, v), flags));
 	return 0;
 }
 

@@ -35,10 +35,11 @@ typedef enum {
 typedef struct {
   unsigned a, b;
   float u1, u2, v;
-  struct node_s *nn;
+  struct node_s *neighNode;
   lineflag_t flags;
   float nx, ny;
   unsigned t;
+  int backSectorId;
 } line_t;
 
 typedef enum {

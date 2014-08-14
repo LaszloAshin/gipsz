@@ -7,7 +7,7 @@ namespace bsp {
 
 int bspInit();
 void bspDone();
-int bspAddLine(int s, int x1, int y1, int x2, int y2, int u, int v, int flags, int t, int du);
+int bspAddLine(int sf, int sb, int x1, int y1, int x2, int y2, int u, int v, int flags, int t, int du);
 void bspBuildTree();
 void bspShow();
 int bspSave(FILE *f);

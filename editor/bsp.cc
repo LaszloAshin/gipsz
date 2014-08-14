@@ -184,7 +184,7 @@ bspGetNodeForSector(int s)
   return bspGetNodeForSector(s);
 }
 
-int bspAddLine(int s, int x1, int y1, int x2, int y2, int u, int v, int flags, int t, int du) {
+int bspAddLine(int s, int, int x1, int y1, int x2, int y2, int u, int v, int flags, int t, int du) {
   int a = bspAddVertex(x1, y1);
   int b = bspAddVertex(x2, y2);
   Node* n = bspGetNodeForSector(s);
