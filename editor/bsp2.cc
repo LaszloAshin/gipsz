@@ -393,7 +393,7 @@ Sector Sector::partition(const Plane2d& plane) const {
 			const Vertex isp(intersect(plane, Plane2d(i->a(), i->b())));
 			const double di = plane.determine(isp);
 			std::cerr << "di = " << di << " epsilon = " << epsilon << std::endl;
-			if (di > epsilon || di < -epsilon) throw std::runtime_error("intersection point is not on the intersection plane");
+			if (di > thickness / 2.0f || di < -thickness / 2.0f) throw std::runtime_error("intersection point is not on the intersection plane");
 			Vertex a(i->a());
 			Vertex b(i->b());
 			Surface sface(i->surface());
