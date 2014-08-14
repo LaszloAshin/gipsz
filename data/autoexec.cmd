@@ -16,6 +16,7 @@ bind mouse_right "@zoom"
 bind f1 "@toggle gravity" push
 bind f2 "@toggle clip" push
 bind f3 "@toggle r_drawwalls" push
-bind f10 @quit push
 bind f4 "@leavemap" push
+bind f5 "@toggle r_clear" push
+bind f10 @quit push
 set echo on
