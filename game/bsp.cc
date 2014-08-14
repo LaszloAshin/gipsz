@@ -253,12 +253,6 @@ bspGetNodeForLineSub(node_t *n, unsigned a, unsigned b)
   return 0;
 }
 
-static node_t *
-bspGetNodeForLine(unsigned a, unsigned b)
-{
-  return root ? bspGetNodeForLineSub(root, a, b) : 0;
-}
-
 static line_t *linepool = NULL;
 
 static void bspFreeTree() {
@@ -303,7 +297,6 @@ bspReadLine(line_t *l, FILE *f)
   l->u2 = (double)(*(unsigned short *)(p + 9)) * 1.0f / 64.0f;
   l->v = *(unsigned short *)(p + 11);
   l->t = *(unsigned *)(p + 13);
-  l->neighNode = 0;
   return 0;
 }
 
@@ -425,18 +418,6 @@ bspLoadNode(struct bsp_load_ctx * const blc, size_t level)
   return n;
 }
 
-static void
-bspNeighSub(struct bsp_load_ctx * const blc, node_t *n)
-{
-  for (unsigned i = 0; i < n->n; ++i) {
-    if ((n->p[i].flags & LF_TWOSIDED) && !n->p[i].neighNode) {
-      n->p[i].neighNode = bspGetNodeForLine(n->p[i].b, n->p[i].a);
-    }
-  }
-  if (n->l != NULL) bspNeighSub(blc, n->l);
-  if (n->r != NULL) bspNeighSub(blc, n->r);
-}
-
 static node_t *
 bspGetContSub(struct bsp_load_ctx * const blc, node_t *n, node_t *m)
 {
@@ -497,7 +478,6 @@ bspLoadTree(FILE *f) {
   bspLoadNode(&blc, 0);
   cmsg(MLINFO, "really %d nodes, %d lines", blc.np - root, blc.lp - linepool);
   cmsg(MLINFO, "%d textures", texGetNofTextures());
-  bspNeighSub(&blc, root);
   bspSearchOutsiders(&blc, root);
   return !0;
 }

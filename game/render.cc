@@ -23,36 +23,6 @@ rSetVisible(node_t *n, nodeflag_t vis)
   if (n->r != NULL) rSetVisible(n->r, vis);
 }
 
-static int
-rSeeThrough(node_t *n, int i)
-{
-  const sector_t* const s = n->s;
-  const sector_t* const ns = n->p[i].backSectorId ? (sc.p + n->p[i].backSectorId) : 0;
-  if (!s || !ns) return 0;
-  int f = s->f;
-  if (ns->f > f) f = ns->f;
-  int c = s->c;
-  if (ns->c < c) c = ns->c;
-  return f < c;
-}
-
-static void
-rTraceNode(node_t *n)
-{
-  n->flags = nodeflag_t(n->flags | NF_VISIBLE);
-  for (unsigned i = 0; i < n->n; ++i) {
-    vertex_t a = vc.p[n->p[i].a];
-    vertex_t b = vc.p[n->p[i].b];
-    a.x -= cam.x; a.y -= cam.y;
-    b.x -= cam.x; b.y -= cam.y;
-    const float dx = b.x - a.x;
-    const float dy = b.y - a.y;
-    if (dx * a.y > dy * a.x) continue;
-    if (n->p[i].neighNode != NULL && rSeeThrough(n, i) && !(n->p[i].neighNode->flags & NF_VISIBLE))
-      rTraceNode(n->p[i].neighNode);
-  }
-}
-
 static void
 rSearchOutsiders(node_t *n)
 {
@@ -79,7 +49,6 @@ static void rTraceTreeForVisibles() {
   if (cn == NULL) vis = NF_VISIBLE;
   rSetVisible(root, vis);
   if (vis & NF_VISIBLE) return;
-  rTraceNode(cn);
   /* spread visibility upwards in the tree and search outsiders */
   rSpreadVisibility(root);
   rSearchOutsiders(root); /* requires SpreadVisibility */
