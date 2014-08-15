@@ -41,11 +41,6 @@ typedef struct {
   int backSectorId;
 } line_t;
 
-typedef enum {
-  NF_NOTHING	= 0x00,
-  NF_VISIBLE	= 0x01
-} nodeflag_t;
-
 class Plane2d {
 public:
   Plane2d() : a_(), b_(), c_() {}
@@ -70,7 +65,6 @@ typedef struct node_s {
   bbox_t bb;
   sector_t *s;
   struct node_s *l, *r, *ow;
-  nodeflag_t flags;
   Plane2d div;
 } node_t;
 

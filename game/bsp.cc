@@ -328,7 +328,6 @@ bspLoadNode(struct bsp_load_ctx * const blc, size_t level)
   n->s = 0;
   n->l = n->r = 0;
   n->ow = 0;
-  n->flags = NF_NOTHING;
   if (isLeaf) {
     unsigned lineCount;
     if (!fread(&lineCount, sizeof(unsigned), 1, blc->f)) { ++blc->err; return NULL; }

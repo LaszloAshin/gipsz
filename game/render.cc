@@ -15,45 +15,6 @@ float curfov = 90.0;
 static int r_clear = 0;
 static int r_drawwalls = 1;
 
-static void
-rSetVisible(node_t *n, nodeflag_t vis)
-{
-  n->flags = nodeflag_t((n->flags & ~NF_VISIBLE) | (vis & NF_VISIBLE));
-  if (n->l != NULL) rSetVisible(n->l, vis);
-  if (n->r != NULL) rSetVisible(n->r, vis);
-}
-
-static void
-rSearchOutsiders(node_t *n)
-{
-  if (n->s != NULL && n->s->f < n->s->c) return;
-  if (n->l != NULL) rSearchOutsiders(n->l);
-  if (n->r != NULL) rSearchOutsiders(n->r);
-  if (n->ow != NULL && n->ow->flags & NF_VISIBLE) n->flags = nodeflag_t(n->flags | NF_VISIBLE);
-}
-
-static void
-rSpreadVisibility(node_t *n)
-{
-  if (n->l != NULL) rSpreadVisibility(n->l);
-  if (n->r != NULL) rSpreadVisibility(n->r);
-  if ((n->l != NULL && (n->l->flags & NF_VISIBLE)) ||
-      (n->r != NULL && (n->r->flags & NF_VISIBLE))) {
-    n->flags = nodeflag_t(n->flags | NF_VISIBLE);
-  }
-}
-
-static void rTraceTreeForVisibles() {
-  nodeflag_t vis = NF_NOTHING;
-  if (root == NULL) return;
-  if (cn == NULL) vis = NF_VISIBLE;
-  rSetVisible(root, vis);
-  if (vis & NF_VISIBLE) return;
-  /* spread visibility upwards in the tree and search outsiders */
-  rSpreadVisibility(root);
-  rSearchOutsiders(root); /* requires SpreadVisibility */
-}
-
 static int visfaces, visnodes;
 
 static void
@@ -254,7 +215,6 @@ void rBuildFrame() {
   glLoadIdentity();
   glEnable(GL_DEPTH_TEST);
   glDepthFunc(GL_ALWAYS);
-  rTraceTreeForVisibles();
   glEnable(GL_TEXTURE_2D);
   rDrawTree();
   glDisable(GL_TEXTURE_2D);

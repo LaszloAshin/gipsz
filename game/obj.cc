@@ -13,7 +13,6 @@ typedef struct Obj {
   float x, y, z;
   Model *model;
   Stat *stat;
-  node_t *node;
 } obj_t;
 
 static struct {
@@ -62,7 +61,6 @@ void objUpdate() {
   obj_t *o;
 
   for (i = oc.n, o = oc.p; i; --i, ++o) {
-    o->node = bspGetNodeForCoords(o->x, o->y, o->z);
     modelUpdate(o->model, o->stat);
   }
 }
@@ -76,7 +74,6 @@ void objDrawObjects() {
   /* default matrixmode in objDrawObjects is modelview! */
   glMatrixMode(GL_MODELVIEW);
   for (i = oc.n, o = oc.p; i; --i, ++o) {
-    if (o->node == NULL || !(o->node->flags & NF_VISIBLE)) continue;
     glLoadIdentity();
     glTranslatef(o->x, o->y, o->z);
     modelDraw(o->model, o->stat);
