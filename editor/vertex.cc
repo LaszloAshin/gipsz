@@ -1,3 +1,4 @@
+/* vim: set ts=2 sw=8 tw=0 et :*/
 #include <stdlib.h>
 #include "vertex.h"
 #include "line.h"
@@ -30,6 +31,13 @@ Vertex::load(std::istream& is)
   result.x = *(short *)p;
   result.y = *(short *)(p + 2);
   return result;
+}
+
+void
+Vertex::saveText(std::ostream& os, size_t index)
+const
+{
+  os << "vertex " << index << ' ' << x << ' ' << y << std::endl;
 }
 
 

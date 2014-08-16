@@ -29,6 +29,7 @@ struct Line {
   void print(std::ostream& os, int index) const;
   void save(std::ostream& os) const;
   static Line load(std::istream& is);
+  void saveText(std::ostream& os, size_t index) const;
 };
 
 typedef std::vector<Line> Lines;

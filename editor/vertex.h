@@ -15,6 +15,7 @@ struct Vertex {
   void print(std::ostream& os, int index) const;
   void save(std::ostream& os) const;
   static Vertex load(std::istream& is);
+  void saveText(std::ostream& os, size_t index) const;
 };
 
 typedef std::vector<Vertex> Vertexes;

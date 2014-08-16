@@ -19,6 +19,7 @@ struct Sector {
   static Sector load(std::istream& is, unsigned& index);
   void save(std::ostream& os, unsigned index) const;
   void print(std::ostream& os, unsigned index) const;
+  void saveText(std::ostream& os, size_t index) const;
 };
 
 typedef std::vector<Sector> Sectors;

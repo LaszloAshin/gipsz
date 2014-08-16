@@ -61,6 +61,23 @@ const
 	os << std::endl;
 }
 
+void
+Line::saveText(std::ostream& os, size_t index)
+const
+{
+  os << "line " << index << ' ';
+  os << a << ' ';
+  os << b << ' ';
+  os << sf << ' ';
+  os << sb << ' ';
+  os << u << ' ';
+  os << v << ' ';
+  os << flags << ' ';
+  os << tf << ' ';
+  os << tb << ' ';
+  os << du << std::endl;
+}
+
 Lines lc;
 Line* sl = 0, tmpline;
 

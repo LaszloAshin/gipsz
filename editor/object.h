@@ -34,6 +34,7 @@ struct Object {
   static Object load(std::istream& is);
   void save(std::ostream& os) const;
   void print(std::ostream& os, unsigned index) const;
+  void saveText(std::ostream& os, size_t index) const;
 };
 
 typedef std::vector<Object> Objects;

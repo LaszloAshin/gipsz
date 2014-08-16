@@ -50,6 +50,20 @@ const
   os << std::endl;
 }
 
+void
+Object::saveText(std::ostream& os, size_t index)
+const
+{
+  os << "object " << index << ' ';
+  os << what << ' ';
+  os << x << ' ';
+  os << y << ' ';
+  os << z << ' ';
+  os << a << ' ';
+  os << b << ' ';
+  os << c << std::endl;
+}
+
 
 Objects oc;
 

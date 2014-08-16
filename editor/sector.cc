@@ -52,6 +52,19 @@ const
   os << std::endl;
 }
 
+void
+Sector::saveText(std::ostream& os, size_t index)
+const
+{
+  os << "sector " << index << ' ';
+  os << f << ' ';
+  os << c << ' ';
+  os << int(l) << ' ';
+  os << u << ' ';
+  os << v << ' ';
+  os << t << std::endl;
+}
+
 Sectors sc;
 int ss = 0;
 

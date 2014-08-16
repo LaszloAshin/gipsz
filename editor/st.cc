@@ -77,13 +77,36 @@ saveAll(ForwardIterator first, ForwardIterator last, std::ostream& os)
   for (; first != last; ++first) first->save(os);
 }
 
+template <class ForwardIterator>
+void
+saveAllText(const char* name, ForwardIterator first, ForwardIterator last, std::ostream& os)
+{
+  os << name << "-count " << std::distance(first, last) << std::endl;
+  for (size_t i = 0; first != last; ++first, ++i) first->saveText(os, i);
+}
+
+static void
+stWriteText(const char* fname)
+{
+  std::ofstream f(fname);
+  f.exceptions(std::ios::failbit | std::ios::badbit);
+  if (!f) throw std::runtime_error("failed to open text map file for writing");
+  f << "map v0.1" << std::endl;
+  saveAllText("vertex", vc.begin(), vc.end(), f);
+  saveAllText("line", lc.begin(), lc.end(), f);
+  saveAllText("sector", sc.begin(), sc.end(), f);
+  saveAllText("object", oc.begin(), oc.end(), f);
+  std::cout << "text map written to " << fname << std::endl;
+}
+
 void
 stWrite(const char* fname)
 {
   std::ofstream f(fname, std::ios::binary);
   f.exceptions(std::ios::failbit | std::ios::badbit);
   if (!f) throw std::runtime_error("failed to open map file for writing");
-  Header(vc.size(), lc.size(), sc.size() ? (sc.size() - 1) : 0, oc.size()).save(f);
+  const Header header(vc.size(), lc.size(), sc.size() ? (sc.size() - 1) : 0, oc.size());
+  header.save(f);
   saveAll(vc.begin(), vc.end(), f);
   saveAll(lc.begin(), lc.end(), f);
   {
@@ -93,6 +116,7 @@ stWrite(const char* fname)
   }
   saveAll(oc.begin(), oc.end(), f);
   std::cout << "map written to " << fname << std::endl;
+  stWriteText((std::string(fname) + ".txt").c_str());
 }
 
 template <class T>
