@@ -31,10 +31,8 @@ struct Object {
 
   Object() : what(ObjType::START), x(0), y(0), z(0), a(0), b(0), c(0), md(0) {}
 
-  static Object load(std::istream& is);
-  void save(std::ostream& os) const;
-  void print(std::ostream& os, unsigned index) const;
   void saveText(std::ostream& os, size_t index) const;
+  static Object loadText(std::istream& is, size_t expectedIndex);
 };
 
 typedef std::vector<Object> Objects;

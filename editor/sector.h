@@ -9,17 +9,15 @@
 struct Sector {
   short f;
   short c;
-  unsigned char l;
+  unsigned l;
   short u;
   short v;
   unsigned t;
 
   Sector() : f(0), c(0), l(0), u(0), v(0), t(0) {}
 
-  static Sector load(std::istream& is, unsigned& index);
-  void save(std::ostream& os, unsigned index) const;
-  void print(std::ostream& os, unsigned index) const;
   void saveText(std::ostream& os, size_t index) const;
+  static Sector loadText(std::istream& is, size_t expectedIndex);
 };
 
 typedef std::vector<Sector> Sectors;

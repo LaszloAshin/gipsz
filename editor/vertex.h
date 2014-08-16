@@ -12,10 +12,8 @@ struct Vertex {
   Vertex() : x(0), y(0), md(0) {}
   Vertex(int x0, int y0) : x(x0), y(y0), md(0) {}
 
-  void print(std::ostream& os, int index) const;
-  void save(std::ostream& os) const;
-  static Vertex load(std::istream& is);
   void saveText(std::ostream& os, size_t index) const;
+  static Vertex loadText(std::istream& is, size_t expectedIndex);
 };
 
 typedef std::vector<Vertex> Vertexes;

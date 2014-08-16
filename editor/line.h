@@ -26,10 +26,8 @@ struct Line {
 
   Line() : a(0), b(0), sf(0), sb(0), md(0), u(0), v(0), flags(0), tf(0), tb(0), du(0) {}
 
-  void print(std::ostream& os, int index) const;
-  void save(std::ostream& os) const;
-  static Line load(std::istream& is);
   void saveText(std::ostream& os, size_t index) const;
+  static Line loadText(std::istream& is, size_t expectedIndex);
 };
 
 typedef std::vector<Line> Lines;

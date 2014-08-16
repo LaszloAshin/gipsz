@@ -228,7 +228,7 @@ void
 edSave()
 {
   try {
-    stWrite("map.st");
+    stWrite("map.st.txt");
   } catch (const std::exception& e) {
     printf("failed to save map file: %s\n", e.what());
   }
@@ -238,7 +238,7 @@ void
 edLoad()
 {
   try {
-    stRead("map.st");
+    stRead("map.st.txt");
   } catch (const std::exception& e) {
     printf("failed to load map file: %s\n", e.what());
   }

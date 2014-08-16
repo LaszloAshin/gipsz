@@ -7,50 +7,7 @@
 #include "gr.h"
 #include "ed.h"
 
-Sector
-Sector::load(std::istream& is, unsigned& index)
-{
-  Sector result;
-  char buf[3 * 2 + 1 + 2 * 2 + 4], *p = buf;
-  is.read(buf, sizeof(buf));
-  index = *(unsigned short *)p;
-  result.f = *(short *)(p + 2);
-  result.c = *(short *)(p + 4);
-  result.l = buf[6];
-  result.u = *(unsigned short *)(p + 7);
-  result.v = *(unsigned short *)(p + 9);
-  result.t = *(unsigned *)(p + 11);
-  return result;
-}
-
-void
-Sector::save(std::ostream& os, unsigned index)
-const
-{
-  char buf[3 * 2 + 1 + 2 * 2 + 4], *p = buf;
-  *(unsigned short *)p = index;
-  *(short *)(p + 2) = f;
-  *(short *)(p + 4) = c;
-  buf[6] = l;
-  *(unsigned short *)(p + 7) = u;
-  *(unsigned short *)(p + 9) = v;
-  *(unsigned *)(p + 11) = t;
-  os.write(buf, sizeof(buf));
-}
-
-void
-Sector::print(std::ostream& os, unsigned index)
-const
-{
-  os << "sector #" << index;
-  os << ": f=" << f;
-  os << ", c=" << c;
-  os << ", l=" << int(l);
-  os << ", u=" << u;
-  os << ", v=" << v;
-  os << ", t=" << t;
-  os << std::endl;
-}
+#include <stdexcept>
 
 void
 Sector::saveText(std::ostream& os, size_t index)
@@ -63,6 +20,25 @@ const
   os << u << ' ';
   os << v << ' ';
   os << t << std::endl;
+}
+
+Sector
+Sector::loadText(std::istream& is, size_t expectedIndex)
+{
+  Sector result;
+  std::string name;
+  is >> name;
+  if (name != "sector") throw std::runtime_error("sector expected");
+  size_t index;
+  is >> index;
+  if (index != expectedIndex) throw std::runtime_error("unexpected index");
+  is >> result.f;
+  is >> result.c;
+  is >> result.l;
+  is >> result.u;
+  is >> result.v;
+  is >> result.t;
+  return result;
 }
 
 Sectors sc;
