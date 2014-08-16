@@ -150,21 +150,21 @@ rDrawNode(node_t *n)
   } else {
     if (n->l) rDrawNode(n->l);
   }
-  if (/*(n->flags & NF_VISIBLE) &&*/ n->s && n->n) {
-  glColor3ub(n->s->l, n->s->l, n->s->l);
+  if (n->s && n->n) {
+    glColor3ub(n->s->l, n->s->l, n->s->l);
 //  glColor3f(1.0, 1.0, 1.0);
 /*  texLoadTexture(0xc, 0);
-  glActiveTexture(GL_TEXTURE1);
-  glEnable(GL_TEXTURE_2D);
-  texSelectTexture(0xc);
-  glActiveTexture(GL_TEXTURE0);*/
-  glDisable(GL_POLYGON_SMOOTH);
-  if (r_drawwalls) rDrawWalls(n);
-  rDrawPlanes(n);
-/*  glActiveTexture(GL_TEXTURE1);
-  glDisable(GL_TEXTURE_2D);
-  glActiveTexture(GL_TEXTURE0);*/
-  ++visnodes;
+    glActiveTexture(GL_TEXTURE1);
+    glEnable(GL_TEXTURE_2D);
+    texSelectTexture(0xc);
+    glActiveTexture(GL_TEXTURE0);*/
+    glDisable(GL_POLYGON_SMOOTH);
+    if (r_drawwalls) rDrawWalls(n);
+    rDrawPlanes(n);
+/*    glActiveTexture(GL_TEXTURE1);
+    glDisable(GL_TEXTURE_2D);
+    glActiveTexture(GL_TEXTURE0);*/
+    ++visnodes;
   }
   if (det > 0) {
     if (n->l) rDrawNode(n->l);
