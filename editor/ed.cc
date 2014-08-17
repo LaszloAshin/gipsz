@@ -12,6 +12,8 @@
 #include "sector.h"
 #include "object.h"
 
+#include <fstream>
+
 static enum Mode {
   MD_FIRST = 0,
   MD_VERTEX = 0,
@@ -248,8 +250,8 @@ static void (*edMouseButtonMode)(int mx, int my, int button) = edMouseButtonVert
 static void (*edMouseMotionMode)(int mx, int my, int umx, int umy) = edMouseMotionVertex;
 static void (*edKeyboardMode)(int key) = edKeyboardVertex;
 
-static int
-edSaveSector(FILE *fp, Sector* s)
+static void
+edSaveSector(std::ostream& os, Sector* s)
 {
   unsigned char buf[2 * 2 + 1 + 2 * 2 + 4], *p = buf;
   *(short *)p = s->f;
@@ -258,7 +260,7 @@ edSaveSector(FILE *fp, Sector* s)
   *(unsigned short *)(p + 5) = s->u;
   *(unsigned short *)(p + 7) = s->v;
   *(unsigned *)(p + 9) = s->t;
-  return (fwrite(buf, 1, sizeof(buf), fp) == sizeof(buf)) ? 0 : -1;
+  os.write(reinterpret_cast<char*>(buf), sizeof(buf));
 }
 
 void edBuildBSP() {
@@ -269,7 +271,7 @@ void edBuildBSP() {
     if (lc[i].sf > s) s = lc[i].sf;
     if (lc[i].sb > s) s = lc[i].sb;
   }
-  for (int j = s; j; --j)
+  for (int j = s; j; --j) {
     for (Lines::iterator l(lc.begin()); l != lc.end(); ++l) {
       int in = sc[j].f < sc[j].c;
       int flags = l->flags;
@@ -283,14 +285,15 @@ void edBuildBSP() {
           l->u, l->v, flags, (in) ? l->tb : l->tf, l->du);
       }
     }
+  }
   bsp::bspBuildTree();
-  FILE *f = fopen("map.bsp", "wb");
+  std::ofstream f("map.bsp", std::ios::binary);
+  f.exceptions(std::ios::failbit | std::ios::badbit);
   ++s;
-  fwrite(&s, sizeof(int), 1, f);
+  f.write(reinterpret_cast<char*>(&s), sizeof(int));
   for (Sector* sp = &sc.front(); sp < &sc.front() + s; ++sp) edSaveSector(f, sp);
   bsp::bspSave(f);
   edSaveObjects(f);
-  fclose(f);
 }
 
 void edApplyMode() {

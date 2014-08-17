@@ -65,11 +65,11 @@ inline bool operator!=(const Vertex& lhs, const Vertex& rhs) { return !(lhs == r
 
 typedef std::vector<Vertex> Vertexes;
 
-void save(FILE* fp, const Vertex& v) {
+void save(std::ostream& os, const Vertex& v) {
 	short x = round(v.x());
 	short y = round(v.y());
-	fwrite(&x, sizeof(x), 1, fp);
-	fwrite(&y, sizeof(y), 1, fp);
+	os.write(reinterpret_cast<char*>(&x), sizeof(x));
+	os.write(reinterpret_cast<char*>(&y), sizeof(y));
 }
 
 class Plane2d {
@@ -83,7 +83,7 @@ public:
 
 	double determine(const Vertex& v) const { return a_ * v.x() + b_ * v.y() + c_; }
 	double dot(const Vertex& v) const { return a_ * v.y() - b_ * v.x(); }
-	void save(FILE* fp) const { fwrite(&a_, sizeof(a_), 1, fp); fwrite(&b_, sizeof(b_), 1, fp); fwrite(&c_, sizeof(c_), 1, fp); }
+	void save(std::ostream& os) const { os.write(reinterpret_cast<const char*>(&a_), sizeof(a_)); os.write(reinterpret_cast<const char*>(&b_), sizeof(b_)); os.write(reinterpret_cast<const char*>(&c_), sizeof(c_)); }
 	void print(std::ostream& os) const { os << "Plane2d(" << a_ << ", " << b_ << ", " << c_ << ")"; }
 	friend Vertex intersect(const Plane2d& lhs, const Plane2d& rhs);
 	Plane2d operator-() const { return Plane2d(-a_, -b_, -c_); }
@@ -118,7 +118,7 @@ public:
 	Surface() : textureId_(0), u1_(), u2_(), v_() {}
 	Surface(int textureId, int u1, int u2, int v) : textureId_(textureId), u1_(u1), u2_(u2), v_(v) {}
 
-	void save(FILE* fp) const;
+	void save(std::ostream& os) const;
 	void cropLeft(double q) { u1_ = (1.0f - q) * u1_ + q * u2_; }
 	void cropRight(double q) { u2_ = q * u1_ + (1.0f - q) * u2_; }
 
@@ -128,11 +128,11 @@ private:
 	unsigned short v_;
 };
 
-void Surface::save(FILE* fp) const {
-	fwrite(&u1_, sizeof(u1_), 1, fp);
-	fwrite(&u2_, sizeof(u2_), 1, fp);
-	fwrite(&v_, sizeof(v_), 1, fp);
-	fwrite(&textureId_, sizeof(textureId_), 1, fp);
+void Surface::save(std::ostream& os) const {
+	os.write(reinterpret_cast<const char*>(&u1_), sizeof(u1_));
+	os.write(reinterpret_cast<const char*>(&u2_), sizeof(u2_));
+	os.write(reinterpret_cast<const char*>(&v_), sizeof(v_));
+	os.write(reinterpret_cast<const char*>(&textureId_), sizeof(textureId_));
 }
 
 class Wall {
@@ -147,7 +147,7 @@ public:
 	Surface surface() const { return surface_; }
 	int flags() const { return flags_; }
 
-	void save(FILE* fp, const Vertexes& vs) const;
+	void save(std::ostream& os, const Vertexes& vs) const;
 
 private:
 	Vertex a_, b_;
@@ -164,14 +164,14 @@ int getVertexIndex(const Vertexes& vs, const Vertex& v) {
 	return std::distance(vs.begin(), i);
 }
 
-void Wall::save(FILE* fp, const Vertexes& vs) const {
+void Wall::save(std::ostream& os, const Vertexes& vs) const {
 	unsigned char buf[2 * 2 + 1 + 2], *p = buf;
 	*(short *)p = getVertexIndex(vs, a());
 	*(short *)(p + 2) = getVertexIndex(vs, b());
 	p[4] = flags();
 	*(short *)(p + 5) = backSectorId();
-	fwrite(buf, 1, sizeof(buf), fp);
-	surface().save(fp);
+	os.write(reinterpret_cast<char*>(buf), sizeof(buf));
+	surface().save(os);
 }
 
 class Sector;
@@ -285,11 +285,11 @@ public:
 	size_t countWalls() const { return walls_.size(); }
 	bool empty() const { return walls_.empty(); }
 	void collect(Vertexes& vs) const;
-	void save(FILE* fp, const Vertexes& vs) const;
+	void save(std::ostream& os, const Vertexes& vs) const;
 
 private:
 	void checkWallsSub() const;
-	void saveSorted(FILE* fp, const Vertexes& vs) const;
+	void saveSorted(std::ostream& os, const Vertexes& vs) const;
 
 	int id_;
 	Walls walls_;
@@ -314,7 +314,7 @@ T pick(std::vector<T>& v, typename std::vector<T>::iterator i) {
 	return result;
 }
 
-void Sector::saveSorted(FILE* fp, const Vertexes& vs) const {
+void Sector::saveSorted(std::ostream& os, const Vertexes& vs) const {
 	if (walls_.size() < 3) {
 		std::cerr << walls_.size() << std::endl;
 		throw std::runtime_error("too few walls in a sector");
@@ -327,7 +327,7 @@ void Sector::saveSorted(FILE* fp, const Vertexes& vs) const {
 		if (!open) {
 			assert(ws.size() >= 3);
 			Wall w(pick(ws, ws.begin()));
-			w.save(fp, vs);
+			w.save(os, vs);
 			first = w.a();
 			last = w.b();
 			open = true;
@@ -337,7 +337,7 @@ void Sector::saveSorted(FILE* fp, const Vertexes& vs) const {
 		for (Walls::iterator i(ws.begin()); i != ws.end(); ++i) {
 			if (i->a() == last) {
 				Wall w(pick(ws, i));
-				w.save(fp, vs);
+				w.save(os, vs);
 				last = w.b();
 				if (last == first) open = false;
 				found = true;
@@ -349,17 +349,17 @@ void Sector::saveSorted(FILE* fp, const Vertexes& vs) const {
 	if (open) throw std::runtime_error("open sector at the end");
 }
 
-void Sector::save(FILE* fp, const Vertexes& vs) const {
+void Sector::save(std::ostream& os, const Vertexes& vs) const {
 	std::cerr << "Sector::save()" << std::endl;
 	{
-		int wallCount = countWalls();
-		fwrite(&wallCount, sizeof(int), 1, fp);
+		const int wallCount = countWalls();
+		os.write(reinterpret_cast<const char*>(&wallCount), sizeof(int));
 	}
 	{
-		int sectorId = id();
-		fwrite(&sectorId, sizeof(int), 1, fp);
+		const int sectorId = id();
+		os.write(reinterpret_cast<const char*>(&sectorId), sizeof(int));
 	}
-	saveSorted(fp, vs);
+	saveSorted(os, vs);
 }
 
 SplitStats Sector::computeStats(const Plane2d& plane) const {
@@ -505,7 +505,7 @@ public:
 	const Node& back() const{ return *back_; }
 
 	void build();
-	void save(FILE*, const Vertexes& vs) const;
+	void save(std::ostream& os, const Vertexes& vs) const;
 	void add(int sectorId, const Wall& w);
 	Plane2d plane() const { return plane_; }
 	size_t countWalls() const;
@@ -639,22 +639,22 @@ void Node::print(std::ostream& os) const {
 	}
 }
 
-void Node::save(FILE* fp, const Vertexes& vs) const {
+void Node::save(std::ostream& os, const Vertexes& vs) const {
 	std::cerr << "Node::save()" << std::endl;
 	const int isLeaf = !sectors_.empty();
-	fwrite(&isLeaf, sizeof(int), 1, fp);
+	os.write(reinterpret_cast<const char*>(&isLeaf), sizeof(int));
 	if (isLeaf) {
 		assert(!front_.get());
 		assert(!back_.get());
 		if (sectors_.size() != 1) throw std::runtime_error("no single sector in node");
-		sectors_.front().save(fp, vs);
+		sectors_.front().save(os, vs);
 	} else {
 		assert(front_.get());
 		assert(back_.get());
 		assert(sectors_.empty());
-		plane_.save(fp);
-		front_->save(fp, vs);
-		back_->save(fp, vs);
+		plane_.save(os);
+		front_->save(os, vs);
+		back_->save(os, vs);
 	}
 }
 
@@ -664,34 +664,34 @@ public:
 	void build() { try{if (root_.get()) root_->build();}catch(const std::exception& e){std::cerr << e.what() << std::endl;} }
 //	void build() { if (root_.get()) root_->build(); }
 	void show() const { if (root_.get()) Renderer().draw(*root_); }
-	void save(FILE* fp) const { try{trySave(fp);}catch(const std::exception& e){std::cerr << e.what() << std::endl;} }
+	void save(std::ostream& os) const { try{trySave(os);}catch(const std::exception& e){std::cerr << e.what() << std::endl;} }
 	void add(int sectorId, const Wall& w) { if (root_.get()) root_->add(sectorId, w); }
 
 private:
-	void trySave(FILE* fp) const;
+	void trySave(std::ostream& os) const;
 
 	std::auto_ptr<Node> root_;
 };
 
-void Tree::trySave(FILE* fp) const {
+void Tree::trySave(std::ostream& os) const {
 	assert(root_.get());
 	Vertexes vertexes;
 	root_->collect(vertexes);
 	{
 		unsigned vertexCount = vertexes.size();
 		std::cerr << vertexCount << " vertexes" << std::endl;
-		fwrite(&vertexCount, sizeof(unsigned), 1, fp);
+		os.write(reinterpret_cast<char*>(&vertexCount), sizeof(unsigned));
 		for (Vertexes::const_iterator i(vertexes.begin()); i != vertexes.end(); ++i) {
-			::bsp::save(fp, *i);
+			::bsp::save(os, *i);
 		}
 	}
 	unsigned nodeCount = root_->countNodes();
 	std::cerr << nodeCount << " nodes" << std::endl;
 	unsigned lineCount = root_->countWalls();
 	std::cerr << lineCount << " lines" << std::endl;
-	fwrite(&nodeCount, sizeof(unsigned), 1, fp);
-	fwrite(&lineCount, sizeof(unsigned), 1, fp);
-	root_->save(fp, vertexes);
+	os.write(reinterpret_cast<char*>(&nodeCount), sizeof(unsigned));
+	os.write(reinterpret_cast<char*>(&lineCount), sizeof(unsigned));
+	root_->save(os, vertexes);
 }
 
 namespace { Tree tree; }
@@ -700,7 +700,7 @@ int bspInit() { tree.clear(); return 0; }
 void bspDone() { tree.clear(); }
 void bspBuildTree() { tree.build(); }
 void bspShow() { tree.show(); }
-int bspSave(FILE* f) { tree.save(f); return 0; }
+int bspSave(std::ostream& os) { tree.save(os); return 0; }
 
 int
 bspAddLine(int sf, int sb, int x1, int y1, int x2, int y2, int u, int v, int flags, int tex, int du)

@@ -232,8 +232,8 @@ void edKeyboardObject(int key) {
   }
 }
 
-static int
-edSaveObject(FILE *fp, Object* o)
+static void
+edSaveObject(std::ostream& os, Object* o)
 {
   unsigned char buf[2 + 3 * 2 + 2], *p = buf;
   *(short *)p = o->what;
@@ -241,14 +241,14 @@ edSaveObject(FILE *fp, Object* o)
   *(short *)(p + 4) = o->y;
   *(short *)(p + 6) = o->z;
   *(short *)(p + 8) = (o->a & 7) | ((o->b & 7) << 3) | ((o->c & 7) << 6);
-  return (fwrite(buf, 1, sizeof(buf), fp) == sizeof(buf)) ? 0 : -1;
+  os.write(reinterpret_cast<char*>(buf), sizeof(buf));
 }
 
-int edSaveObjects(FILE *fp) {
-  unsigned n = oc.size();
-  fwrite(&n, sizeof(unsigned), 1, fp);
+int edSaveObjects(std::ostream& os) {
+  const unsigned n = oc.size();
+  os.write(reinterpret_cast<const char*>(&n), sizeof(unsigned));
   for (Objects::iterator i(oc.begin()); i != oc.end(); ++i) {
-    if (edSaveObject(fp, &*i)) return 0;
+    edSaveObject(os, &*i);
   }
   return !0;
 }
