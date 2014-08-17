@@ -9,6 +9,7 @@ CXXFLAGS := -std=c++98
 CPPFLAGS := -Wall -Wextra -pedantic
 CPPFLAGS += -O2 -g
 CPPFLAGS += -MD
+CPPFLAGS += -I.
 
 CPPFLAGS += $(shell sdl-config --cflags)
 LDLIBS += $(shell sdl-config --libs)

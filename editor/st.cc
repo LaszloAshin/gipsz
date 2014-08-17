@@ -5,18 +5,12 @@
 #include "sector.h"
 #include "object.h"
 
+#include <lib/persistency.hh>
+
 #include <cassert>
 #include <stdexcept>
 #include <fstream>
 #include <iostream>
-
-template <class ForwardIterator>
-void
-saveAllText(const char* name, ForwardIterator first, ForwardIterator last, std::ostream& os)
-{
-  os << name << "-count " << std::distance(first, last) << std::endl;
-  for (size_t i = 0; first != last; ++first, ++i) first->saveText(os, i);
-}
 
 void
 stWrite(const char* fname)
@@ -30,23 +24,6 @@ stWrite(const char* fname)
   saveAllText("sector", sc.begin(), sc.end(), f);
   saveAllText("object", oc.begin(), oc.end(), f);
   std::cout << "text map written to " << fname << std::endl;
-}
-
-template <class T>
-void
-loadAllText(const char* name, std::vector<T>& v, std::istream& is)
-{
-  std::string nameCount;
-  is >> nameCount;
-  if (nameCount != std::string(name) + "-count") throw std::runtime_error("unexpected count");
-  size_t count;
-  is >> count;
-  std::vector<T>().swap(v);
-  v.reserve(count);
-  for (size_t i = 0; i < count; ++i) {
-//    std::cerr << "loading " << name << " #" << i << std::endl;
-    v.push_back(T::loadText(is, i));
-  }
 }
 
 void
