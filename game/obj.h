@@ -1,7 +1,7 @@
 #ifndef _OBJ_H
 #define _OBJ_H 1
 
-#include <stdio.h>
+#include <istream>
 
 struct Obj;
 
@@ -12,6 +12,6 @@ void objDrawObjects();
 int objInit();
 void objFlush();
 void objDone();
-int objLoad(FILE *fp);
+void objLoad(std::istream& is);
 
 #endif /* _OBJ_H */

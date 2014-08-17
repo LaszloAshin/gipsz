@@ -4,6 +4,7 @@
 #include "bbox.h"
 
 #include <cstdio>
+#include <istream>
 
 typedef struct {
   float x, y, z;
@@ -16,7 +17,7 @@ typedef struct {
 typedef struct {
   short f;
   short c;
-  unsigned char l;
+  unsigned l;
   short u;
   short v;
   unsigned t;
@@ -52,7 +53,7 @@ public:
 
   double determine(const vertex_t& v) const { return a_ * v.x + b_ * v.y + c_; }
   double dot(double dx, double dy) const { return a_ * dy - b_ * dx; }
-  void load(FILE* fp);
+  void load(std::istream& is);
   void print() const;
 
 private:

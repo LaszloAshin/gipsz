@@ -231,24 +231,3 @@ void edKeyboardObject(int key) {
     edStEnd();
   }
 }
-
-static void
-edSaveObject(std::ostream& os, Object* o)
-{
-  unsigned char buf[2 + 3 * 2 + 2], *p = buf;
-  *(short *)p = o->what;
-  *(short *)(p + 2) = o->x;
-  *(short *)(p + 4) = o->y;
-  *(short *)(p + 6) = o->z;
-  *(short *)(p + 8) = (o->a & 7) | ((o->b & 7) << 3) | ((o->c & 7) << 6);
-  os.write(reinterpret_cast<char*>(buf), sizeof(buf));
-}
-
-int edSaveObjects(std::ostream& os) {
-  const unsigned n = oc.size();
-  os.write(reinterpret_cast<const char*>(&n), sizeof(unsigned));
-  for (Objects::iterator i(oc.begin()); i != oc.end(); ++i) {
-    edSaveObject(os, &*i);
-  }
-  return !0;
-}

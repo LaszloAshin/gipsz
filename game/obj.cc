@@ -1,3 +1,4 @@
+/* vim: set ts=2 sw=8 tw=0 et :*/
 #include <SDL/SDL_opengl.h>
 #include "obj.h"
 #include "mm.h"
@@ -6,7 +7,8 @@
 #include "player.h"
 #include "console.h"
 
-#include <math.h>
+#include <cmath>
+#include <stdexcept>
 
 typedef struct Obj {
   int name;
@@ -113,42 +115,48 @@ struct fobject {
   float ra, rb, rc;
 };
 
-int
-loadObject(struct fobject *fo, FILE *fp)
+void
+loadObject(struct fobject *fo, std::istream& is, size_t expectedIndex)
 {
-  char buf[2 + 3 * 2 + 2], *p = buf;
-  const size_t rd = fread(buf, 1, sizeof(buf), fp);
-  if (rd != sizeof(buf)) return -1;
-  fo->type = *(short *)p;
-  fo->x = *(short *)(p + 2);
-  fo->y = *(short *)(p + 4);
-  fo->z = *(short *)(p + 6);
-  const unsigned rot = *(short *)(p + 8);
-  fo->ra = (rot & 7) * M_PI / 4.0f;
-  fo->rb = ((rot >> 3) & 7) * M_PI / 4.0f;
-  fo->rc = ((rot >> 6) & 7) * M_PI / 4.0f;
-  return 0;
+  std::string name;
+  is >> name;
+  if (name != "object") throw std::runtime_error("object expected");
+  size_t index;
+  is >> index;
+  if (index != expectedIndex) throw std::runtime_error("unexpected index");
+  is >> fo->type;
+  is >> fo->x;
+  is >> fo->y;
+  is >> fo->z;
+  is >> fo->ra;
+  is >> fo->rb;
+  is >> fo->rc;
+  fo->ra *= M_PI / 4.0f;
+  fo->rb *= M_PI / 4.0f;
+  fo->rc *= M_PI / 4.0f;
 }
 
-int objLoad(FILE *fp) {
+void objLoad(std::istream& is) {
   unsigned n;
 
   objFlush();
-  if (fread(&n, sizeof(unsigned), 1, fp) != 1) return 0;
+  std::string name;
+  is >> name;
+  if (name != "object-count") throw std::runtime_error("object-count expected");
+  is >> n;
   for (unsigned i = 0; i < n; ++i) {
     struct fobject fo;
-    if (loadObject(&fo, fp)) return 0;
+    loadObject(&fo, is, i);
     switch (fo.type) {
       case 0:
         plSetPosition(fo.x, fo.y, fo.z, fo.rc + M_PI / 2.0f);
         break;
       default: {
         obj_t *o = objAdd(i + 1, fo.type, fo.x, fo.y, fo.z);
-        if (o == NULL) return 0;
+        if (!o) return;
         modelSetStatAngle(o->stat, fo.ra, fo.rb, fo.rc);
         break;
       }
     }
   }
-  return !0;
 }

@@ -12,6 +12,8 @@
 #include "sector.h"
 #include "object.h"
 
+#include <lib/persistency.hh>
+
 #include <fstream>
 
 static enum Mode {
@@ -250,19 +252,6 @@ static void (*edMouseButtonMode)(int mx, int my, int button) = edMouseButtonVert
 static void (*edMouseMotionMode)(int mx, int my, int umx, int umy) = edMouseMotionVertex;
 static void (*edKeyboardMode)(int key) = edKeyboardVertex;
 
-static void
-edSaveSector(std::ostream& os, Sector* s)
-{
-  unsigned char buf[2 * 2 + 1 + 2 * 2 + 4], *p = buf;
-  *(short *)p = s->f;
-  *(short *)(p + 2) = s->c;
-  p[4] = s->l;
-  *(unsigned short *)(p + 5) = s->u;
-  *(unsigned short *)(p + 7) = s->v;
-  *(unsigned *)(p + 9) = s->t;
-  os.write(reinterpret_cast<char*>(buf), sizeof(buf));
-}
-
 void edBuildBSP() {
   edSave();
   bsp::bspInit();
@@ -287,13 +276,13 @@ void edBuildBSP() {
     }
   }
   bsp::bspBuildTree();
-  std::ofstream f("map.bsp", std::ios::binary);
+  std::ofstream f("map.bsp");
   f.exceptions(std::ios::failbit | std::ios::badbit);
+  f << "bsp v0.1" << std::endl;
   ++s;
-  f.write(reinterpret_cast<char*>(&s), sizeof(int));
-  for (Sector* sp = &sc.front(); sp < &sc.front() + s; ++sp) edSaveSector(f, sp);
+  saveAllText("sector", sc.begin(), sc.end(), f);
   bsp::bspSave(f);
-  edSaveObjects(f);
+  saveAllText("object", oc.begin(), oc.end(), f);
 }
 
 void edApplyMode() {

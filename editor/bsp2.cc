@@ -3,6 +3,8 @@
 #include "gr.h"
 #include "line.h"
 
+#include <lib/persistency.hh>
+
 #include <vector>
 #include <memory>
 #include <algorithm>
@@ -39,9 +41,18 @@ public:
 	Vertex& operator-=(const Vertex& rhs) {  return operator+=(-rhs); }
 	double length() const { return sqrtf(dot(*this, *this)); }
 
+	void saveText(std::ostream& os, size_t index) const;
+
 private:
 	double x_, y_;
 };
+
+void
+Vertex::saveText(std::ostream& os, size_t index)
+const
+{
+  os << "vertex " << index << ' ' << short(x()) << ' ' << short(y()) << std::endl;
+}
 
 std::ostream& operator<<(std::ostream& os, const Vertex& v) { return os << "(" << v.x() << ", " << v.y() << ")"; }
 Vertex operator+(Vertex lhs, const Vertex& rhs) { return lhs += rhs; }
@@ -65,13 +76,6 @@ inline bool operator!=(const Vertex& lhs, const Vertex& rhs) { return !(lhs == r
 
 typedef std::vector<Vertex> Vertexes;
 
-void save(std::ostream& os, const Vertex& v) {
-	short x = round(v.x());
-	short y = round(v.y());
-	os.write(reinterpret_cast<char*>(&x), sizeof(x));
-	os.write(reinterpret_cast<char*>(&y), sizeof(y));
-}
-
 class Plane2d {
 public:
 	Plane2d() : a_(), b_(), c_() {}
@@ -83,7 +87,7 @@ public:
 
 	double determine(const Vertex& v) const { return a_ * v.x() + b_ * v.y() + c_; }
 	double dot(const Vertex& v) const { return a_ * v.y() - b_ * v.x(); }
-	void save(std::ostream& os) const { os.write(reinterpret_cast<const char*>(&a_), sizeof(a_)); os.write(reinterpret_cast<const char*>(&b_), sizeof(b_)); os.write(reinterpret_cast<const char*>(&c_), sizeof(c_)); }
+	void save(std::ostream& os) const { os << "plane " << a_ << ' ' << b_ << ' ' << c_ << std::endl; }
 	void print(std::ostream& os) const { os << "Plane2d(" << a_ << ", " << b_ << ", " << c_ << ")"; }
 	friend Vertex intersect(const Plane2d& lhs, const Plane2d& rhs);
 	Plane2d operator-() const { return Plane2d(-a_, -b_, -c_); }
@@ -129,10 +133,7 @@ private:
 };
 
 void Surface::save(std::ostream& os) const {
-	os.write(reinterpret_cast<const char*>(&u1_), sizeof(u1_));
-	os.write(reinterpret_cast<const char*>(&u2_), sizeof(u2_));
-	os.write(reinterpret_cast<const char*>(&v_), sizeof(v_));
-	os.write(reinterpret_cast<const char*>(&textureId_), sizeof(textureId_));
+	os << "surface " << u1_ << ' ' << u2_ << ' ' << v_ << ' ' << textureId_ << std::endl;
 }
 
 class Wall {
@@ -165,12 +166,11 @@ int getVertexIndex(const Vertexes& vs, const Vertex& v) {
 }
 
 void Wall::save(std::ostream& os, const Vertexes& vs) const {
-	unsigned char buf[2 * 2 + 1 + 2], *p = buf;
-	*(short *)p = getVertexIndex(vs, a());
-	*(short *)(p + 2) = getVertexIndex(vs, b());
-	p[4] = flags();
-	*(short *)(p + 5) = backSectorId();
-	os.write(reinterpret_cast<char*>(buf), sizeof(buf));
+	os << "wall ";
+	os << getVertexIndex(vs, a()) << ' ';
+	os << getVertexIndex(vs, b()) << ' ';
+	os << flags() << ' ';
+	os << backSectorId() << std::endl;
 	surface().save(os);
 }
 
@@ -350,15 +350,7 @@ void Sector::saveSorted(std::ostream& os, const Vertexes& vs) const {
 }
 
 void Sector::save(std::ostream& os, const Vertexes& vs) const {
-	std::cerr << "Sector::save()" << std::endl;
-	{
-		const int wallCount = countWalls();
-		os.write(reinterpret_cast<const char*>(&wallCount), sizeof(int));
-	}
-	{
-		const int sectorId = id();
-		os.write(reinterpret_cast<const char*>(&sectorId), sizeof(int));
-	}
+	os << "subsector " << id() << ' ' << countWalls() << std::endl;
 	saveSorted(os, vs);
 }
 
@@ -640,15 +632,15 @@ void Node::print(std::ostream& os) const {
 }
 
 void Node::save(std::ostream& os, const Vertexes& vs) const {
-	std::cerr << "Node::save()" << std::endl;
 	const int isLeaf = !sectors_.empty();
-	os.write(reinterpret_cast<const char*>(&isLeaf), sizeof(int));
 	if (isLeaf) {
+		os << "node leaf" << std::endl;
 		assert(!front_.get());
 		assert(!back_.get());
 		if (sectors_.size() != 1) throw std::runtime_error("no single sector in node");
 		sectors_.front().save(os, vs);
 	} else {
+		os << "node branch" << std::endl;
 		assert(front_.get());
 		assert(back_.get());
 		assert(sectors_.empty());
@@ -677,20 +669,9 @@ void Tree::trySave(std::ostream& os) const {
 	assert(root_.get());
 	Vertexes vertexes;
 	root_->collect(vertexes);
-	{
-		unsigned vertexCount = vertexes.size();
-		std::cerr << vertexCount << " vertexes" << std::endl;
-		os.write(reinterpret_cast<char*>(&vertexCount), sizeof(unsigned));
-		for (Vertexes::const_iterator i(vertexes.begin()); i != vertexes.end(); ++i) {
-			::bsp::save(os, *i);
-		}
-	}
-	unsigned nodeCount = root_->countNodes();
-	std::cerr << nodeCount << " nodes" << std::endl;
-	unsigned lineCount = root_->countWalls();
-	std::cerr << lineCount << " lines" << std::endl;
-	os.write(reinterpret_cast<char*>(&nodeCount), sizeof(unsigned));
-	os.write(reinterpret_cast<char*>(&lineCount), sizeof(unsigned));
+	saveAllText("vertex", vertexes.begin(), vertexes.end(), os);
+	os << "node-count " << root_->countNodes() << std::endl;
+	os << "line-count " << root_->countWalls() << std::endl;
 	root_->save(os, vertexes);
 }
 

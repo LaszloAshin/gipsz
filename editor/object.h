@@ -47,6 +47,5 @@ void edDelObject(Object* o);
 void edMouseButtonObject(int mx, int my, int button);
 void edMouseMotionObject(int mx, int my, int umx, int umy);
 void edKeyboardObject(int key);
-int edSaveObjects(std::ostream& os);
 
 #endif /* _OBJECT_H */

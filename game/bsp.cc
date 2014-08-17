@@ -14,13 +14,19 @@
 #include "obj.h"
 
 #include <cassert>
+#include <istream>
+#include <fstream>
+#include <stdexcept>
 
 void
-Plane2d::load(FILE* fp)
+Plane2d::load(std::istream& is)
 {
-  fread(&a_, sizeof(a_), 1, fp);
-  fread(&b_, sizeof(b_), 1, fp);
-  fread(&c_, sizeof(c_), 1, fp);
+  std::string name;
+  is >> name;
+  if (name != "plane") throw std::runtime_error("plane expected");
+  is >> a_;
+  is >> b_;
+  is >> c_;
 }
 
 void
@@ -272,54 +278,62 @@ static void bspFreeTree() {
   vc.n = 0;
 }
 
-static int
-bspReadVertex(vertex_t *v, FILE *f)
+static void
+bspReadVertex(vertex_t *v, std::istream& is, size_t expectedIndex)
 {
-  unsigned char buf[2 + 2], *p = buf;
-  const size_t rd = fread(buf, 1, sizeof(buf), f);
-  if (rd != sizeof(buf)) return -1;
-  v->x = *(short *)p;
-  v->y = *(short *)(p + 2);
-  return 0;
+  std::string name;
+  is >> name;
+  if (name != "vertex") throw std::runtime_error("vertex expected");
+  size_t index;
+  is >> index;
+  if (index != expectedIndex) throw std::runtime_error("unexpected index");
+  is >> v->x >> v->y;
 }
 
-static int
-bspReadLine(line_t *l, FILE *f)
+static void
+bspReadLine(line_t *l, std::istream& is)
 {
-  unsigned char buf[2 + 2 + 1 + 2 + 2 + 2 + 2 + 4], *p = buf;
-  const size_t rd = fread(buf, 1, sizeof(buf), f);
-  if (rd != sizeof(buf)) return -1;
-  l->a = *(short *)p;
-  l->b = *(short *)(p + 2);
-  l->flags = lineflag_t(p[4]);
-  l->backSectorId = *(short *)(p + 5);
-  l->u1 = (double)(*(unsigned short *)(p + 7)) * 1.0f / 64.0f;
-  l->u2 = (double)(*(unsigned short *)(p + 9)) * 1.0f / 64.0f;
-  l->v = *(unsigned short *)(p + 11);
-  l->t = *(unsigned *)(p + 13);
-  return 0;
+  std::string name;
+  is >> name;
+  if (name != "wall") throw std::runtime_error("wall expected");
+  is >> l->a;
+  is >> l->b;
+  int i;
+  is >> i;
+  l->flags = lineflag_t(i);
+  is >> l->backSectorId;
+  is >> name;
+  if (name != "surface") throw std::runtime_error("surface expected");
+  is >> l->u1;
+  is >> l->u2;
+  is >> l->v;
+  is >> l->t;
+  l->u1 /= 64.0f;
+  l->u2 /= 64.0f;
 }
 
 struct bsp_load_ctx {
-  FILE *f;
+  std::istream& is;
   unsigned rn, rl;
-  int err;
   node_t *np;
   line_t *lp;
+
+  bsp_load_ctx(std::istream& is0) : is(is0), rn(0), rl(0), np(0), lp(0) {}
 };
 
 static node_t *
 bspLoadNode(struct bsp_load_ctx * const blc, size_t level)
 {
-  int isLeaf;
-  if (!fread(&isLeaf, sizeof(isLeaf), 1, blc->f)) { ++blc->err; return NULL; }
+  std::string name;
+  blc->is >> name;
+  if (name != "node") throw std::runtime_error("node expected");
+  std::string branchOrLeaf;
+  blc->is >> branchOrLeaf;
+  if (branchOrLeaf != "branch" && branchOrLeaf != "leaf") throw std::runtime_error("node is not branch nor leaf");
+  const int isLeaf = (branchOrLeaf == "leaf");
   for (size_t i = 0; i < level * 2; ++i) putchar(' ');
   printf("## node is %s\n", isLeaf ? "leaf" : "not leaf");
-  if (!blc->rn) {
-    cmsg(MLERR, "bspLoadNode: out of preallocated nodes");
-    ++blc->err;
-    return NULL;
-  }
+  if (!blc->rn) throw std::runtime_error("out of preallocated nodes");
   --blc->rn;
   node_t* n = blc->np++;
   n->p = 0;
@@ -329,29 +343,27 @@ bspLoadNode(struct bsp_load_ctx * const blc, size_t level)
   n->l = n->r = 0;
   n->ow = 0;
   if (isLeaf) {
-    unsigned lineCount;
-    if (!fread(&lineCount, sizeof(unsigned), 1, blc->f)) { ++blc->err; return NULL; }
-    assert(lineCount);
-    n->n = lineCount;
+    blc->is >> name;
+    if (name != "subsector") throw std::runtime_error("subsector expected");
     unsigned sectorId;
-    if (!fread(&sectorId, sizeof(unsigned), 1, blc->f)) { ++blc->err; return n; }
+    blc->is >> sectorId;
     printf("sectorId: %u\n", sectorId);
     if (sectorId) {
       n->s = sc.p + sectorId;
       texLoadTexture(GET_TEXTURE(n->s->t, 0), 0);
       texLoadTexture(GET_TEXTURE(n->s->t, 1), 0);
     }
+    unsigned lineCount;
+    blc->is >> lineCount;
+    assert(lineCount);
+    n->n = lineCount;
     if (n->n) {
-      if (n->n > blc->rl) {
-        cmsg(MLERR, "bspLoadNode: out of preallocated lines");
-        ++blc->err;
-        return n;
-      }
+      if (n->n > blc->rl) throw std::runtime_error("out of preallocated lines");
       blc->rl -= n->n;
       n->p = blc->lp;
       blc->lp += n->n;
       for (unsigned i = 0; i < n->n; ++i) {
-        if (bspReadLine(n->p + i, blc->f)) { ++blc->err; return n; }
+        bspReadLine(n->p + i, blc->is);
         texLoadTexture(GET_TEXTURE(n->p[i].t, 0), 0);
         texLoadTexture(GET_TEXTURE(n->p[i].t, 1), 0);
         texLoadTexture(GET_TEXTURE(n->p[i].t, 2), 0);
@@ -366,7 +378,7 @@ bspLoadNode(struct bsp_load_ctx * const blc, size_t level)
       }
     }
   } else {
-    n->div.load(blc->f);
+    n->div.load(blc->is);
     n->div.print();
     n->l = bspLoadNode(blc, level + 1);
     n->r = bspLoadNode(blc, level + 1);
@@ -455,30 +467,34 @@ bspSearchOutsiders(struct bsp_load_ctx * const blc, node_t *n)
   }
 }
 
-static int
-bspLoadTree(FILE *f) {
-  struct bsp_load_ctx blc;
-  blc.f = f;
-  blc.err = 0;
-  if (!fread(&vc.n, sizeof(int), 1, f)) return 0;
+static void
+bspLoadTree(std::istream& is) {
+  struct bsp_load_ctx blc(is);
+  std::string name;
+  is >> name;
+  if (name != "vertex-count") throw std::runtime_error("vertex-count expected");
+  is >> vc.n;
   vc.p = (vertex_t *)mmAlloc(vc.n * sizeof(vertex_t));
-  if (vc.p == NULL) return 0;
+  if (!vc.p) throw std::runtime_error("memory");
   for (unsigned i = 0; i < vc.n; ++i) {
-    if (bspReadVertex(&vc.p[i], f)) return 0;
+    bspReadVertex(&vc.p[i], is, i);
   }
   cmsg(MLINFO, "%d verteces", vc.n);
-  if (!fread(&blc.rn, sizeof(unsigned), 1, f)) return 0;
-  if (!fread(&blc.rl, sizeof(unsigned), 1, f)) return 0;
+  is >> name;
+  if (name != "node-count") throw std::runtime_error("node-count expected");
+  is >> blc.rn;
+  is >> name;
+  if (name != "line-count") throw std::runtime_error("line-count expected");
+  is >> blc.rl;
   cmsg(MLINFO, "%d nodes, %d lines", blc.rn, blc.rl);
   blc.np = root = (node_t *)mmAlloc(blc.rn * sizeof(node_t));
-  if (root == NULL) return 0;
+  if (!root) throw std::runtime_error("memory");
   blc.lp = linepool = (line_t *)mmAlloc(blc.rl * sizeof(line_t));
-  if (linepool == NULL) return 0;
+  if (!linepool) throw std::runtime_error("memory");
   bspLoadNode(&blc, 0);
   cmsg(MLINFO, "really %d nodes, %d lines", blc.np - root, blc.lp - linepool);
   cmsg(MLINFO, "%d textures", texGetNofTextures());
   bspSearchOutsiders(&blc, root);
-  return !0;
 }
 
 void bspFreeMap() {
@@ -497,51 +513,49 @@ void bspFreeMap() {
 }
 
 static int
-bspLoadSector(sector_t *s, FILE *fp)
+bspLoadSector(sector_t *s, std::istream& is, size_t expectedIndex)
 {
-  unsigned char buf[2 + 2 + 1 + 2 + 2 + 4], *p = buf;
-  const size_t rd = fread(buf, 1, sizeof(buf), fp);
-  if (rd != sizeof(buf)) return -1;
-  s->f = *(short *)p;
-  s->c = *(short *)(p + 2);
-  s->l = p[4];
-  s->u = *(short *)(p + 5);
-  s->v = *(short *)(p + 7);
-  s->t = *(unsigned *)(p + 9);
+  std::string name;
+  is >> name;
+  if (name != "sector") throw std::runtime_error("sector expected");
+  size_t index;
+  is >> index;
+  if (index != expectedIndex) throw std::runtime_error("unexpected index");
+  is >> s->f;
+  is >> s->c;
+  is >> s->l;
+  is >> s->u;
+  is >> s->v;
+  is >> s->t;
   return 0;
 }
 
 int bspLoadMap(const char *fname) {
-  int ret = 0;
-  FILE *f = fopen(fname, "rb");
-  if (f == NULL) {
-    cmsg(MLERR, "bspLoadMap: unable to open file %s for reading", fname);
-    return ret;
-  }
+  std::ifstream f(fname);
+  f.exceptions(std::ios::failbit | std::ios::badbit | std::ios::eofbit);
+  std::string magic, version;
+  f >> magic >> version;
+  if (magic != "bsp") throw std::runtime_error("invalid magic");
+  if (version != "v0.1") throw std::runtime_error("invalid version");
   cmsg(MLINFO, "Loading map %s", fname);
   bspFreeMap();
-  if (!fread(&sc.n, sizeof(int), 1, f)) goto end;
+  std::string name;
+  f >> name;
+  if (name != "sector-count") throw std::runtime_error("sector-count expected");
+  f >> sc.n;
   sc.p = (sector_t *)mmAlloc(sc.n * sizeof(sector_t));
-  if (sc.p == NULL) goto end;
+  if (!sc.p) throw std::runtime_error("memory");
   for (unsigned i = 0; i < sc.n; ++i) {
-    if (bspLoadSector(sc.p + i, f)) goto end;
+    bspLoadSector(sc.p + i, f, i);
   }
   cmsg(MLINFO, "%d sectors", sc.n);
-  if (!bspLoadTree(f)) goto end;
-  if (!objLoad(f)) goto end;
-  ++ret;
- end:
-  fclose(f);
-  if (!ret) {
-    bspFreeMap();
-    cmsg(MLERR, "Loading failed");
-  } else {
-    cmsg(MLINFO, "Map successfuly loaded");
-    bspLoaded = 1;
-    gEnable();
-  }
+  bspLoadTree(f);
+  objLoad(f);
+  cmsg(MLINFO, "Map successfuly loaded");
+  bspLoaded = 1;
+  gEnable();
   texLoadReady();
-  return ret;
+  return !0;
 }
 
 int cmd_map(int argc, char **argv) {
