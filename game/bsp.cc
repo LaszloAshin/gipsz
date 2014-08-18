@@ -18,24 +18,6 @@
 #include <fstream>
 #include <stdexcept>
 
-void
-Plane2d::load(std::istream& is)
-{
-  std::string name;
-  is >> name;
-  if (name != "plane") throw std::runtime_error("plane expected");
-  is >> a_;
-  is >> b_;
-  is >> c_;
-}
-
-void
-Plane2d::print()
-const
-{
-	printf("Plane2d a=%f b=%f c=%f\n", a_, b_, c_);
-}
-
 vc_t vc;
 sc_t sc;
 
@@ -378,8 +360,7 @@ bspLoadNode(struct bsp_load_ctx * const blc, size_t level)
       }
     }
   } else {
-    n->div.load(blc->is);
-    n->div.print();
+    n->div = Plane2d::read(blc->is);
     n->l = bspLoadNode(blc, level + 1);
     n->r = bspLoadNode(blc, level + 1);
   }

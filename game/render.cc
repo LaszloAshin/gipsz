@@ -11,6 +11,8 @@
 #include "cmd.h"
 #include "obj.h"
 
+#include <lib/vec.hh>
+
 float curfov = 90.0;
 static int r_clear = 0;
 static int r_drawwalls = 1;
@@ -141,10 +143,7 @@ static void
 rDrawNode(node_t *n)
 {
   if (!bbVisible(&n->bb)) return;
-  vertex_t camv;
-  camv.x = cam.x;
-  camv.y = cam.y;
-  const int det = n->div.determine(camv);
+  const int det = n->div.determine(Vec2d(cam.x, cam.y));
   if (det > 0) {
     if (n->r) rDrawNode(n->r);
   } else {

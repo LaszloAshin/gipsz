@@ -3,6 +3,8 @@
 
 #include "bbox.h"
 
+#include <lib/plane.hh>
+
 #include <cstdio>
 #include <istream>
 
@@ -41,24 +43,6 @@ typedef struct {
   unsigned t;
   int backSectorId;
 } line_t;
-
-class Plane2d {
-public:
-  Plane2d() : a_(), b_(), c_() {}
-  Plane2d(const vertex_t& v1, const vertex_t& v2)
-  : a_(v2.y - v1.y)
-  , b_(v1.x - v2.x)
-  , c_(-(a_ * v1.x + b_ * v1.y))
-  {}
-
-  double determine(const vertex_t& v) const { return a_ * v.x + b_ * v.y + c_; }
-  double dot(double dx, double dy) const { return a_ * dy - b_ * dx; }
-  void load(std::istream& is);
-  void print() const;
-
-private:
-  double a_, b_, c_;
-};
 
 typedef struct node_s {
   line_t *p;

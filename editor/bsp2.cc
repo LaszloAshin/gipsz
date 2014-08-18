@@ -4,6 +4,7 @@
 #include "line.h"
 
 #include <lib/persistency.hh>
+#include <lib/plane.hh>
 
 #include <vector>
 #include <memory>
@@ -75,47 +76,6 @@ inline bool operator<(const Vertex& lhs, Vertex d) {
 inline bool operator!=(const Vertex& lhs, const Vertex& rhs) { return !(lhs == rhs); }
 
 typedef std::vector<Vertex> Vertexes;
-
-class Plane2d {
-public:
-	Plane2d() : a_(), b_(), c_() {}
-	Plane2d(const Vertex& v1, const Vertex& v2)
-	: a_(v2.y() - v1.y())
-	, b_(v1.x() - v2.x())
-	, c_(-(a_ * v1.x() + b_ * v1.y()))
-	{}
-
-	double determine(const Vertex& v) const { return a_ * v.x() + b_ * v.y() + c_; }
-	double dot(const Vertex& v) const { return a_ * v.y() - b_ * v.x(); }
-	void save(std::ostream& os) const { os << "plane " << a_ << ' ' << b_ << ' ' << c_ << std::endl; }
-	void print(std::ostream& os) const { os << "Plane2d(" << a_ << ", " << b_ << ", " << c_ << ")"; }
-	friend Vertex intersect(const Plane2d& lhs, const Plane2d& rhs);
-	Plane2d operator-() const { return Plane2d(-a_, -b_, -c_); }
-
-private:
-	Plane2d(double a, double b, double c) : a_(a), b_(b), c_(c) {}
-
-	double a_, b_, c_;
-};
-
-Vertex
-intersect(const Plane2d& lhs, const Plane2d& rhs)
-{
-	const double q = rhs.a_ * lhs.b_ - lhs.a_ * rhs.b_;
-	if (q > -epsilon && q < epsilon) throw std::overflow_error("parallel planes do not intersect each other");
-/*	if (abs(lhs.a_) > abs(lhs.b_)) {
-		const double y = (lhs.a_ * rhs.c_ - rhs.a_ * lhs.c_) / q;
-		const double x = (-lhs.b_ * y - lhs.c_) / lhs.a_;
-		return Vertex(x, y);
-	} else {
-		const double x = (rhs.b_ * lhs.c_ - lhs.b_ * rhs.c_) / q;
-		const double y = (-lhs.a_ * x - lhs.c_) / lhs.b_;
-		return Vertex(x, y);
-	}*/
-	const double x = (rhs.b_ * lhs.c_ - lhs.b_ * rhs.c_) / q;
-	const double y = (lhs.a_ * rhs.c_ - rhs.a_ * lhs.c_) / q;
-	return Vertex(x, y);
-}
 
 class Surface {
 public:
@@ -201,19 +161,19 @@ Renderer::draw(const Plane2d& p)
 	const Plane2d left(lu, ld);
 	std::vector<Vertex> v;
 	try {
-		const Vertex mpup(intersect(p, up));
+		const Vertex mpup(intersect<Vertex>(p, up));
 		if (right.determine(mpup) * left.determine(mpup) > 0) v.push_back(mpup);
 	} catch (...) {}
 	try {
-		const Vertex mpright(intersect(p, right));
+		const Vertex mpright(intersect<Vertex>(p, right));
 		if (up.determine(mpright) * down.determine(mpright) > 0) v.push_back(mpright);
 	} catch (...) {}
 	try {
-		const Vertex mpdown(intersect(p, down));
+		const Vertex mpdown(intersect<Vertex>(p, down));
 		if (right.determine(mpdown) * left.determine(mpdown) > 0) v.push_back(mpdown);
 	} catch (...) {}
 	try {
-		const Vertex mpleft(intersect(p, left));
+		const Vertex mpleft(intersect<Vertex>(p, left));
 		if (up.determine(mpleft) * down.determine(mpleft) > 0) v.push_back(mpleft);
 	} catch (...) {}
 	if (v.size() < 2) return;
@@ -382,7 +342,7 @@ Sector Sector::partition(const Plane2d& plane) const {
 		const int ia = (da < -0.5f * thickness) ? -1 : ((da > 0.5f * thickness) ? 1 : 0);
 		const int ib = (db < -0.5f * thickness) ? -1 : ((db > 0.5f * thickness) ? 1 : 0);
 		if (ia * ib < 0) {
-			const Vertex isp(intersect(plane, Plane2d(i->a(), i->b())));
+			const Vertex isp(intersect<Vertex>(plane, Plane2d(i->a(), i->b())));
 			const double di = plane.determine(isp);
 			std::cerr << "di = " << di << " epsilon = " << epsilon << std::endl;
 			if (di > thickness / 2.0f || di < -thickness / 2.0f) throw std::runtime_error("intersection point is not on the intersection plane");
@@ -563,9 +523,6 @@ Node::findBestPlane()
 		for (Sector::const_iterator j(i->begin()); j != i->end(); ++j) {
 			const Plane2d p(j->a(), j->b());
 			const SplitStats s(computeStats(p));
-			p.print(std::cerr);
-			s.print(std::cerr);
-			std::cerr << std::endl;
 			if (s.score() < 0) continue;
 			if (!bestFound || s.score() < bestStat.score()) {
 				bestFound = true;
@@ -587,8 +544,8 @@ Node::build()
 	checkWalls();
 	print(std::cerr);
 	if (!findBestPlane()) return;
-	std::cerr << "best plane is:";
-	plane_.print(std::cerr);
+	std::cerr << "best plane is: ";
+	plane_.write(std::cerr);
 	std::cerr << std::endl;
 	{
 		std::auto_ptr<Node> front(new Node);
@@ -644,7 +601,7 @@ void Node::save(std::ostream& os, const Vertexes& vs) const {
 		assert(front_.get());
 		assert(back_.get());
 		assert(sectors_.empty());
-		plane_.save(os);
+		plane_.write(os);
 		front_->save(os, vs);
 		back_->save(os, vs);
 	}
