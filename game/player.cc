@@ -166,13 +166,11 @@ void plUpdate() {
   onfloor = 0;
   if (clip) {
     vz = cam.vz;
-    bspCollideTree(cam.x, cam.y, cam.z, &cam.vx, &cam.vy, &cam.vz, 0);
-    bspCollideTree(cam.x, cam.y, cam.z, &cam.vx, &cam.vy, &cam.vz, 1);
+    bspCollideTree(cam.p, &cam.vx, &cam.vy, &cam.vz, 0);
+    bspCollideTree(cam.p, &cam.vx, &cam.vy, &cam.vz, 1);
     if (vz < 0.0 && cam.vz > vz) ++onfloor;
   }
-  cam.x += cam.vx;
-  cam.y += cam.vy;
-  cam.z += cam.vz;
+  cam.p += Vec3d(cam.vx, cam.vy, cam.vz);
   cam.a += cam.da;
   curfov += FOVINC;
   if (curfov > fov)
@@ -194,7 +192,7 @@ void plUpdate() {
   else
     cam.da = 0;
   plRotateCam(mouse_sensitivity * mx, mouse_sensitivity * my);
-  cn = bspGetNodeForCoords(cam.x, cam.y, cam.z);
+  cn = bspGetNodeForCoords(cam.p);
 }
 
 static void rFovSet(void *addr) {
@@ -211,9 +209,7 @@ static void rFovSet(void *addr) {
 }
 
 void plSetPosition(float x, float y, float z, float a) {
-  cam.x = x;
-  cam.y = y;
-  cam.z = z;
+  cam.p = Vec3d(x, y, z);
   cam.a = a;
   cam.vx = cam.vy = cam.vz = 0.0;
   cam.da = 0.0;

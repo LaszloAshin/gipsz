@@ -91,7 +91,7 @@ float at(float dy, float dx) {
 }
 
 struct collide_param_rec {
-  float x, y, z;
+  Vec3d p;
   float *dx, *dy, *dz;
   int hard;
   int j;
@@ -100,20 +100,20 @@ struct collide_param_rec {
 static void
 bspCollideNode(struct collide_param_rec *pr, node_t *n)
 {
-  if (n == NULL || !n->bb.inside(Vec3d(pr->x, pr->y, pr->z), Vec3d(48.0f, 48.0f, 48.0f))) return;
+  if (n == NULL || !n->bb.inside(pr->p, Vec3d(48.0f, 48.0f, 48.0f))) return;
   bspCollideNode(pr, n->l);
   bspCollideNode(pr, n->r);
   if (n->s == NULL || !n->n) return;
   vertex_t p;
-  p.x = pr->x + *pr->dx;
-  p.y = pr->y + *pr->dy;
-  float pz = pr->z + *pr->dz;
+  p.x = pr->p.x() + *pr->dx;
+  p.y = pr->p.y() + *pr->dy;
+  float pz = pr->p.z() + *pr->dz;
   int in = 1;
   for (line_t *l = n->p; l < n->p + n->n; ++l) {
     float dx1 = vc.p[l->b].x - vc.p[l->a].x;
     const float dy1 = vc.p[l->b].y - vc.p[l->a].y;
-    float dx2 = vc.p[l->b].x - pr->x;
-    const float dy2 = vc.p[l->b].y - pr->y;
+    float dx2 = vc.p[l->b].x - pr->p.x();
+    const float dy2 = vc.p[l->b].y - pr->p.y();
     const int front = dx1 * dy2 < dy1 * dx2;
     if (!front) in = 0;
     if (n->s->f < n->s->c) {
@@ -125,12 +125,12 @@ bspCollideNode(struct collide_param_rec *pr, node_t *n)
     if (pszt(vc.p[l->a], vc.p[l->b], p, &f) > 256.0) continue;
     in = 0;
     if (pz > n->s->f && pz < n->s->f + 48) {
-      *pr->dz = (n->s->f + 48 - pr->z) * 0.1;
-      pz = pr->z + *pr->dz;
+      *pr->dz = (n->s->f + 48 - pr->p.z()) * 0.1;
+      pz = pr->p.z() + *pr->dz;
     }
     if (pz < n->s->c && pz > n->s->c - 16) {
-      *pr->dz = (n->s->c - 16 - pr->z) * 0.1;
-      pz = pr->z + *pr->dz;
+      *pr->dz = (n->s->c - 16 - pr->p.z()) * 0.1;
+      pz = pr->p.z() + *pr->dz;
     }
     const sector_t* const ns = l->backSectorId ? (sc.p + l->backSectorId) : 0;
     if (ns) {
@@ -165,22 +165,20 @@ bspCollideNode(struct collide_param_rec *pr, node_t *n)
   }
   if (in) {
     if (pz > n->s->f && pz < n->s->f + 48) {
-      *pr->dz = (n->s->f + 48 - pr->z) * 0.1;
-      pz = pr->z + *pr->dz;
+      *pr->dz = (n->s->f + 48 - pr->p.z()) * 0.1;
+      pz = pr->p.z() + *pr->dz;
     }
     if (pz < n->s->c && pz > n->s->c - 16) {
-      *pr->dz = (n->s->c - 16 - pr->z) * 0.1;
-      pz = pr->z + *pr->dz;
+      *pr->dz = (n->s->c - 16 - pr->p.z()) * 0.1;
+      pz = pr->p.z() + *pr->dz;
     }
   }
 }
 
 /* function to handle point-bsptree collision */
-void bspCollideTree(float x, float y, float z, float *dx, float *dy, float *dz, int hard) {
+void bspCollideTree(const Vec3d& p, float *dx, float *dy, float *dz, int hard) {
   struct collide_param_rec pr;
-  pr.x = x;
-  pr.y = y;
-  pr.z = z;
+  pr.p = p;
   pr.dx = dx;
   pr.dy = dy;
   pr.dz = dz;
@@ -190,9 +188,9 @@ void bspCollideTree(float x, float y, float z, float *dx, float *dy, float *dz, 
 }
 
 static node_t *
-bspGetNodeForCoordsSub(node_t *n, float x, float y, float z)
+bspGetNodeForCoordsSub(node_t *n, const Vec3d& p)
 {
-  if (n->l == NULL && n->r == NULL && n->n && n->s->f < n->s->c && n->bb.inside(Vec3d(x, y, z))) {
+  if (n->l == NULL && n->r == NULL && n->n && n->s->f < n->s->c && n->bb.inside(p)) {
     int bo = 0;
     vertex_t *b = vc.p + n->p[0].a;
     for (line_t *l = n->p; l < n->p + n->n; ++l) {
@@ -200,8 +198,8 @@ bspGetNodeForCoordsSub(node_t *n, float x, float y, float z)
       b = vc.p + l->b;
       const float dx1 = b->x - a->x;
       const float dy1 = b->y - a->y;
-      const float dx2 = b->x - x;
-      const float dy2 = b->y - y;
+      const float dx2 = b->x - p.x();
+      const float dy2 = b->y - p.y();
       if (dx1 * dy2 > dy1 * dx2) {
         ++bo;
         break;
@@ -212,17 +210,17 @@ bspGetNodeForCoordsSub(node_t *n, float x, float y, float z)
     }
   }
   if (n->l != NULL) {
-    node_t *result = bspGetNodeForCoordsSub(n->l, x, y, z);
+    node_t *result = bspGetNodeForCoordsSub(n->l, p);
     if (result) return result;
   }
   if (n->r != NULL) {
-    return bspGetNodeForCoordsSub(n->r, x, y, z);
+    return bspGetNodeForCoordsSub(n->r, p);
   }
   return 0;
 }
 
-node_t *bspGetNodeForCoords(float x, float y, float z) {
-  return root ? bspGetNodeForCoordsSub(root, x, y, z) : 0;
+node_t *bspGetNodeForCoords(const Vec3d& p) {
+  return root ? bspGetNodeForCoordsSub(root, p) : 0;
 }
 
 static node_t *

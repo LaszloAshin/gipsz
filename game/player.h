@@ -5,7 +5,7 @@
 #include "bsp.h"
 
 typedef struct {
-  float x, y, z;
+  Vec3d p;
   float dx, dy, dz;
   float d2x, d2y;
   float vx, vy, vz;

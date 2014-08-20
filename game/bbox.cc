@@ -4,9 +4,8 @@
 bool
 visibleByCamFrustum(const BBox3d& bb)
 {
-	const Vec3d campos(cam.x, cam.y, cam.z);
-	const Vec3d lo(bb.low() - campos);
-	const Vec3d hi(bb.high() - campos);
+	const Vec3d lo(bb.low() - cam.p);
+	const Vec3d hi(bb.high() - cam.p);
 	const Vec3d p[8] = {
 		Vec3d(lo.x(), lo.y(), hi.z()), Vec3d(hi.x(), lo.y(), hi.z()),
 		Vec3d(hi.x(), hi.y(), hi.z()), Vec3d(lo.x(), hi.y(), hi.z()),
