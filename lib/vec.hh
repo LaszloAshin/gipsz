@@ -1,6 +1,8 @@
 #ifndef LIB_VECTOR_HEADER
 #define LIB_VECTOR_HEADER
 
+#include <limits>
+
 template <typename T>
 class Vec2 {
 public:
@@ -15,5 +17,58 @@ private:
 };
 
 typedef Vec2<double> Vec2d;
+
+template <typename T>
+class Vec3 {
+public:
+	static Vec3 epsilon() { const T e(std::numeric_limits<T>::epsilon()); return Vec3(e, e, e); }
+
+	Vec3() : x_(), y_() {}
+	Vec3(T x, T y, T z) : x_(x), y_(y), z_(z) {}
+
+	T x() const { return x_; }
+	T y() const { return y_; }
+	T z() const { return z_; }
+
+	Vec3 operator-() const { return Vec3(-x(), -y(), -z()); }
+	Vec3& operator+=(const Vec3& rhs) { x_ += rhs.x(); y_ += rhs.y(); z_ += rhs.z(); return *this; }
+	Vec3& operator-=(const Vec3& rhs) { return *this += -rhs; }
+
+	friend Vec3 operator+(Vec3 lhs, const Vec3& rhs) { return lhs += rhs; }
+	friend Vec3 operator-(Vec3 lhs, const Vec3& rhs) { return lhs -= rhs; }
+
+	friend T dot(const Vec3& lhs, const Vec3& rhs) { return lhs.x() * rhs.x() + lhs.y() * rhs.y() + lhs.z() * rhs.z(); }
+
+	friend Vec3
+	min(const Vec3& lhs, const Vec3& rhs)
+	{
+		return Vec3(
+			lhs.x() < rhs.x() ? lhs.x() : rhs.x(),
+			lhs.y() < rhs.y() ? lhs.y() : rhs.y(),
+			lhs.z() < rhs.z() ? lhs.z() : rhs.z()
+		);
+	}
+
+	friend Vec3
+	max(const Vec3& lhs, const Vec3& rhs)
+	{
+		return Vec3(
+			rhs.x() < lhs.x() ? lhs.x() : rhs.x(),
+			rhs.y() < lhs.y() ? lhs.y() : rhs.y(),
+			rhs.z() < lhs.z() ? lhs.z() : rhs.z()
+		);
+	}
+
+	friend bool
+	lessAll(const Vec3& lhs, const Vec3& rhs)
+	{
+		return lhs.x() < rhs.x() && lhs.y() < rhs.y() && lhs.z() < rhs.z();
+	}
+
+private:
+	T x_, y_, z_;
+};
+
+typedef Vec3<double> Vec3d;
 
 #endif // LIB_VECTOR_HEADER

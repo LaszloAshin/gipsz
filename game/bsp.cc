@@ -100,7 +100,7 @@ struct collide_param_rec {
 static void
 bspCollideNode(struct collide_param_rec *pr, node_t *n)
 {
-  if (n == NULL || !bbInside(&n->bb, pr->x, pr->y, pr->z, 48.0)) return;
+  if (n == NULL || !n->bb.inside(Vec3d(pr->x, pr->y, pr->z), Vec3d(48.0f, 48.0f, 48.0f))) return;
   bspCollideNode(pr, n->l);
   bspCollideNode(pr, n->r);
   if (n->s == NULL || !n->n) return;
@@ -192,7 +192,7 @@ void bspCollideTree(float x, float y, float z, float *dx, float *dy, float *dz, 
 static node_t *
 bspGetNodeForCoordsSub(node_t *n, float x, float y, float z)
 {
-  if (n->l == NULL && n->r == NULL && n->n && n->s->f < n->s->c && bbInside(&n->bb, x, y, z, 0.0)) {
+  if (n->l == NULL && n->r == NULL && n->n && n->s->f < n->s->c && n->bb.inside(Vec3d(x, y, z))) {
     int bo = 0;
     vertex_t *b = vc.p + n->p[0].a;
     for (line_t *l = n->p; l < n->p + n->n; ++l) {
@@ -320,7 +320,7 @@ bspLoadNode(struct bsp_load_ctx * const blc, size_t level)
   node_t* n = blc->np++;
   n->p = 0;
   n->n = 0;
-  n->bb.x1 = n->bb.y1 = n->bb.x2 = n->bb.y2 = 0;
+  n->bb = BBox3d();
   n->s = 0;
   n->l = n->r = 0;
   n->ow = 0;
@@ -368,39 +368,24 @@ bspLoadNode(struct bsp_load_ctx * const blc, size_t level)
 
 
   int j = 0;
-  if (n->l != NULL) {
-    n->bb.x1 = n->l->bb.x1;
-    n->bb.y1 = n->l->bb.y1;
-    n->bb.z1 = n->l->bb.z1;
-    n->bb.x2 = n->l->bb.x2;
-    n->bb.y2 = n->l->bb.y2;
-    n->bb.z2 = n->l->bb.z2;
+  if (n->l) {
+    n->bb = n->l->bb;
     j = 1;
-  } else if (n->r != NULL) {
-    n->bb.x1 = n->r->bb.x1;
-    n->bb.y1 = n->r->bb.y1;
-    n->bb.z1 = n->r->bb.z1;
-    n->bb.x2 = n->r->bb.x2;
-    n->bb.y2 = n->r->bb.y2;
-    n->bb.z2 = n->r->bb.z2;
+  } else if (n->r) {
+    n->bb = n->r->bb;
     j = 2;
   } else if (n->n) {
-    n->bb.x1 = n->bb.x2 = vc.p[n->p[0].a].x;
-    n->bb.y1 = n->bb.y2 = vc.p[n->p[0].a].y;
-    n->bb.z1 = n->bb.z2 = n->s->f;
+    n->bb.add(Vec3d(vc.p[n->p[0].a].x, vc.p[n->p[0].a].y, n->s->f));
     j = 2;
   }
   switch (j) {
     case 1:
-      if (n->r != NULL) {
-        bbAdd(&n->bb, n->r->bb.x1, n->r->bb.y1, n->r->bb.z1);
-        bbAdd(&n->bb, n->r->bb.x2, n->r->bb.y2, n->r->bb.z2);
-      }
+      if (n->r) n->bb.add(n->r->bb);
       /* intentionally no break here */
     case 2:
       for (unsigned i = 0; i < n->n; ++i) {
-        bbAdd(&n->bb, vc.p[n->p[i].a].x, vc.p[n->p[i].a].y, n->s->f);
-        bbAdd(&n->bb, vc.p[n->p[i].a].x, vc.p[n->p[i].a].y, n->s->c);
+        n->bb.add(Vec3d(vc.p[n->p[i].a].x, vc.p[n->p[i].a].y, n->s->f));
+        n->bb.add(Vec3d(vc.p[n->p[i].a].x, vc.p[n->p[i].a].y, n->s->c));
       }
       break;
     default:
@@ -416,8 +401,8 @@ bspGetContSub(struct bsp_load_ctx * const blc, node_t *n, node_t *m)
   if (n->s != NULL) {
     if (n->s->f > n->s->c) return 0;
     for (unsigned i = 0; i < m->n; ++i) {
-      if (bbInside(&n->bb, vc.p[m->p[i].a].x, vc.p[m->p[i].a].y, m->s->c, 0.0) ||
-          bbInside(&n->bb, vc.p[m->p[i].a].x, vc.p[m->p[i].a].y, m->s->f, 0.0)) {
+      if (n->bb.inside(Vec3d(vc.p[m->p[i].a].x, vc.p[m->p[i].a].y, m->s->c)) ||
+          n->bb.inside(Vec3d(vc.p[m->p[i].a].x, vc.p[m->p[i].a].y, m->s->f))) {
         return n;
       }
     }

@@ -1,8 +1,7 @@
 #ifndef _BSP_H
 #define _BSP_H 1
 
-#include "bbox.h"
-
+#include <game/bbox.hh>
 #include <lib/plane.hh>
 
 #include <cstdio>
@@ -47,7 +46,7 @@ typedef struct {
 typedef struct node_s {
   line_t *p;
   unsigned n;
-  bbox_t bb;
+  BBox3d bb;
   sector_t *s;
   struct node_s *l, *r, *ow;
   Plane2d div;

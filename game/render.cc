@@ -1,10 +1,7 @@
 /* vim: set ts=2 sw=8 tw=0 et :*/
-#include <stdlib.h>
-#include <math.h>
-#include <SDL/SDL_opengl.h>
 #include "render.h"
 #include "bsp.h"
-#include "bbox.h"
+#include <game/bbox.hh>
 #include "player.h"
 #include "tex.h"
 #include "console.h"
@@ -12,6 +9,10 @@
 #include "obj.h"
 
 #include <lib/vec.hh>
+
+#include <SDL/SDL_opengl.h>
+
+#include <cmath>
 
 float curfov = 90.0;
 static int r_clear = 0;
@@ -142,7 +143,7 @@ rDrawPlanes(node_t *n)
 static void
 rDrawNode(node_t *n)
 {
-  if (!bbVisible(&n->bb)) return;
+  if (!visibleByCamFrustum(n->bb)) return;
   const int det = n->div.determine(Vec2d(cam.x, cam.y));
   if (det > 0) {
     if (n->r) rDrawNode(n->r);
