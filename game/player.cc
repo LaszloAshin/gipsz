@@ -12,7 +12,6 @@ cam_t cam;
 static void plRotateCam(float a, float b) {
   float beta;
   float fov2;
-  vec3d_t v[4];
 
   a += cam.a;
   while (a >= 2 * M_PI) a -= 2 * M_PI;
@@ -29,45 +28,13 @@ static void plRotateCam(float a, float b) {
   cam.dz = -sin(b);
   fov2 = curfov / 360.0 * M_PI;
   beta = b - fov2;
-  v[0].x = cos(beta) * sin(a) + sin(-fov2) * cos(a);
-  v[0].y = cos(beta) * cos(a) - sin(-fov2) * sin(a);
-  v[0].z = v[1].z = -sin(beta);
-  v[1].x = cos(beta) * sin(a) + sin(fov2) * cos(a);
-  v[1].y = cos(beta) * cos(a) - sin(fov2) * sin(a);
+  cam.v[0] = Vec3d(cos(beta) * sin(a) + sin(-fov2) * cos(a), cos(beta) * cos(a) - sin(-fov2) * sin(a), -sin(beta));
+  cam.v[1] = Vec3d(cos(beta) * sin(a) + sin(fov2) * cos(a), cos(beta) * cos(a) - sin(fov2) * sin(a), -sin(beta));
   beta = b + fov2;
-  v[2].x = cos(beta) * sin(a) + sin(fov2) * cos(a);
-  v[2].y = cos(beta) * cos(a) - sin(fov2) * sin(a);
-  v[2].z = v[3].z = -sin(beta);
-  v[3].x = cos(beta) * sin(a) + sin(-fov2) * cos(a);
-  v[3].y = cos(beta) * cos(a) - sin(-fov2) * sin(a);
-/*  v[0].x = cos(beta) * cos(a) + sin(fov2) * sin(a);
-  v[0].y = -cos(beta) * sin(a) + sin(fov2) * cos(a);
-  v[0].z = v[1].z = -sin(beta);
-  v[1].x = cos(beta) * cos(a) + sin(-fov2) * sin(a);
-  v[1].y = -cos(beta) * sin(a) + sin(-fov2) * cos(a);
-  beta = b + fov2;
-  v[2].x = cos(beta) * cos(a) + sin(-fov2) * sin(a);
-  v[2].y = -cos(beta) * sin(a) + sin(-fov2) * cos(a);
-  v[2].z = v[3].z = -sin(beta);
-  v[3].x = cos(beta) * cos(a) + sin(fov2) * sin(a);
-  v[3].y = -cos(beta) * sin(a) + sin(fov2) * cos(a);*/
-  cam.v[0] = v[0];
-  cam.v[1] = v[1];
-  cam.v[2] = v[2];
-  cam.v[3] = v[3];
+  cam.v[2] = Vec3d(cos(beta) * sin(a) + sin(fov2) * cos(a), cos(beta) * cos(a) - sin(fov2) * sin(a), -sin(beta));
+  cam.v[3] = Vec3d(cos(beta) * sin(a) + sin(-fov2) * cos(a), cos(beta) * cos(a) - sin(-fov2) * sin(a), -sin(beta));
 
-  cam.cps[0].x = v[0].y * v[1].z - v[0].z * v[1].y;
-  cam.cps[0].y = v[0].z * v[1].x - v[0].x * v[1].z;
-  cam.cps[0].z = v[0].x * v[1].y - v[0].y * v[1].x;
-  cam.cps[1].x = v[1].y * v[2].z - v[1].z * v[2].y;
-  cam.cps[1].y = v[1].z * v[2].x - v[1].x * v[2].z;
-  cam.cps[1].z = v[1].x * v[2].y - v[1].y * v[2].x;
-  cam.cps[2].x = v[2].y * v[3].z - v[2].z * v[3].y;
-  cam.cps[2].y = v[2].z * v[3].x - v[2].x * v[3].z;
-  cam.cps[2].z = v[2].x * v[3].y - v[2].y * v[3].x;
-  cam.cps[3].x = v[3].y * v[0].z - v[3].z * v[0].y;
-  cam.cps[3].y = v[3].z * v[0].x - v[3].x * v[0].z;
-  cam.cps[3].z = v[3].x * v[0].y - v[3].y * v[0].x;
+  for (int i = 0; i < 4; ++i) cam.cps[i] = cam.v[i] % cam.v[(i + 1) % 4];
 }
 
 #define CAM_DA_MIN (M_PI/3000)

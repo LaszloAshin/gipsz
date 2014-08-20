@@ -8,10 +8,6 @@
 #include <istream>
 
 typedef struct {
-  float x, y, z;
-} vec3d_t;
-
-typedef struct {
   float x, y;
 } vertex_t;
 

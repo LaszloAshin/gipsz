@@ -14,7 +14,7 @@ visibleByCamFrustum(const BBox3d& bb)
 		Vec3d(hi.x(), hi.y(), lo.z()), Vec3d(lo.x(), hi.y(), lo.z())
 	};
 	for (int i = 0; i < 5; ++i) {
-		Vec3d v = -((i == 4) ? Vec3d(cam.dx, cam.dy, cam.dz) : Vec3d(cam.cps[i].x, cam.cps[i].y, cam.cps[i].z));
+		Vec3d v = -((i == 4) ? Vec3d(cam.dx, cam.dy, cam.dz) : cam.cps[i]);
 		int k = 8;
 		for (int j = 0; j < 8; ++j) if (dot(p[j], v) > 0) --k;
 		if (!k) return false;
