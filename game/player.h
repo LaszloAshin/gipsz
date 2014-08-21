@@ -2,20 +2,22 @@
 #define _PLAYER_H 1
 
 #include <lib/vec.hh>
+#include <lib/masspoint.hh>
 #include "bsp.h"
 
-typedef struct {
-  Vec3d p;
-  float dx, dy, dz;
-  float d2x, d2y;
-  float vx, vy, vz;
-  float a, da;
-  float b;
+struct Player : public MassPoint3d {
+  Vec3d forward;
+  Vec3d right;
+  Vec3d up;
+  Vec3d sumForces;
+  float a, da; // yaw axis
+  float b; // pitch axis
+  // roll axis not used
   Vec3d cps[4];
   Vec3d v[4];
-} cam_t;
+};
 
-extern cam_t cam;
+extern Player cam;
 
 void plSetPosition(float x, float y, float z, float a);
 void plUpdate();

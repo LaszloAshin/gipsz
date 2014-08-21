@@ -1,3 +1,4 @@
+/* vim: set ts=2 sw=8 tw=0 et :*/
 #include <string.h>
 #include <math.h>
 #include <SDL/SDL.h>
@@ -7,7 +8,7 @@
 #include "bsp.h"
 #include "cmd.h"
 
-cam_t cam;
+Player cam;
 
 static void plRotateCam(float a, float b) {
   float beta;
@@ -21,11 +22,9 @@ static void plRotateCam(float a, float b) {
   if (b < -M_PI / 2) b = -M_PI / 2;
   cam.a = a;
   cam.b = b;
-  cam.d2x = sin(a);
-  cam.d2y = cos(a);
-  cam.dx = cam.d2x * cos(b);
-  cam.dy = cam.d2y * cos(b);
-  cam.dz = -sin(b);
+  cam.forward = Vec3d(sin(a) * cos(b), cos(a) * cos(b), -sin(b));
+  cam.right = Vec3d(cos(a), -sin(a), 0.0f);
+  cam.up = cam.right % cam.forward;
   fov2 = curfov / 360.0 * M_PI;
   beta = b - fov2;
   cam.v[0] = Vec3d(cos(beta) * sin(a) + sin(-fov2) * cos(a), cos(beta) * cos(a) - sin(-fov2) * sin(a), -sin(beta));
@@ -58,56 +57,23 @@ static float mouse_sensitivity = 0.004;
 static int onfloor = 0;
 
 static int cmd_move(int argc, char **argv) {
-  float x, y, z;
-
   if (argc < 2) {
     cmsg(MLINFO, "usage: %s <forward|back|left|right|up|down>", *argv);
     return !0;
   }
   if (conGetState() != CON_INACTIVE) return 0;
   if (!strcmp(argv[1], "forward")) {
-    if (gravity) {
-      cam.vx += cam.d2x * CAM_V_INC;
-      cam.vy += cam.d2y * CAM_V_INC;
-    } else {
-      cam.vx += cam.dx * CAM_V_INC;
-      cam.vy += cam.dy * CAM_V_INC;
-      cam.vz += cam.dz * CAM_V_INC;
-    }
+    cam.sumForces += cam.forward;
   } else if (!strcmp(argv[1], "back")) {
-    if (gravity) {
-      cam.vx -= cam.d2x * CAM_V_INC;
-      cam.vy -= cam.d2y * CAM_V_INC;
-    } else {
-      cam.vx -= cam.dx * CAM_V_INC;
-      cam.vy -= cam.dy * CAM_V_INC;
-      cam.vz -= cam.dz * CAM_V_INC;
-    }
+    cam.sumForces -= cam.forward;
   } else if (!strcmp(argv[1], "left")) {
-    cam.vx -= cam.d2y * CAM_V_INC;
-    cam.vy += cam.d2x * CAM_V_INC;
+    cam.sumForces -= cam.right;
   } else if (!strcmp(argv[1], "right")) {
-    cam.vx += cam.d2y * CAM_V_INC;
-    cam.vy -= cam.d2x * CAM_V_INC;
+    cam.sumForces += cam.right;
   } else if (!strcmp(argv[1], "up")) {
-    if (onfloor) cam.vz = 4.0;
-    if (!gravity) {
-      x = -cam.d2x * cam.dz;
-      y = -cam.d2y * cam.dz;
-      z = cam.d2y * cam.dy + cam.d2x * cam.dx;
-      cam.vx += x * CAM_V_INC;
-      cam.vy += y * CAM_V_INC;
-      cam.vz += z * CAM_V_INC;
-    }
+    cam.sumForces += cam.up;
   } else if (!strcmp(argv[1], "down")) {
-    if (!gravity) {
-      x = -cam.d2x * cam.dz;
-      y = -cam.d2y * cam.dz;
-      z = cam.d2y * cam.dy + cam.d2x * cam.dx;
-      cam.vx -= x * CAM_V_INC;
-      cam.vy -= y * CAM_V_INC;
-      cam.vz -= z * CAM_V_INC;
-    }
+    cam.sumForces -= cam.up;
   } else {
     cmsg(MLERR, "cmd_move: unknown direction: %s", argv[1]);
     return !0;
@@ -138,53 +104,30 @@ static int cmd_zoom(int argc, char **argv) {
 
 void plUpdate() {
   int mx, my;
-  float l;
-  float vz;
 
   SDL_GetRelativeMouseState(&mx, &my);
-  if (gravity) {
-    if (clip) cam.vz -= FALL_V_INC;
-    l = sqrt(cam.vx * cam.vx + cam.vy * cam.vy);
-    if (l > CAM_V_MAX) {
-      l = 1 / l;
-      cam.vx *= l;
-      cam.vy *= l;
-      l = CAM_V_MAX;
-    }
-  } else {
-    l = sqrt(cam.vx * cam.vx + cam.vy * cam.vy + cam.vz * cam.vz);
-    if (l > CAM_V_MAX) {
-      l = 1 / l;
-      cam.vx *= l;
-      cam.vy *= l;
-      cam.vz *= l;
-      l = CAM_V_MAX;
-    }
-  }
-  if (cam.vz < -FALL_V_MAX) cam.vz = -FALL_V_MAX;
-  if (cam.vz > FALL_V_MAX) cam.vz = FALL_V_MAX;
+  if (gravity && clip) cam.force(Vec3d(0.0f, 0.0f, -FALL_V_INC), 1.0f);
   onfloor = 0;
   if (clip) {
-    vz = cam.vz;
-    bspCollideTree(cam.p, &cam.vx, &cam.vy, &cam.vz, 0);
-    bspCollideTree(cam.p, &cam.vx, &cam.vy, &cam.vz, 1);
-    if (vz < 0.0 && cam.vz > vz) ++onfloor;
+    float vx = cam.velo().x();
+    float vy = cam.velo().y();
+    float vz = cam.velo().z();
+    bspCollideTree(cam.pos(), &vx, &vy, &vz, 0);
+    bspCollideTree(cam.pos(), &vx, &vy, &vz, 1);
+    if (cam.velo().z() < 0.0f && vz > cam.velo().z()) ++onfloor;
+    cam.velo(Vec3d(vx, vy, vz));
   }
-  cam.p += Vec3d(cam.vx, cam.vy, cam.vz);
+  if (cam.sumForces.len() > std::numeric_limits<double>::epsilon()) {
+    cam.force(0.2f * cam.sumForces.norm(), 1.0f);
+  }
+  cam.friction(0.1f);
+  cam.move(1.0f);
   cam.a += cam.da;
   curfov += FOVINC;
   if (curfov > fov)
     curfov = fov;
   else if (curfov < zoomfov)
     curfov = zoomfov;
-  if (l > CAM_V_MIN) {
-    cam.vx -= CAM_V_DEC * cam.vx;
-    cam.vy -= CAM_V_DEC * cam.vy;
-    if (!gravity) cam.vz -= CAM_V_DEC * cam.vz;
-  } else {
-    cam.vx = cam.vy = 0.0;
-    if (!gravity) cam.vz = 0.0;
-  }
   if (cam.da > CAM_DA_MIN)
     cam.da -= CAM_DA_DEC;
   else if (cam.da < -CAM_DA_MIN)
@@ -192,7 +135,8 @@ void plUpdate() {
   else
     cam.da = 0;
   plRotateCam(mouse_sensitivity * mx, mouse_sensitivity * my);
-  cn = bspGetNodeForCoords(cam.p);
+  cn = bspGetNodeForCoords(cam.pos());
+  cam.sumForces = Vec3d();
 }
 
 static void rFovSet(void *addr) {
@@ -209,9 +153,9 @@ static void rFovSet(void *addr) {
 }
 
 void plSetPosition(float x, float y, float z, float a) {
-  cam.p = Vec3d(x, y, z);
+  cam.pos(Vec3d(x, y, z));
+  cam.stop();
   cam.a = a;
-  cam.vx = cam.vy = cam.vz = 0.0;
   cam.da = 0.0;
   cam.b = 0.0;
   plRotateCam(0.0, 0.0);

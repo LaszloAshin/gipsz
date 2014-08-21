@@ -58,7 +58,7 @@ rDrawWalls(node_t *n)
     const sector_t* const ns = l->backSectorId ? (sc.p + l->backSectorId) : 0;
     unsigned t;
     if (n->s->f < n->s->c) {
-      if ((b->x - a->x) * (b->y - cam.p.y()) > (b->y - a->y) * (b->x - cam.p.x())) continue;
+      if ((b->x - a->x) * (b->y - cam.pos().y()) > (b->y - a->y) * (b->x - cam.pos().x())) continue;
       if (ns != NULL) {
         if (ns->f > n->s->f && (t = GET_TEXTURE(l->t, 0))) {
           rDrawWall(a, b, n->s->f, ns->f, l, t);
@@ -78,7 +78,7 @@ rDrawWalls(node_t *n)
         rDrawWall(a, b, x, y, l, t);
       }
     } else {
-      if ((b->x - a->x) * (b->y - cam.p.y()) < (b->y - a->y) * (b->x - cam.p.x())) continue;
+      if ((b->x - a->x) * (b->y - cam.pos().y()) < (b->y - a->y) * (b->x - cam.pos().x())) continue;
       if (ns != NULL) {
         if (ns->c > n->s->c && (t = GET_TEXTURE(l->t, 0))) {
           rDrawWall(b, a, n->s->c, ns->c, l, t);
@@ -106,7 +106,7 @@ rDrawPlanes(node_t *n)
 {
   if (n->n < 3) return;
   unsigned t;
-  if (n->s->f < cam.p.z() && (t = GET_TEXTURE(n->s->t, 0))) {
+  if (n->s->f < cam.pos().z() && (t = GET_TEXTURE(n->s->t, 0))) {
     texSelectTexture(t);
     glBegin(GL_POLYGON);
     glNormal3f(0.0, 0.0, 1.0);
@@ -122,7 +122,7 @@ rDrawPlanes(node_t *n)
     glEnd();
     ++visfaces;
   }
-  if (n->s->c > cam.p.z() && (t = GET_TEXTURE(n->s->t, 1))) {
+  if (n->s->c > cam.pos().z() && (t = GET_TEXTURE(n->s->t, 1))) {
     texSelectTexture(t);
     glBegin(GL_POLYGON);
     glNormal3f(0.0, 0.0, -1.0);
@@ -144,7 +144,7 @@ static void
 rDrawNode(node_t *n)
 {
   if (!visibleByCamFrustum(n->bb)) return;
-  const int det = n->div.determine(Vec2d(cam.p.x(), cam.p.y()));
+  const int det = n->div.determine(Vec2d(cam.pos().x(), cam.pos().y()));
   if (det > 0) {
     if (n->r) rDrawNode(n->r);
   } else {
@@ -199,7 +199,7 @@ void rBuildFrame() {
   glFrustum(-d, d, -d, d, 1.0, 10000.0);
   glRotatef(270.0 + cam.b / M_PI * 180.0, 1.0, 0.0, 0.0);
   glRotatef(cam.a / M_PI * 180.0, 0.0, 0.0, 1.0);
-  glTranslatef(-cam.p.x(), -cam.p.y(), -cam.p.z());
+  glTranslatef(-cam.pos().x(), -cam.pos().y(), -cam.pos().z());
   glEnable(GL_ALPHA_TEST);
   glAlphaFunc(GL_GREATER, 0.0);
   GLbitfield clear = GL_DEPTH_BUFFER_BIT;
@@ -266,6 +266,8 @@ void rBuildFrame() {
 
   dmsg(MLDBG, "%d nodes", visnodes);
   dmsg(MLDBG, "%d faces", visfaces);
+  dmsg(MLDBG, "pos %+03.1f %+03.1f %+03.1f", cam.pos().x(), cam.pos().y(), cam.pos().z());
+  dmsg(MLDBG, "velo %+03.1f %+03.1f %+03.1f", cam.velo().x(), cam.velo().y(), cam.velo().z());
 /*  glRasterPos2d(0.0, 0.0);
   glPixelZoom(20.0, 20.0);
   glDrawPixels(2, 2, GL_LUMINANCE, GL_UNSIGNED_BYTE, texdbg);*/
