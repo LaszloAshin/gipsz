@@ -3,12 +3,12 @@
 
 #include <lib/vec.hh>
 
-template <typename T>
-class MassPoint3 {
+template <typename T, size_t D>
+class MassPoint {
 public:
-	typedef Vec3<T> V;
+	typedef Vec<T, D> V;
 
-	explicit MassPoint3(T mass = 1.0f) : mass_(mass) {}
+	explicit MassPoint(T mass = 1.0f) : mass_(mass) {}
 
 	V pos() const { return pos_; }
 	V velo() const { return velo_; }
@@ -28,6 +28,6 @@ private:
 	T mass_;
 };
 
-typedef MassPoint3<double> MassPoint3d;
+typedef MassPoint<double, 3> MassPoint3d;
 
 #endif // LIB_MASSPOINT_HEADER

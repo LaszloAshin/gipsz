@@ -24,7 +24,7 @@ static void plRotateCam(float a, float b) {
   cam.b = b;
   cam.forward = Vec3d(sin(a) * cos(b), cos(a) * cos(b), -sin(b));
   cam.right = Vec3d(cos(a), -sin(a), 0.0f);
-  cam.up = cam.right % cam.forward;
+  cam.up = cross(cam.right, cam.forward);
   fov2 = curfov / 360.0 * M_PI;
   beta = b - fov2;
   cam.v[0] = Vec3d(cos(beta) * sin(a) + sin(-fov2) * cos(a), cos(beta) * cos(a) - sin(-fov2) * sin(a), -sin(beta));
@@ -33,7 +33,7 @@ static void plRotateCam(float a, float b) {
   cam.v[2] = Vec3d(cos(beta) * sin(a) + sin(fov2) * cos(a), cos(beta) * cos(a) - sin(fov2) * sin(a), -sin(beta));
   cam.v[3] = Vec3d(cos(beta) * sin(a) + sin(-fov2) * cos(a), cos(beta) * cos(a) - sin(-fov2) * sin(a), -sin(beta));
 
-  for (int i = 0; i < 4; ++i) cam.cps[i] = cam.v[i] % cam.v[(i + 1) % 4];
+  for (int i = 0; i < 4; ++i) cam.cps[i] = cross(cam.v[i], cam.v[(i + 1) % 4]);
 }
 
 #define CAM_DA_MIN (M_PI/3000)

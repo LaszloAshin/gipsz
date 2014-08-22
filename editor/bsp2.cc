@@ -361,7 +361,7 @@ Sector Sector::partition(const Plane2d& plane) const {
 		} else if (ia + ib > 0) {
 			result.add(*i);
 			++degs[i->a()], ++degs[i->b()];
-		} else if (ia + ib >= 0 && plane.dot(i->b() - i->a()) < 0) {
+		} else if (ia + ib >= 0 && dot(plane, i->b() - i->a()) < 0) {
 			result.add(*i);
 			++degs[i->a()], ++degs[i->b()];
 		}
@@ -371,7 +371,7 @@ Sector Sector::partition(const Plane2d& plane) const {
 	for (Degs::const_iterator i(degs.begin()); i != degs.end(); ++i) {
 		if (!(i->second & 1)) continue;
 		if (open) {
-			result.add((plane.dot(last - i->first) < 0) ? Wall(i->first, last, id()) : Wall(last, i->first, id()));
+			result.add((dot(plane, last - i->first) < 0) ? Wall(i->first, last, id()) : Wall(last, i->first, id()));
 		} else {
 			last = i->first;
 		}

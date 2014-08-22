@@ -3,101 +3,142 @@
 
 #include <limits>
 #include <cmath>
+#include <stddef.h> // size_t
+
+template <class V, typename T>
+struct VecBase {
+	template <class U>
+	V& operator-=(const U& rhs) { return that() += -rhs; }
+
+	template <class U>
+	friend V operator+(V lhs, const U& rhs) { return lhs += rhs; }
+
+	template <class U>
+	friend V operator-(V lhs, const U& rhs) { return lhs -= rhs; }
+
+	friend V operator*(V lhs, T rhs) { return lhs *= rhs; }
+	friend V operator*(T lhs, V rhs) { return rhs *= lhs; }
+	friend V operator/(V lhs, T rhs) { return lhs /= rhs; }
+	friend V operator/(T lhs, V rhs) { return rhs /= lhs; }
+
+	T len() const;
+	V norm() const { return that() / len(); }
+
+protected:
+	V& that() { return *static_cast<V*>(this); }
+	const V& that() const { return *static_cast<const V*>(this); }
+};
+
+template <typename T, size_t D>
+struct Vec {};
 
 template <typename T>
-class Vec2 {
+class Vec<T, 2> : public VecBase<Vec<T, 2>, T> {
 public:
-	Vec2() : x_(), y_() {}
-	Vec2(T x, T y) : x_(x), y_(y) {}
+	Vec() : x_(), y_() {}
+	Vec(T x, T y) : x_(x), y_(y) {}
 
 	T x() const { return x_; }
 	T y() const { return y_; }
+
+	Vec operator-() const { return Vec(-x(), -y()); }
+
+	template <class U>
+	Vec& operator+=(const U& rhs) { x_ += rhs.x(); y_ += rhs.y(); return *this; }
+
+	Vec& operator*=(T rhs) { x_ *= rhs; y_ *= rhs; return *this; }
+	Vec& operator/=(T rhs) { x_ /= rhs; y_ /= rhs; return *this; }
+
+	template <class U>
+	friend T dot(const Vec& lhs, const U& rhs) { return lhs.x() * rhs.x() + lhs.y() * rhs.y(); }
+
+	template <class U>
+	friend T wedge(const Vec& lhs, const U& rhs) { return lhs.x() * rhs.y() - lhs.y() * rhs.x(); }
 
 private:
 	T x_, y_;
 };
 
-typedef Vec2<double> Vec2d;
+typedef Vec<double, 2> Vec2d;
 
 template <typename T>
-class Vec3 {
+class Vec<T, 3> : public VecBase<Vec<T, 3>, T> {
 public:
-	static Vec3 epsilon() { const T e(std::numeric_limits<T>::epsilon()); return Vec3(e, e, e); }
+	static Vec epsilon() { const T e(std::numeric_limits<T>::epsilon()); return Vec(e, e, e); }
 
-	Vec3() : x_(), y_() {}
-	Vec3(T x, T y, T z) : x_(x), y_(y), z_(z) {}
+	Vec() : x_(), y_() {}
+	Vec(T x, T y, T z) : x_(x), y_(y), z_(z) {}
 
 	T x() const { return x_; }
 	T y() const { return y_; }
 	T z() const { return z_; }
 
+	Vec<T, 2> xy() const { return Vec<T, 2>(x(), y()); }
+	Vec<T, 2> yz() const { return Vec<T, 2>(y(), z()); }
+	Vec<T, 2> xz() const { return Vec<T, 2>(x(), z()); }
+
 	void x(float f) { x_ = f; }
 	void y(float f) { y_ = f; }
 	void z(float f) { z_ = f; }
 
-	Vec3 operator-() const { return Vec3(-x(), -y(), -z()); }
-	Vec3& operator+=(const Vec3& rhs) { x_ += rhs.x(); y_ += rhs.y(); z_ += rhs.z(); return *this; }
-	Vec3& operator-=(const Vec3& rhs) { return *this += -rhs; }
+	Vec operator-() const { return Vec(-x(), -y(), -z()); }
 
-	friend Vec3 operator+(Vec3 lhs, const Vec3& rhs) { return lhs += rhs; }
-	friend Vec3 operator-(Vec3 lhs, const Vec3& rhs) { return lhs -= rhs; }
+	template <class U>
+	Vec& operator+=(const U& rhs) { x_ += rhs.x(); y_ += rhs.y(); z_ += rhs.z(); return *this; }
 
-	Vec3& operator*=(T rhs) { x_ *= rhs; y_ *= rhs; z_ *= rhs; return *this; }
-	Vec3& operator/=(T rhs) { x_ /= rhs; y_ /= rhs; z_ /= rhs; return *this; }
+	Vec& operator*=(T rhs) { x_ *= rhs; y_ *= rhs; z_ *= rhs; return *this; }
+	Vec& operator/=(T rhs) { x_ /= rhs; y_ /= rhs; z_ /= rhs; return *this; }
 
-	friend Vec3 operator*(Vec3 lhs, T rhs) { return lhs *= rhs; }
-	friend Vec3 operator*(T lhs, Vec3 rhs) { return rhs *= lhs; }
-	friend Vec3 operator/(Vec3 lhs, T rhs) { return lhs /= rhs; }
-	friend Vec3 operator/(T lhs, Vec3 rhs) { return rhs /= lhs; }
+	template <class U>
+	friend T dot(const Vec& lhs, const U& rhs) { return lhs.x() * rhs.x() + lhs.y() * rhs.y() + lhs.z() * rhs.z(); }
 
-	friend T dot(const Vec3& lhs, const Vec3& rhs) { return lhs.x() * rhs.x() + lhs.y() * rhs.y() + lhs.z() * rhs.z(); }
-	T len() const;
-
-	friend Vec3
-	min(const Vec3& lhs, const Vec3& rhs)
+	template <class U>
+	friend Vec
+	cross(const Vec& lhs, const U& rhs)
 	{
-		return Vec3(
-			lhs.x() < rhs.x() ? lhs.x() : rhs.x(),
-			lhs.y() < rhs.y() ? lhs.y() : rhs.y(),
-			lhs.z() < rhs.z() ? lhs.z() : rhs.z()
-		);
-	}
-
-	friend Vec3
-	max(const Vec3& lhs, const Vec3& rhs)
-	{
-		return Vec3(
-			rhs.x() < lhs.x() ? lhs.x() : rhs.x(),
-			rhs.y() < lhs.y() ? lhs.y() : rhs.y(),
-			rhs.z() < lhs.z() ? lhs.z() : rhs.z()
-		);
-	}
-
-	friend bool
-	lessAll(const Vec3& lhs, const Vec3& rhs)
-	{
-		return lhs.x() < rhs.x() && lhs.y() < rhs.y() && lhs.z() < rhs.z();
-	}
-
-	friend Vec3
-	operator%(const Vec3& lhs, const Vec3& rhs)
-	{
-		return Vec3(
+		return Vec(
 			lhs.y() * rhs.z() - lhs.z() * rhs.y(),
 			lhs.z() * rhs.x() - lhs.x() * rhs.z(),
 			lhs.x() * rhs.y() - lhs.y() * rhs.x()
 		);
 	}
 
-	Vec3 norm() const { return *this / len(); }
+	template <class U>
+	friend Vec
+	min(const Vec& lhs, const U& rhs)
+	{
+		return Vec(
+			lhs.x() < rhs.x() ? lhs.x() : rhs.x(),
+			lhs.y() < rhs.y() ? lhs.y() : rhs.y(),
+			lhs.z() < rhs.z() ? lhs.z() : rhs.z()
+		);
+	}
+
+	template <class U>
+	friend Vec
+	max(const Vec& lhs, const U& rhs)
+	{
+		return Vec(
+			rhs.x() < lhs.x() ? lhs.x() : rhs.x(),
+			rhs.y() < lhs.y() ? lhs.y() : rhs.y(),
+			rhs.z() < lhs.z() ? lhs.z() : rhs.z()
+		);
+	}
+
+	template <class U>
+	friend bool
+	lessAll(const Vec& lhs, const U& rhs)
+	{
+		return lhs.x() < rhs.x() && lhs.y() < rhs.y() && lhs.z() < rhs.z();
+	}
 
 private:
 	T x_, y_, z_;
 };
 
-typedef Vec3<double> Vec3d;
+typedef Vec<double, 3> Vec3d;
 
 template <>
-inline double Vec3d::len() const { return std::sqrt(dot(*this, *this)); }
+inline double VecBase<Vec3d, double>::len() const { return std::sqrt(dot(that(), that())); }
 
 #endif // LIB_VECTOR_HEADER
