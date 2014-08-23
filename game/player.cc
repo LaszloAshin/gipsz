@@ -111,7 +111,7 @@ void plUpdate() {
   if (len(cam.sumForces) > std::numeric_limits<double>::epsilon()) {
     cam.force(0.2f * norm(cam.sumForces), 1.0f);
   }
-  cam.friction(0.1f);
+  cam.friction(onfloor ? 0.1f : 0.075f);
   onfloor = 0;
   if (clip) {
     double vx = cam.velo().x();
