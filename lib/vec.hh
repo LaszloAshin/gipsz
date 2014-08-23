@@ -63,7 +63,7 @@ class Vec<T, 3> : public VecBase<Vec<T, 3>, T> {
 public:
 	static Vec epsilon() { const T e(std::numeric_limits<T>::epsilon()); return Vec(e, e, e); }
 
-	Vec() : x_(), y_() {}
+	Vec() : x_(), y_(), z_() {}
 	Vec(T x, T y, T z) : x_(x), y_(y), z_(z) {}
 
 	T x() const { return x_; }
