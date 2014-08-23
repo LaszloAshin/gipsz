@@ -71,7 +71,8 @@ static int cmd_move(int argc, char **argv) {
   } else if (!strcmp(argv[1], "right")) {
     cam.sumForces += cam.right;
   } else if (!strcmp(argv[1], "up")) {
-    cam.sumForces += cam.up;
+//    cam.sumForces += cam.up;
+    if (onfloor) cam.force(Vec3d(0.0f, 0.0f, 3.0f), 1.0f);
   } else if (!strcmp(argv[1], "down")) {
     cam.sumForces -= cam.up;
   } else {
@@ -107,20 +108,20 @@ void plUpdate() {
 
   SDL_GetRelativeMouseState(&mx, &my);
   if (gravity && clip) cam.force(Vec3d(0.0f, 0.0f, -FALL_V_INC), 1.0f);
-  onfloor = 0;
-  if (clip) {
-    float vx = cam.velo().x();
-    float vy = cam.velo().y();
-    float vz = cam.velo().z();
-    bspCollideTree(cam.pos(), &vx, &vy, &vz, 0);
-    bspCollideTree(cam.pos(), &vx, &vy, &vz, 1);
-    if (cam.velo().z() < 0.0f && vz > cam.velo().z()) ++onfloor;
-    cam.velo(Vec3d(vx, vy, vz));
-  }
   if (len(cam.sumForces) > std::numeric_limits<double>::epsilon()) {
     cam.force(0.2f * norm(cam.sumForces), 1.0f);
   }
   cam.friction(0.1f);
+  onfloor = 0;
+  if (clip) {
+    double vx = cam.velo().x();
+    double vy = cam.velo().y();
+    double vz = cam.velo().z();
+    bspCollideTree(cam.pos(), &vx, &vy, &vz, 0);
+    bspCollideTree(cam.pos(), &vx, &vy, &vz, 1);
+    if (cam.velo().z() < 0.0f && vz > cam.velo().z()) onfloor = !0;
+    cam.velo(Vec3d(vx, vy, vz));
+  }
   cam.move(1.0f);
   cam.a += cam.da;
   curfov += FOVINC;

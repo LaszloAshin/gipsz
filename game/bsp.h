@@ -62,7 +62,7 @@ extern node_t *root, *cn;
 extern vc_t vc;
 extern sc_t sc;
 
-void bspCollideTree(const Vec3d& p, float *dx, float *dy, float *dz, int hard);
+void bspCollideTree(const Vec3d& p, double *dx, double *dy, double *dz, int hard);
 node_t *bspGetNodeForCoords(const Vec3d& p);
 void bspFreeMap();
 int bspLoadMap(const char *fname);

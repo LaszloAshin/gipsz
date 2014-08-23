@@ -81,18 +81,18 @@ static float pszt(vertex_t p1, vertex_t p2, vertex_t p3, vertex_t *p4) {
 }
 
 /* arc tan function which computes angle from dx and dy */
-float at(float dy, float dx) {
+double at(double dy, double dx) {
   if (dx > 0)
-    return atanf(dy / dx);
+    return atan(dy / dx);
   else if (dx < 0)
-    return ((dy > 0) ? M_PI : -M_PI) - atanf(dy / -dx);
+    return ((dy > 0) ? M_PI : -M_PI) - atan(dy / -dx);
   else
-    return (dy > 0) ? M_PI/2 : -M_PI/2;
+    return (dy > 0) ? M_PI / 2 : -M_PI / 2;
 }
 
 struct collide_param_rec {
   Vec3d p;
-  float *dx, *dy, *dz;
+  double *dx, *dy, *dz;
   int hard;
   int j;
 };
@@ -107,13 +107,13 @@ bspCollideNode(struct collide_param_rec *pr, node_t *n)
   vertex_t p;
   p.x = pr->p.x() + *pr->dx;
   p.y = pr->p.y() + *pr->dy;
-  float pz = pr->p.z() + *pr->dz;
+  double pz = pr->p.z() + *pr->dz;
   int in = 1;
   for (line_t *l = n->p; l < n->p + n->n; ++l) {
-    float dx1 = vc.p[l->b].x - vc.p[l->a].x;
-    const float dy1 = vc.p[l->b].y - vc.p[l->a].y;
-    float dx2 = vc.p[l->b].x - pr->p.x();
-    const float dy2 = vc.p[l->b].y - pr->p.y();
+    double dx1 = vc.p[l->b].x - vc.p[l->a].x;
+    const double dy1 = vc.p[l->b].y - vc.p[l->a].y;
+    double dx2 = vc.p[l->b].x - pr->p.x();
+    const double dy2 = vc.p[l->b].y - pr->p.y();
     const int front = dx1 * dy2 < dy1 * dx2;
     if (!front) in = 0;
     if (n->s->f < n->s->c) {
@@ -146,7 +146,7 @@ bspCollideNode(struct collide_param_rec *pr, node_t *n)
     } else if (n->s->f > n->s->c) {
       if (pz > n->s->f + 48 - 8 || pz < n->s->c - 16 + 8) continue;
     }
-    const float q = sqrtf(f.x * f.x + f.y * f.y);
+    const double q = sqrt(f.x * f.x + f.y * f.y);
     f.x /= q;  f.y /= q;
     if (pr->hard) {
       if (pr->j) {
@@ -159,7 +159,7 @@ bspCollideNode(struct collide_param_rec *pr, node_t *n)
       ++pr->j;
       continue;
     }
-    const float q2 = cosf(at(f.x, -f.y) - at(*pr->dy, *pr->dx)) * sqrtf(*pr->dx * *pr->dx + *pr->dy * *pr->dy);
+    const double q2 = cos(at(f.x, -f.y) - at(*pr->dy, *pr->dx)) * sqrt(*pr->dx * *pr->dx + *pr->dy * *pr->dy);
     *pr->dx = -f.y * q2;
     *pr->dy = f.x * q2;
   }
@@ -176,7 +176,7 @@ bspCollideNode(struct collide_param_rec *pr, node_t *n)
 }
 
 /* function to handle point-bsptree collision */
-void bspCollideTree(const Vec3d& p, float *dx, float *dy, float *dz, int hard) {
+void bspCollideTree(const Vec3d& p, double *dx, double *dy, double *dz, int hard) {
   struct collide_param_rec pr;
   pr.p = p;
   pr.dx = dx;
