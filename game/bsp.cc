@@ -223,22 +223,6 @@ node_t *bspGetNodeForCoords(const Vec3d& p) {
   return root ? bspGetNodeForCoordsSub(root, p) : 0;
 }
 
-static node_t *
-bspGetNodeForLineSub(node_t *n, unsigned a, unsigned b)
-{
-  for (line_t *l = n->p; l < n->p + n->n; ++l) {
-    if ((l->flags & LF_TWOSIDED) && l->a == a && l->b == b) {
-      return n;
-    }
-  }
-  if (n->l != NULL) {
-    node_t *result = bspGetNodeForLineSub(n->l, a, b);
-    if (result) return result;
-  }
-  if (n->r != NULL) return bspGetNodeForLineSub(n->r, a, b);
-  return 0;
-}
-
 static line_t *linepool = NULL;
 
 static void bspFreeTree() {
