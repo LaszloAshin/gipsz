@@ -47,19 +47,17 @@ public:
 		os << "plane2 " << v().x() << ' ' << v().y() << ' ' << v().z() << std::endl;
 	}
 
-	template <class U>
-	friend U
+	friend N
 	intersect(const Plane& lhs, const Plane& rhs)
 	{
 		const T q = wedge(rhs.n(), lhs.n());
 		const T epsilon = std::numeric_limits<T>::epsilon();
 		if (q > -epsilon && q < epsilon) throw std::overflow_error("parallel planes do not intersect each other");
-		const Vec<T, 2> p(wedge(rhs.v().yz(), lhs.v().yz()), wedge(lhs.v().xz(), rhs.v().xz()));
-		const Vec<T, 2> result(p / q);
-		return U(result.x(), result.y());
+		const N p(wedge(rhs.v().yz(), lhs.v().yz()), wedge(lhs.v().xz(), rhs.v().xz()));
+		return p / q;
 	}
 
-	Plane operator-() const { return Plane(-n().x(), -n().y(), -c()); }
+	Plane operator-() const { return Plane(-v().x(), -v().y(), -v().z()); }
 
 private:
 	Plane(T a, T b, T c) : v_(a, b, c) {}
@@ -67,7 +65,7 @@ private:
 	template <class U, class W>
 	static V computeFromTwoPoints(const U& p1, const W& p2)
 	{
-		N n(p2.y() - p1.y(), p1.x() - p2.x());
+		const N n(norm(N(p2.y() - p1.y(), p1.x() - p2.x())));
 		return V(n.x(), n.y(), -dot(n, p1));
 	}
 

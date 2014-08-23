@@ -117,8 +117,8 @@ void plUpdate() {
     if (cam.velo().z() < 0.0f && vz > cam.velo().z()) ++onfloor;
     cam.velo(Vec3d(vx, vy, vz));
   }
-  if (cam.sumForces.len() > std::numeric_limits<double>::epsilon()) {
-    cam.force(0.2f * cam.sumForces.norm(), 1.0f);
+  if (len(cam.sumForces) > std::numeric_limits<double>::epsilon()) {
+    cam.force(0.2f * norm(cam.sumForces), 1.0f);
   }
   cam.friction(0.1f);
   cam.move(1.0f);

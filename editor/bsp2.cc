@@ -33,6 +33,7 @@ class Vertex {
 public:
 	Vertex() : x_(0.0f), y_(0.0f) {}
 	Vertex(double x, double y) : x_(x), y_(y) {}
+	Vertex(const Vec2d& v) : x_(v.x()), y_(v.y()) {}
 
 	double x() const { return x_; }
 	double y() const { return y_; }
@@ -142,43 +143,8 @@ struct Renderer {
 	void draw(const Vertex& a, const Vertex& b) { edVector(a.x(), a.y(), b.x(), b.y()); }
 	void operator()(const Wall& w) { draw(w.a()); draw(w.b()); draw(w.a(), w.b()); }
 	void operator()(const Sector& s);
-	void draw(const Plane2d& p);
 	void draw(const Node& n);
 };
-
-void
-Renderer::draw(const Plane2d& p)
-{
-	int x1, y1, x2, y2;
-	edGetViewPort(&x1, &y1, &x2, &y2);
-	const Vertex lu(x1, y1);
-	const Vertex ru(x2, y1);
-	const Vertex rd(x2, y2);
-	const Vertex ld(x1, y2);
-	const Plane2d up(ru, lu);
-	const Plane2d right(rd, ru);
-	const Plane2d down(ld, rd);
-	const Plane2d left(lu, ld);
-	std::vector<Vertex> v;
-	try {
-		const Vertex mpup(intersect<Vertex>(p, up));
-		if (right.determine(mpup) * left.determine(mpup) > 0) v.push_back(mpup);
-	} catch (...) {}
-	try {
-		const Vertex mpright(intersect<Vertex>(p, right));
-		if (up.determine(mpright) * down.determine(mpright) > 0) v.push_back(mpright);
-	} catch (...) {}
-	try {
-		const Vertex mpdown(intersect<Vertex>(p, down));
-		if (right.determine(mpdown) * left.determine(mpdown) > 0) v.push_back(mpdown);
-	} catch (...) {}
-	try {
-		const Vertex mpleft(intersect<Vertex>(p, left));
-		if (up.determine(mpleft) * down.determine(mpleft) > 0) v.push_back(mpleft);
-	} catch (...) {}
-	if (v.size() < 2) return;
-	edLine(v[0].x(), v[0].y(), v[1].x(), v[1].y());
-}
 
 class SplitStats {
 public:
@@ -342,7 +308,7 @@ Sector Sector::partition(const Plane2d& plane) const {
 		const int ia = (da < -0.5f * thickness) ? -1 : ((da > 0.5f * thickness) ? 1 : 0);
 		const int ib = (db < -0.5f * thickness) ? -1 : ((db > 0.5f * thickness) ? 1 : 0);
 		if (ia * ib < 0) {
-			const Vertex isp(intersect<Vertex>(plane, Plane2d(i->a(), i->b())));
+			const Vertex isp(intersect(plane, Plane2d(i->a(), i->b())));
 			const double di = plane.determine(isp);
 			std::cerr << "di = " << di << " epsilon = " << epsilon << std::endl;
 			if (di > thickness / 2.0f || di < -thickness / 2.0f) throw std::runtime_error("intersection point is not on the intersection plane");

@@ -21,9 +21,6 @@ struct VecBase {
 	friend V operator/(V lhs, T rhs) { return lhs /= rhs; }
 	friend V operator/(T lhs, V rhs) { return rhs /= lhs; }
 
-	T len() const;
-	V norm() const { return that() / len(); }
-
 protected:
 	V& that() { return *static_cast<V*>(this); }
 	const V& that() const { return *static_cast<const V*>(this); }
@@ -138,7 +135,10 @@ private:
 
 typedef Vec<double, 3> Vec3d;
 
-template <>
-inline double VecBase<Vec3d, double>::len() const { return std::sqrt(dot(that(), that())); }
+template <size_t D>
+double len(const Vec<double, D>& v) { return std::sqrt(dot(v, v)); }
+
+template <class T>
+T norm(const T& v) { return v / len(v); }
 
 #endif // LIB_VECTOR_HEADER
