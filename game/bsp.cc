@@ -18,6 +18,8 @@
 #include <fstream>
 #include <stdexcept>
 
+static const double thickness = 0.1f;
+
 vc_t vc;
 sc_t sc;
 
@@ -39,7 +41,7 @@ nearestWallPoint(const line_t& l, const Vec2d& pm)
 }
 
 static bool
-onBadSide(const line_t& l, const Vec2d& p0)
+pointBehindLine(const line_t& l, const Vec2d& p0)
 {
   const Vec2d p1(vc.p[l.a].x, vc.p[l.a].y);
   const Vec2d p2(vc.p[l.b].x, vc.p[l.b].y);
@@ -89,12 +91,14 @@ bspGetNodeForCoordsSub(node_t *n, const Vec3d& p)
   if (n->n) { // leaf
     if (p.z() < n->s->f || n->s->c < p.z()) return 0;
     for (line_t* l = n->p; l < n->p + n->n; ++l) {
-      if (onBadSide(*l, p.xy())) return 0;
+      if (pointBehindLine(*l, p.xy())) return 0;
     }
     return n;
   } else {
-    const int det = n->div.determine(p);
-    return bspGetNodeForCoordsSub((det < 0.0f) ? n->r : n->l, p);
+    if (n->div.determine(p) < thickness) {
+      if (node_t* result = bspGetNodeForCoordsSub(n->r, p)) return result;
+    }
+    return bspGetNodeForCoordsSub(n->l, p);
   }
 }
 
