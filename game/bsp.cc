@@ -33,8 +33,8 @@ double clamp(double value, double low, double high) { return (value < low) ? low
 static Vec2d
 nearestWallPoint(const line_t& l, const Vec2d& pm)
 {
-  const Vec2d p1(vc[l.a].x, vc[l.a].y);
-  const Vec2d p2(vc[l.b].x, vc[l.b].y);
+  const Vec2d p1(vc[l.a]);
+  const Vec2d p2(vc[l.b]);
   const Vec2d d(p2 - p1);
   const double t = clamp(dot(pm - p1, d) / dot(d, d), 0.0f, 1.0f);
   return p1 + t * d;
@@ -43,8 +43,8 @@ nearestWallPoint(const line_t& l, const Vec2d& pm)
 static bool
 pointBehindLine(const line_t& l, const Vec2d& p0)
 {
-  const Vec2d p1(vc[l.a].x, vc[l.a].y);
-  const Vec2d p2(vc[l.b].x, vc[l.b].y);
+  const Vec2d p1(vc[l.a]);
+  const Vec2d p2(vc[l.b]);
   return wedge(p2 - p1, p0 - p1) < 0.0f;
 }
 
@@ -121,7 +121,7 @@ static void bspFreeTree() {
   vc.clear();
 }
 
-static vertex_t
+static Vertex
 bspReadVertex(std::istream& is, size_t expectedIndex)
 {
   std::string name;
@@ -132,7 +132,7 @@ bspReadVertex(std::istream& is, size_t expectedIndex)
   if (index != expectedIndex) throw std::runtime_error("unexpected index");
   float x, y;
   is >> x >> y;
-  return vertex_t(x, y);
+  return Vertex(x, y);
 }
 
 static void
@@ -214,8 +214,8 @@ bspLoadNode(struct bsp_load_ctx * const blc, size_t level)
         texLoadTexture(GET_TEXTURE(n->p[i].t, 2), 0);
       }
       for (unsigned i = 0; i < n->n; ++i) {
-        const float x = vc[n->p[i].a].y - vc[n->p[i].b].y;
-        const float y = vc[n->p[i].b].x - vc[n->p[i].a].x;
+        const float x = vc[n->p[i].a].y() - vc[n->p[i].b].y();
+        const float y = vc[n->p[i].b].x() - vc[n->p[i].a].x();
         float l = 1 / sqrtf(x * x + y * y);
         if (n->s->c < n->s->f) l = -l;
         n->p[i].nx = x * l;
@@ -238,7 +238,7 @@ bspLoadNode(struct bsp_load_ctx * const blc, size_t level)
     n->bb = n->r->bb;
     j = 2;
   } else if (n->n) {
-    n->bb.add(Vec3d(vc[n->p[0].a].x, vc[n->p[0].a].y, n->s->f));
+    n->bb.add(Vec3d(vc[n->p[0].a].x(), vc[n->p[0].a].y(), n->s->f));
     j = 2;
   }
   switch (j) {
@@ -247,8 +247,8 @@ bspLoadNode(struct bsp_load_ctx * const blc, size_t level)
       /* intentionally no break here */
     case 2:
       for (unsigned i = 0; i < n->n; ++i) {
-        n->bb.add(Vec3d(vc[n->p[i].a].x, vc[n->p[i].a].y, n->s->f));
-        n->bb.add(Vec3d(vc[n->p[i].a].x, vc[n->p[i].a].y, n->s->c));
+        n->bb.add(Vec3d(vc[n->p[i].a].x(), vc[n->p[i].a].y(), n->s->f));
+        n->bb.add(Vec3d(vc[n->p[i].a].x(), vc[n->p[i].a].y(), n->s->c));
       }
       break;
     default:
@@ -264,8 +264,8 @@ bspGetContSub(struct bsp_load_ctx * const blc, node_t *n, node_t *m)
   if (n->s != NULL) {
     if (n->s->f > n->s->c) return 0;
     for (unsigned i = 0; i < m->n; ++i) {
-      if (n->bb.inside(Vec3d(vc[m->p[i].a].x, vc[m->p[i].a].y, m->s->c)) ||
-          n->bb.inside(Vec3d(vc[m->p[i].a].x, vc[m->p[i].a].y, m->s->f))) {
+      if (n->bb.inside(Vec3d(vc[m->p[i].a].x(), vc[m->p[i].a].y(), m->s->c)) ||
+          n->bb.inside(Vec3d(vc[m->p[i].a].x(), vc[m->p[i].a].y(), m->s->f))) {
         return n;
       }
     }

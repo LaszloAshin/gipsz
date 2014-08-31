@@ -2,6 +2,7 @@
 #define _BSP_H 1
 
 #include <game/bbox.hh>
+#include <lib/vec.hh>
 #include <lib/plane.hh>
 #include <lib/masspoint.hh>
 
@@ -9,13 +10,8 @@
 #include <istream>
 #include <vector>
 
-struct vertex_t {
-  float x, y;
-
-  vertex_t(float x0, float y0) : x(x0), y(y0) {}
-};
-
-typedef std::vector<vertex_t> Vertexes;
+typedef Vec2d Vertex;
+typedef std::vector<Vertex> Vertexes;
 
 typedef struct {
   short f;
