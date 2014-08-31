@@ -7,10 +7,15 @@
 
 #include <cstdio>
 #include <istream>
+#include <vector>
 
-typedef struct {
+struct vertex_t {
   float x, y;
-} vertex_t;
+
+  vertex_t(float x0, float y0) : x(x0), y(y0) {}
+};
+
+typedef std::vector<vertex_t> Vertexes;
 
 typedef struct {
   short f;
@@ -50,17 +55,12 @@ typedef struct node_s {
 } node_t;
 
 typedef struct {
-  vertex_t *p;
-  unsigned n;
-} vc_t;
-
-typedef struct {
   sector_t *p;
   unsigned n;
 } sc_t;
 
 extern node_t *root, *cn;
-extern vc_t vc;
+extern Vertexes vc;
 extern sc_t sc;
 
 void bspCollideTree(MassPoint3d& mp);
