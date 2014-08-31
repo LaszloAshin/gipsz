@@ -35,20 +35,20 @@ private:
 
 typedef std::vector<Sector> Sectors;
 
-struct node_s;
-
-typedef enum {
-  LF_NOTHING		= 0x0000,
-  LF_TWOSIDED		= 0x0001,
-  LF_TOPSTART		= 0x0002,
-  LF_BOTTOMSTART	= 0x0004,
-  LF_BLOCK		= 0x0008
-} lineflag_t;
+struct LineFlag {
+	enum Type {
+		NOTHING = 0x00,
+		TWOSIDED = 0x01,
+		TOPSTART = 0x02,
+		BOTTOMSTART = 0x04,
+		BLOCK = 0x08
+	};
+};
 
 typedef struct {
   unsigned a, b;
   float u1, u2, v;
-  lineflag_t flags;
+  LineFlag::Type flags;
   float nx, ny;
   unsigned t;
   int backSectorId;

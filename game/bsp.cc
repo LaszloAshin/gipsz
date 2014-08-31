@@ -145,7 +145,7 @@ bspReadLine(line_t *l, std::istream& is)
   is >> l->b;
   int i;
   is >> i;
-  l->flags = lineflag_t(i);
+  l->flags = LineFlag::Type(i);
   is >> l->backSectorId;
   is >> name;
   if (name != "surface") throw std::runtime_error("surface expected");
