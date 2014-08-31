@@ -81,13 +81,22 @@ private:
   int backSectorId_;
 };
 
+typedef std::vector<Line> Lines;
+
 typedef struct node_s {
-  Line *p;
-  unsigned n;
+  Lines ls;
   BBox3d bb;
   Sector* s;
   struct node_s *front, *back, *ow;
   Plane2d div;
+
+  typedef Lines::const_iterator const_iterator;
+  typedef Lines::const_reverse_iterator const_reverse_iterator;
+
+  const_iterator begin() const { return ls.begin(); }
+  const_iterator end() const { return ls.end(); }
+  const_reverse_iterator rbegin() const { return ls.rbegin(); }
+  const_reverse_iterator rend() const { return ls.rend(); }
 } node_t;
 
 extern node_t *root, *cn;

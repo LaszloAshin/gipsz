@@ -61,13 +61,13 @@ static void
 bspCollideNode(const node_t* n, MassPoint3d& mp)
 {
   const Vec3d newPos(mp.pos() + mp.velo());
-  for (Line* l = n->p; l < n->p + n->n; ++l) {
-    const Vec2d pm(nearestWallPoint(*l, newPos.xy()));
+  for (node_t::const_iterator i(n->begin()); i != n->end(); ++i) {
+    const Vec2d pm(nearestWallPoint(*i, newPos.xy()));
     const Vec2d n2d(norm(newPos.xy() - pm));
     const Vec3d n3d(n2d.x(), n2d.y(), 0.0f);
     const double d = len(newPos.xy() - pm) - 16.0f;
     if (d < 0.0f) {
-      if (!crossable(*l)) {
+      if (!crossable(*i)) {
         mp.velo(mp.velo() - d * n3d);
       }
     }
@@ -88,10 +88,10 @@ void bspCollideTree(MassPoint3d& mp) {
 static node_t *
 bspGetNodeForCoordsSub(node_t *n, const Vec3d& p)
 {
-  if (n->n) { // leaf
+  if (!n->ls.empty()) { // leaf
     if (p.z() < n->s->f() || n->s->c() < p.z()) return 0;
-    for (Line* l = n->p; l < n->p + n->n; ++l) {
-      if (pointBehindLine(*l, p.xy())) return 0;
+    for (node_t::const_iterator i(n->begin()); i != n->end(); ++i) {
+      if (pointBehindLine(*i, p.xy())) return 0;
     }
     return n;
   } else {
@@ -106,13 +106,7 @@ node_t *bspGetNodeForCoords(const Vec3d& p) {
   return root ? bspGetNodeForCoordsSub(root, p) : 0;
 }
 
-static Line* linepool = 0;
-
 static void bspFreeTree() {
-  if (linepool != NULL) {
-    mmFree(linepool);
-    linepool = NULL;
-  }
   if (root != NULL) {
     mmFree(root);
     root = NULL;
@@ -154,11 +148,10 @@ bspReadLine(std::istream& is)
 
 struct bsp_load_ctx {
   std::istream& is;
-  unsigned rn, rl;
+  unsigned rn;
   node_t *np;
-  Line* lp;
 
-  bsp_load_ctx(std::istream& is0) : is(is0), rn(0), rl(0), np(0), lp(0) {}
+  bsp_load_ctx(std::istream& is0) : is(is0), rn(0), np(0) {}
 };
 
 static node_t *
@@ -176,8 +169,7 @@ bspLoadNode(struct bsp_load_ctx * const blc, size_t level)
   if (!blc->rn) throw std::runtime_error("out of preallocated nodes");
   --blc->rn;
   node_t* n = blc->np++;
-  n->p = 0;
-  n->n = 0;
+  n->ls.clear();
   n->bb = BBox3d();
   n->s = 0;
   n->front = n->back = 0;
@@ -193,27 +185,21 @@ bspLoadNode(struct bsp_load_ctx * const blc, size_t level)
       texLoadTexture(GET_TEXTURE(n->s->t(), 0), 0);
       texLoadTexture(GET_TEXTURE(n->s->t(), 1), 0);
     }
-    unsigned lineCount;
+    size_t lineCount;
     blc->is >> lineCount;
     assert(lineCount);
-    n->n = lineCount;
-    if (n->n) {
-      if (n->n > blc->rl) throw std::runtime_error("out of preallocated lines");
-      blc->rl -= n->n;
-      n->p = blc->lp;
-      blc->lp += n->n;
-      for (unsigned i = 0; i < n->n; ++i) {
-        n->p[i] = bspReadLine(blc->is);
-        texLoadTexture(GET_TEXTURE(n->p[i].t(), 0), 0);
-        texLoadTexture(GET_TEXTURE(n->p[i].t(), 1), 0);
-        texLoadTexture(GET_TEXTURE(n->p[i].t(), 2), 0);
-      }
-      for (unsigned i = 0; i < n->n; ++i) {
-        const float x = vc[n->p[i].a()].y() - vc[n->p[i].b()].y();
-        const float y = vc[n->p[i].b()].x() - vc[n->p[i].a()].x();
-        float l = 1 / sqrtf(x * x + y * y);
-        if (n->s->c() < n->s->f()) l = -l; // XXX: outsider
-        n->p[i].n(Vec2d(x * l, y * l));
+    if (lineCount) { // leaf
+      n->ls.reserve(lineCount);
+      for (size_t i = 0; i < lineCount; ++i) {
+        Line l(bspReadLine(blc->is));
+        texLoadTexture(GET_TEXTURE(l.t(), 0), 0);
+        texLoadTexture(GET_TEXTURE(l.t(), 1), 0);
+        texLoadTexture(GET_TEXTURE(l.t(), 2), 0);
+        const float x = vc[l.a()].y() - vc[l.b()].y();
+        const float y = vc[l.b()].x() - vc[l.a()].x();
+        float len = 1 / sqrtf(x * x + y * y);
+        l.n(Vec2d(x * len, y * len));
+        n->ls.push_back(l);
       }
     }
   } else {
@@ -231,8 +217,8 @@ bspLoadNode(struct bsp_load_ctx * const blc, size_t level)
   } else if (n->back) {
     n->bb = n->back->bb;
     j = 2;
-  } else if (n->n) {
-    n->bb.add(Vec3d(vc[n->p[0].a()].x(), vc[n->p[0].a()].y(), n->s->f()));
+  } else if (!n->ls.empty()) {
+    n->bb.add(Vec3d(vc[n->ls.front().a()].x(), vc[n->ls.front().a()].y(), n->s->f()));
     j = 2;
   }
   switch (j) {
@@ -240,9 +226,9 @@ bspLoadNode(struct bsp_load_ctx * const blc, size_t level)
       if (n->back) n->bb.add(n->back->bb);
       /* intentionally no break here */
     case 2:
-      for (unsigned i = 0; i < n->n; ++i) {
-        n->bb.add(Vec3d(vc[n->p[i].a()].x(), vc[n->p[i].a()].y(), n->s->f()));
-        n->bb.add(Vec3d(vc[n->p[i].a()].x(), vc[n->p[i].a()].y(), n->s->c()));
+      for (node_t::const_iterator i(n->begin()); i != n->end(); ++i) {
+        n->bb.add(Vec3d(vc[i->a()].x(), vc[i->a()].y(), n->s->f()));
+        n->bb.add(Vec3d(vc[i->a()].x(), vc[i->a()].y(), n->s->c()));
       }
       break;
     default:
@@ -257,9 +243,9 @@ bspGetContSub(struct bsp_load_ctx * const blc, node_t *n, node_t *m)
 {
   if (n->s != NULL) {
     if (n->s->f() > n->s->c()) return 0;
-    for (unsigned i = 0; i < m->n; ++i) {
-      if (n->bb.inside(Vec3d(vc[m->p[i].a()].x(), vc[m->p[i].a()].y(), m->s->c())) ||
-          n->bb.inside(Vec3d(vc[m->p[i].a()].x(), vc[m->p[i].a()].y(), m->s->f()))) {
+    for (node_t::const_iterator i(m->begin()); i != m->end(); ++i) {
+      if (n->bb.inside(Vec3d(vc[i->a()].x(), vc[i->a()].y(), m->s->c())) ||
+          n->bb.inside(Vec3d(vc[i->a()].x(), vc[i->a()].y(), m->s->f()))) {
         return n;
       }
     }
@@ -284,7 +270,7 @@ bspSearchOutsiders(struct bsp_load_ctx * const blc, node_t *n)
   if (n->s != NULL && n->s->f() < n->s->c()) return;
   if (n->front != NULL) bspSearchOutsiders(blc, n->front);
   if (n->back != NULL) bspSearchOutsiders(blc, n->back);
-  if (n->n) {
+  if (!n->ls.empty()) {
     n->ow = bspGetContainerNode(blc, n);
 //    cmsg(MLINFO, "outsider! %d %d", n->ow->s - sc.p, n->ow->n);
   }
@@ -309,14 +295,13 @@ bspLoadTree(std::istream& is) {
   is >> blc.rn;
   is >> name;
   if (name != "line-count") throw std::runtime_error("line-count expected");
-  is >> blc.rl;
-  cmsg(MLINFO, "%d nodes, %d lines", blc.rn, blc.rl);
+  size_t lineCount;
+  is >> lineCount;
+  cmsg(MLINFO, "%d nodes, %zu lines", blc.rn, lineCount);
   blc.np = root = (node_t *)mmAlloc(blc.rn * sizeof(node_t));
   if (!root) throw std::runtime_error("memory");
-  blc.lp = linepool = (Line*)mmAlloc(blc.rl * sizeof(Line));
-  if (!linepool) throw std::runtime_error("memory");
   bspLoadNode(&blc, 0);
-  cmsg(MLINFO, "really %d nodes, %d lines", blc.np - root, blc.lp - linepool);
+  cmsg(MLINFO, "really %d nodes", blc.np - root); // TODO: count lines and print!
   cmsg(MLINFO, "%d textures", texGetNofTextures());
   bspSearchOutsiders(&blc, root);
 }
