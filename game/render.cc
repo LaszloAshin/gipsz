@@ -128,9 +128,9 @@ rDrawNode(node_t *n)
   if (!visibleByCamFrustum(n->bb)) return;
   const int det = n->div.determine(Vec2d(cam.pos().x(), cam.pos().y()));
   if (det > 0) {
-    if (n->r) rDrawNode(n->r);
+    if (n->back) rDrawNode(n->back);
   } else {
-    if (n->l) rDrawNode(n->l);
+    if (n->front) rDrawNode(n->front);
   }
   if (n->s && n->n) {
     glColor3ub(n->s->l(), n->s->l(), n->s->l());
@@ -149,9 +149,9 @@ rDrawNode(node_t *n)
     ++visnodes;
   }
   if (det > 0) {
-    if (n->l) rDrawNode(n->l);
+    if (n->front) rDrawNode(n->front);
   } else {
-    if (n->r) rDrawNode(n->r);
+    if (n->back) rDrawNode(n->back);
   }
 }
 

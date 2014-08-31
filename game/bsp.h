@@ -86,7 +86,7 @@ typedef struct node_s {
   unsigned n;
   BBox3d bb;
   Sector* s;
-  struct node_s *l, *r, *ow;
+  struct node_s *front, *back, *ow;
   Plane2d div;
 } node_t;
 

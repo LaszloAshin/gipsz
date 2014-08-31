@@ -96,9 +96,9 @@ bspGetNodeForCoordsSub(node_t *n, const Vec3d& p)
     return n;
   } else {
     if (n->div.determine(p) < thickness) {
-      if (node_t* result = bspGetNodeForCoordsSub(n->r, p)) return result;
+      if (node_t* result = bspGetNodeForCoordsSub(n->back, p)) return result;
     }
-    return bspGetNodeForCoordsSub(n->l, p);
+    return bspGetNodeForCoordsSub(n->front, p);
   }
 }
 
@@ -180,7 +180,7 @@ bspLoadNode(struct bsp_load_ctx * const blc, size_t level)
   n->n = 0;
   n->bb = BBox3d();
   n->s = 0;
-  n->l = n->r = 0;
+  n->front = n->back = 0;
   n->ow = 0;
   if (isLeaf) {
     blc->is >> name;
@@ -218,18 +218,18 @@ bspLoadNode(struct bsp_load_ctx * const blc, size_t level)
     }
   } else {
     n->div = Plane2d::read(blc->is);
-    n->l = bspLoadNode(blc, level + 1);
-    n->r = bspLoadNode(blc, level + 1);
+    n->front = bspLoadNode(blc, level + 1);
+    n->back = bspLoadNode(blc, level + 1);
   }
 
 
 
   int j = 0;
-  if (n->l) {
-    n->bb = n->l->bb;
+  if (n->front) {
+    n->bb = n->front->bb;
     j = 1;
-  } else if (n->r) {
-    n->bb = n->r->bb;
+  } else if (n->back) {
+    n->bb = n->back->bb;
     j = 2;
   } else if (n->n) {
     n->bb.add(Vec3d(vc[n->p[0].a()].x(), vc[n->p[0].a()].y(), n->s->f()));
@@ -237,7 +237,7 @@ bspLoadNode(struct bsp_load_ctx * const blc, size_t level)
   }
   switch (j) {
     case 1:
-      if (n->r) n->bb.add(n->r->bb);
+      if (n->back) n->bb.add(n->back->bb);
       /* intentionally no break here */
     case 2:
       for (unsigned i = 0; i < n->n; ++i) {
@@ -264,11 +264,11 @@ bspGetContSub(struct bsp_load_ctx * const blc, node_t *n, node_t *m)
       }
     }
   }
-  if (n->l != NULL) {
-    node_t *result = bspGetContSub(blc, n->l, m);
+  if (n->front != NULL) {
+    node_t *result = bspGetContSub(blc, n->front, m);
     if (result) return result;
   }
-  if (n->r != NULL) return bspGetContSub(blc, n->r, m);
+  if (n->back != NULL) return bspGetContSub(blc, n->back, m);
   return 0;
 }
 
@@ -282,8 +282,8 @@ static void
 bspSearchOutsiders(struct bsp_load_ctx * const blc, node_t *n)
 {
   if (n->s != NULL && n->s->f() < n->s->c()) return;
-  if (n->l != NULL) bspSearchOutsiders(blc, n->l);
-  if (n->r != NULL) bspSearchOutsiders(blc, n->r);
+  if (n->front != NULL) bspSearchOutsiders(blc, n->front);
+  if (n->back != NULL) bspSearchOutsiders(blc, n->back);
   if (n->n) {
     n->ow = bspGetContainerNode(blc, n);
 //    cmsg(MLINFO, "outsider! %d %d", n->ow->s - sc.p, n->ow->n);
