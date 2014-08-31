@@ -114,13 +114,9 @@ void plUpdate() {
   cam.friction(onfloor ? 0.1f : 0.075f);
   onfloor = 0;
   if (clip) {
-    double vx = cam.velo().x();
-    double vy = cam.velo().y();
-    double vz = cam.velo().z();
-    bspCollideTree(cam.pos(), &vx, &vy, &vz, 0);
-    bspCollideTree(cam.pos(), &vx, &vy, &vz, 1);
-    if (cam.velo().z() < 0.0f && vz > cam.velo().z()) onfloor = !0;
-    cam.velo(Vec3d(vx, vy, vz));
+    const double oldVeloZ = cam.velo().z();
+    bspCollideTree(cam);
+    onfloor = cam.velo().z() < 0 && cam.velo().z() > oldVeloZ;
   }
   cam.move(1.0f);
   cam.a += cam.da;

@@ -26,165 +26,73 @@ node_t *root = NULL, *cn = NULL;
 static int bspLoaded = 0;
 int bspIsLoaded() { return bspLoaded; }
 
-/* point-line distance */
-static float pszt(vertex_t p1, vertex_t p2, vertex_t p3, vertex_t *p4) {
-  float dx21, dy21;
-  float x, y;
+double clamp(double value, double low, double high) { return (value < low) ? low : ((value > high) ? high : value); }
 
-  if (p1.x > p2.x) {
-    vertex_t p = p1;
-    p1 = p2;
-    p2 = p;
-  }
-  dx21 = p2.x - p1.x;
-  dy21 = p2.y - p1.y;
-  x = p3.y - p1.y;
-  x *= dx21 * dy21;
-  x += p1.x * dy21 * dy21 + p3.x * dx21 * dx21;
-  x /= dy21 * dy21 + dx21 * dx21;
-  if (x < p1.x) {
-    x = p1.x;
-    y = p1.y;
-  } else if (x > p2.x) {
-    x = p2.x;
-    y = p2.y;
-  } else {
-    if (fabs(dx21) > fabs(dy21)) {
-      if (dx21)
-        y = p1.y + (x - p1.x) * dy21 / dx21;
-      else
-        return 0;
-    } else if (dy21)
-      y = p3.y - (x - p3.x) * dx21 / dy21;
-    else
-      return 0;
-    if (p1.y > p2.y) {
-      vertex_t p = p1;
-      p1 = p2;
-      p2 = p;
-    }
-    if (y < p1.y) {
-      y = p1.y;
-      x = p1.x;
-    } else if (y > p2.y) {
-      y = p2.y;
-      x = p2.x;
-    }
-  }
-  dx21 = p3.x - x;
-  dy21 = p3.y - y;
-  if (p4 != NULL) {
-    p4->x = dx21;
-    p4->y = dy21;
-  }
-  return dx21 * dx21 + dy21 * dy21;
+static Vec2d
+nearestWallPoint(const line_t& l, const Vec2d& pm)
+{
+  const Vec2d p1(vc.p[l.a].x, vc.p[l.a].y);
+  const Vec2d p2(vc.p[l.b].x, vc.p[l.b].y);
+  const Vec2d d(p2 - p1);
+  const double t = clamp(dot(pm - p1, d) / dot(d, d), 0.0f, 1.0f);
+  return p1 + t * d;
 }
 
-/* arc tan function which computes angle from dx and dy */
-double at(double dy, double dx) {
-  if (dx > 0)
-    return atan(dy / dx);
-  else if (dx < 0)
-    return ((dy > 0) ? M_PI : -M_PI) - atan(dy / -dx);
-  else
-    return (dy > 0) ? M_PI / 2 : -M_PI / 2;
+static bool
+onBadSide(const line_t& l, const Vec2d& pm)
+{
+  const Vec2d p1(vc.p[l.a].x, vc.p[l.a].y);
+  const Vec2d p2(vc.p[l.b].x, vc.p[l.b].y);
+  return wedge(p2 - p1, pm - p1) < 0.0f;
 }
 
-struct collide_param_rec {
-  Vec3d p;
-  double *dx, *dy, *dz;
-  int hard;
-  int j;
-};
+static bool
+crossable(const line_t& l)
+{
+  if (!l.backSectorId) return false;
+  const sector_t& neighSector(sc.p[l.backSectorId]);
+  if (neighSector.c - neighSector.f < 64) return false;
+  return true;
+}
 
 static void
-bspCollideNode(struct collide_param_rec *pr, node_t *n)
+bspCollideNode(node_t* n, MassPoint3d& mp)
 {
-  if (n == NULL || !n->bb.inside(pr->p, Vec3d(48.0f, 48.0f, 48.0f))) return;
-  bspCollideNode(pr, n->l);
-  bspCollideNode(pr, n->r);
-  if (n->s == NULL || !n->n) return;
-  vertex_t p;
-  p.x = pr->p.x() + *pr->dx;
-  p.y = pr->p.y() + *pr->dy;
-  double pz = pr->p.z() + *pr->dz;
-  int in = 1;
-  for (line_t *l = n->p; l < n->p + n->n; ++l) {
-    double dx1 = vc.p[l->b].x - vc.p[l->a].x;
-    const double dy1 = vc.p[l->b].y - vc.p[l->a].y;
-    double dx2 = vc.p[l->b].x - pr->p.x();
-    const double dy2 = vc.p[l->b].y - pr->p.y();
-    const int front = dx1 * dy2 < dy1 * dx2;
-    if (!front) in = 0;
-    if (n->s->f < n->s->c) {
-      if (pz < n->s->f - 16 - 8 || pz > n->s->c + 48 + 8) continue;
-    } else {
-      if (pz < n->s->c - 16 - 8 || pz > n->s->f + 48 + 8) continue;
-    }
-    vertex_t f = { 0, 0 };
-    if (pszt(vc.p[l->a], vc.p[l->b], p, &f) > 256.0) continue;
-    in = 0;
-    if (pz > n->s->f && pz < n->s->f + 48) {
-      *pr->dz = (n->s->f + 48 - pr->p.z()) * 0.1;
-      pz = pr->p.z() + *pr->dz;
-    }
-    if (pz < n->s->c && pz > n->s->c - 16) {
-      *pr->dz = (n->s->c - 16 - pr->p.z()) * 0.1;
-      pz = pr->p.z() + *pr->dz;
-    }
-    const sector_t* const ns = l->backSectorId ? (sc.p + l->backSectorId) : 0;
-    if (ns) {
-      if (n->s->f < n->s->c) {
-        dx1 = n->s->f;
-        if (ns->f > dx1) dx1 = ns->f;
-        dx2 = n->s->c;
-        if (ns->c < dx2) dx2 = ns->c;
-        if (dx2 - dx1 > 64 && ns->f < pz - 48 + 24 && ns->c > pz + 16) continue;
-      } else {
-        if (ns->f <= pz - 48 + 24 || ns->c >= pz + 16) continue;
+  // XXX: bounding box testing can be skipped: walls of neighbour subsectors need to be examined
+  if (!n || !n->bb.inside(mp.pos(), Vec3d(48.0f, 48.0f, 48.0f))) return;
+  const Vec3d newPos(mp.pos() + mp.velo());
+  if (n->n) { // leaf
+    bool inside = true;
+    bool near = false;
+    for (line_t* l = n->p; l < n->p + n->n; ++l) {
+      if (onBadSide(*l, newPos.xy())) inside = false;
+      const Vec2d pm(nearestWallPoint(*l, newPos.xy()));
+      const Vec2d n2d(norm(newPos.xy() - pm));
+      const Vec3d n3d(n2d.x(), n2d.y(), 0.0f);
+      const double d = len(newPos.xy() - pm) - 16.0f;
+      if (d < 0.0f) {
+        if (!crossable(*l)) {
+          mp.velo(mp.velo() - d * n3d);
+        } else {
+          near = true;
+        }
       }
-    } else if (n->s->f > n->s->c) {
-      if (pz > n->s->f + 48 - 8 || pz < n->s->c - 16 + 8) continue;
     }
-    const double q = sqrt(f.x * f.x + f.y * f.y);
-    f.x /= q;  f.y /= q;
-    if (pr->hard) {
-      if (pr->j) {
-        *pr->dx += f.x;
-        *pr->dy += f.y;
-      } else {
-        *pr->dx = f.x;
-        *pr->dy = f.y;
+    if (inside) near = true;
+    if (near) {
+      const double df = newPos.z() - n->s->f - 48.0f;
+      if (df < 0.0f) {
+        mp.velo(mp.velo() - df * Vec3d(0.0f, 0.0f, 1.0f) / 10);
       }
-      ++pr->j;
-      continue;
     }
-    const double q2 = cos(at(f.x, -f.y) - at(*pr->dy, *pr->dx)) * sqrt(*pr->dx * *pr->dx + *pr->dy * *pr->dy);
-    *pr->dx = -f.y * q2;
-    *pr->dy = f.x * q2;
-  }
-  if (in) {
-    if (pz > n->s->f && pz < n->s->f + 48) {
-      *pr->dz = (n->s->f + 48 - pr->p.z()) * 0.1;
-      pz = pr->p.z() + *pr->dz;
-    }
-    if (pz < n->s->c && pz > n->s->c - 16) {
-      *pr->dz = (n->s->c - 16 - pr->p.z()) * 0.1;
-      pz = pr->p.z() + *pr->dz;
-    }
+  } else {
+    bspCollideNode(n->r, mp);
+    bspCollideNode(n->l, mp);
   }
 }
 
-/* function to handle point-bsptree collision */
-void bspCollideTree(const Vec3d& p, double *dx, double *dy, double *dz, int hard) {
-  struct collide_param_rec pr;
-  pr.p = p;
-  pr.dx = dx;
-  pr.dy = dy;
-  pr.dz = dz;
-  pr.hard = hard;
-  pr.j = 0;
-  if (root != NULL) bspCollideNode(&pr, root);
+void bspCollideTree(MassPoint3d& mp) {
+  if (root) bspCollideNode(root, mp);
 }
 
 static node_t *

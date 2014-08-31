@@ -3,6 +3,7 @@
 
 #include <game/bbox.hh>
 #include <lib/plane.hh>
+#include <lib/masspoint.hh>
 
 #include <cstdio>
 #include <istream>
@@ -62,7 +63,7 @@ extern node_t *root, *cn;
 extern vc_t vc;
 extern sc_t sc;
 
-void bspCollideTree(const Vec3d& p, double *dx, double *dy, double *dz, int hard);
+void bspCollideTree(MassPoint3d& mp);
 node_t *bspGetNodeForCoords(const Vec3d& p);
 void bspFreeMap();
 int bspLoadMap(const char *fname);
