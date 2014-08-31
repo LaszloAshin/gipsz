@@ -21,7 +21,7 @@
 static const double thickness = 0.1f;
 
 Vertexes vc;
-sc_t sc;
+Sectors sc;
 
 node_t *root = NULL, *cn = NULL;
 
@@ -52,8 +52,8 @@ static bool
 crossable(const line_t& l)
 {
   if (!l.backSectorId) return false;
-  const sector_t& neighSector(sc.p[l.backSectorId]);
-  if (neighSector.c - neighSector.f < 64) return false;
+  const Sector neighSector(sc[l.backSectorId]);
+  if (neighSector.height() < 64) return false;
   return true;
 }
 
@@ -72,7 +72,7 @@ bspCollideNode(const node_t* n, MassPoint3d& mp)
       }
     }
   }
-  const double df = newPos.z() - n->s->f - 48.0f;
+  const double df = newPos.z() - n->s->f() - 48.0f;
   if (df < 0.0f) {
     mp.velo(mp.velo() - df * Vec3d(0.0f, 0.0f, 1.0f) / 10);
   }
@@ -89,7 +89,7 @@ static node_t *
 bspGetNodeForCoordsSub(node_t *n, const Vec3d& p)
 {
   if (n->n) { // leaf
-    if (p.z() < n->s->f || n->s->c < p.z()) return 0;
+    if (p.z() < n->s->f() || n->s->c() < p.z()) return 0;
     for (line_t* l = n->p; l < n->p + n->n; ++l) {
       if (pointBehindLine(*l, p.xy())) return 0;
     }
@@ -194,9 +194,9 @@ bspLoadNode(struct bsp_load_ctx * const blc, size_t level)
     blc->is >> sectorId;
     printf("sectorId: %u\n", sectorId);
     if (sectorId) {
-      n->s = sc.p + sectorId;
-      texLoadTexture(GET_TEXTURE(n->s->t, 0), 0);
-      texLoadTexture(GET_TEXTURE(n->s->t, 1), 0);
+      n->s = &sc.at(sectorId);
+      texLoadTexture(GET_TEXTURE(n->s->t(), 0), 0);
+      texLoadTexture(GET_TEXTURE(n->s->t(), 1), 0);
     }
     unsigned lineCount;
     blc->is >> lineCount;
@@ -217,7 +217,7 @@ bspLoadNode(struct bsp_load_ctx * const blc, size_t level)
         const float x = vc[n->p[i].a].y() - vc[n->p[i].b].y();
         const float y = vc[n->p[i].b].x() - vc[n->p[i].a].x();
         float l = 1 / sqrtf(x * x + y * y);
-        if (n->s->c < n->s->f) l = -l;
+        if (n->s->c() < n->s->f()) l = -l; // XXX: outsider
         n->p[i].nx = x * l;
         n->p[i].ny = y * l;
       }
@@ -238,7 +238,7 @@ bspLoadNode(struct bsp_load_ctx * const blc, size_t level)
     n->bb = n->r->bb;
     j = 2;
   } else if (n->n) {
-    n->bb.add(Vec3d(vc[n->p[0].a].x(), vc[n->p[0].a].y(), n->s->f));
+    n->bb.add(Vec3d(vc[n->p[0].a].x(), vc[n->p[0].a].y(), n->s->f()));
     j = 2;
   }
   switch (j) {
@@ -247,8 +247,8 @@ bspLoadNode(struct bsp_load_ctx * const blc, size_t level)
       /* intentionally no break here */
     case 2:
       for (unsigned i = 0; i < n->n; ++i) {
-        n->bb.add(Vec3d(vc[n->p[i].a].x(), vc[n->p[i].a].y(), n->s->f));
-        n->bb.add(Vec3d(vc[n->p[i].a].x(), vc[n->p[i].a].y(), n->s->c));
+        n->bb.add(Vec3d(vc[n->p[i].a].x(), vc[n->p[i].a].y(), n->s->f()));
+        n->bb.add(Vec3d(vc[n->p[i].a].x(), vc[n->p[i].a].y(), n->s->c()));
       }
       break;
     default:
@@ -262,10 +262,10 @@ static node_t *
 bspGetContSub(struct bsp_load_ctx * const blc, node_t *n, node_t *m)
 {
   if (n->s != NULL) {
-    if (n->s->f > n->s->c) return 0;
+    if (n->s->f() > n->s->c()) return 0;
     for (unsigned i = 0; i < m->n; ++i) {
-      if (n->bb.inside(Vec3d(vc[m->p[i].a].x(), vc[m->p[i].a].y(), m->s->c)) ||
-          n->bb.inside(Vec3d(vc[m->p[i].a].x(), vc[m->p[i].a].y(), m->s->f))) {
+      if (n->bb.inside(Vec3d(vc[m->p[i].a].x(), vc[m->p[i].a].y(), m->s->c())) ||
+          n->bb.inside(Vec3d(vc[m->p[i].a].x(), vc[m->p[i].a].y(), m->s->f()))) {
         return n;
       }
     }
@@ -287,7 +287,7 @@ bspGetContainerNode(struct bsp_load_ctx * const blc, node_t *m)
 static void
 bspSearchOutsiders(struct bsp_load_ctx * const blc, node_t *n)
 {
-  if (n->s != NULL && n->s->f < n->s->c) return;
+  if (n->s != NULL && n->s->f() < n->s->c()) return;
   if (n->l != NULL) bspSearchOutsiders(blc, n->l);
   if (n->r != NULL) bspSearchOutsiders(blc, n->r);
   if (n->n) {
@@ -306,7 +306,7 @@ bspLoadTree(std::istream& is) {
   is >> vertexCount;
   Vertexes().swap(vc);
   vc.reserve(vertexCount);
-  for (unsigned i = 0; i < vertexCount; ++i) {
+  for (size_t i = 0; i < vertexCount; ++i) {
     vc.push_back(bspReadVertex(is, i));
   }
   cmsg(MLINFO, "%zu verteces", vc.size());
@@ -333,17 +333,13 @@ void bspFreeMap() {
   bspLoaded = 0;
   modelFlush();
   bspFreeTree();
-  if (sc.p != NULL) {
-    mmFree(sc.p);
-    sc.p = NULL;
-  }
-  sc.n = 0;
+  sc.clear();
   texFlush();
   gDisable();
 }
 
-static int
-bspLoadSector(sector_t *s, std::istream& is, size_t expectedIndex)
+static Sector
+bspLoadSector(std::istream& is, size_t expectedIndex)
 {
   std::string name;
   is >> name;
@@ -351,13 +347,10 @@ bspLoadSector(sector_t *s, std::istream& is, size_t expectedIndex)
   size_t index;
   is >> index;
   if (index != expectedIndex) throw std::runtime_error("unexpected index");
-  is >> s->f;
-  is >> s->c;
-  is >> s->l;
-  is >> s->u;
-  is >> s->v;
-  is >> s->t;
-  return 0;
+  short f, c, u, v;
+  unsigned l, t;
+  is >> f >> c >> l >> u >> v >> t;
+  return Sector(f, c, l, u, v, t);
 }
 
 int bspLoadMap(const char *fname) {
@@ -372,13 +365,14 @@ int bspLoadMap(const char *fname) {
   std::string name;
   f >> name;
   if (name != "sector-count") throw std::runtime_error("sector-count expected");
-  f >> sc.n;
-  sc.p = (sector_t *)mmAlloc(sc.n * sizeof(sector_t));
-  if (!sc.p) throw std::runtime_error("memory");
-  for (unsigned i = 0; i < sc.n; ++i) {
-    bspLoadSector(sc.p + i, f, i);
+  size_t sectorCount;
+  f >> sectorCount;
+  Sectors().swap(sc);
+  sc.reserve(sectorCount);
+  for (size_t i = 0; i < sectorCount; ++i) {
+    sc.push_back(bspLoadSector(f, i));
   }
-  cmsg(MLINFO, "%d sectors", sc.n);
+  cmsg(MLINFO, "%zu sectors", sc.size());
   bspLoadTree(f);
   objLoad(f);
   cmsg(MLINFO, "Map successfuly loaded");
@@ -412,8 +406,7 @@ cmd_leavemap(int argc, char **argv)
 }
 
 void bspInit() {
-  sc.p = NULL;
-  sc.n = 0;
+  sc.clear();
   vc.clear();
   cmdAddCommand("map", cmd_map);
   cmdAddCommand("devmap", cmd_map);

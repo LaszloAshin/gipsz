@@ -13,14 +13,27 @@
 typedef Vec2d Vertex;
 typedef std::vector<Vertex> Vertexes;
 
-typedef struct {
-  short f;
-  short c;
-  unsigned l;
-  short u;
-  short v;
-  unsigned t;
-} sector_t;
+class Sector {
+public:
+  Sector(short f, short c, unsigned l, short u, short v, unsigned t) : f_(f), c_(c), l_(l), u_(u), v_(v), t_(t) {}
+
+  short f() const { return f_; }
+  short c() const { return c_; }
+  unsigned l() const { return l_; }
+  short u() const { return u_; }
+  short v() const { return v_; }
+  unsigned t() const { return t_; }
+
+  short height() const { return c() - f(); }
+
+private:
+  short f_, c_;
+  unsigned l_;
+  short u_, v_;
+  unsigned t_;
+};
+
+typedef std::vector<Sector> Sectors;
 
 struct node_s;
 
@@ -45,19 +58,14 @@ typedef struct node_s {
   line_t *p;
   unsigned n;
   BBox3d bb;
-  sector_t *s;
+  Sector* s;
   struct node_s *l, *r, *ow;
   Plane2d div;
 } node_t;
 
-typedef struct {
-  sector_t *p;
-  unsigned n;
-} sc_t;
-
 extern node_t *root, *cn;
 extern Vertexes vc;
-extern sc_t sc;
+extern Sectors sc;
 
 void bspCollideTree(MassPoint3d& mp);
 node_t *bspGetNodeForCoords(const Vec3d& p);
