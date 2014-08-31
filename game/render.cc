@@ -21,28 +21,30 @@ static int r_drawwalls = 1;
 static int visfaces, visnodes;
 
 static void
-rDrawWall(const Vertex& a, const Vertex& b, float f, float c, line_t *l, unsigned t)
+rDrawWall(const line_t& l, float f, float c, unsigned t)
 {
-  float v = (l->v - c) * 0.015625;
+  const Vertex a(vc[l.a]);
+  const Vertex b(vc[l.b]);
+  float v = (l.v - c) * 0.015625;
   texSelectTexture(t);
 /*  glActiveTexture(GL_TEXTURE1);
   texSelectTexture(0xc);
   glActiveTexture(GL_TEXTURE0);*/
   glBegin(GL_QUADS);
-  glNormal3f(l->nx, l->ny, 0.0);
-  glTexCoord2f(l->u1, v);
+  glNormal3f(l.nx, l.ny, 0.0);
+  glTexCoord2f(l.u1, v);
 //  glMultiTexCoord2f(GL_TEXTURE1, 0.0, 0.0);
   glVertex3f(a.x(), a.y(), c);
 
-  glTexCoord2f(l->u2, v);
+  glTexCoord2f(l.u2, v);
 //  glMultiTexCoord2f(GL_TEXTURE1, 1.0, 0.0);
   glVertex3f(b.x(), b.y(), c);
-  v = (l->v - f) * 0.015625;
-  glTexCoord2f(l->u2, v);
+  v = (l.v - f) * 0.015625;
+  glTexCoord2f(l.u2, v);
 //  glMultiTexCoord2f(GL_TEXTURE1, 1.0, 1.0);
   glVertex3f(b.x(), b.y(), f);
 
-  glTexCoord2f(l->u1, v);
+  glTexCoord2f(l.u1, v);
 //  glMultiTexCoord2f(GL_TEXTURE1, 0.0, 1.0);
   glVertex3f(a.x(), a.y(), f);
   glEnd();
@@ -58,13 +60,13 @@ rDrawWalls(node_t *n)
     const sector_t* const ns = l->backSectorId ? (sc.p + l->backSectorId) : 0;
     unsigned t;
     if (n->s->f < n->s->c) {
-      if ((b.x() - a.x()) * (b.y() - cam.pos().y()) > (b.y() - a.y()) * (b.x() - cam.pos().x())) continue; // TODO: use wedge
+      if (wedge(b - cam.pos().xy(), b - a) < 0.0f) continue;
       if (ns != NULL) {
         if (ns->f > n->s->f && (t = GET_TEXTURE(l->t, 0))) {
-          rDrawWall(a, b, n->s->f, ns->f, l, t);
+          rDrawWall(*l, n->s->f, ns->f, t);
         }
         if (ns->c < n->s->c && (t = GET_TEXTURE(l->t, 2))) {
-          rDrawWall(a, b, ns->c, n->s->c, l, t);
+          rDrawWall(*l, ns->c, n->s->c, t);
         }
       }
       t = GET_TEXTURE(l->t, 1);
@@ -75,27 +77,7 @@ rDrawWalls(node_t *n)
           if (ns->f > x) x = ns->f;
           if (ns->c < y) y = ns->c;
         }
-        rDrawWall(a, b, x, y, l, t);
-      }
-    } else { // TODO: get rid of this branch
-      if ((b.x() - a.x()) * (b.y() - cam.pos().y()) < (b.y() - a.y()) * (b.x() - cam.pos().x())) continue;
-      if (ns != NULL) {
-        if (ns->c > n->s->c && (t = GET_TEXTURE(l->t, 0))) {
-          rDrawWall(b, a, n->s->c, ns->c, l, t);
-        }
-        if (ns->f < n->s->f && (t = GET_TEXTURE(l->t, 2))) {
-          rDrawWall(b, a, ns->f, n->s->f, l, t);
-        }
-      }
-      t = GET_TEXTURE(l->t, 1);
-      if (t) {
-        float x = n->s->c;
-        float y = n->s->f;
-        if (ns != NULL) {
-          if (ns->c > x) x = ns->c;
-          if (ns->f < y) y = ns->f;
-        }
-        rDrawWall(b, a, x, y, l, t);
+        rDrawWall(*l, x, y, t);
       }
     }
   }
