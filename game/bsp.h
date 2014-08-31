@@ -87,7 +87,7 @@ typedef struct node_s {
   Lines ls;
   BBox3d bb;
   Sector* s;
-  struct node_s *front, *back, *ow;
+  struct node_s *front, *back;
   Plane2d div;
 
   typedef Lines::const_iterator const_iterator;

@@ -173,7 +173,6 @@ bspLoadNode(struct bsp_load_ctx * const blc, size_t level)
   n->bb = BBox3d();
   n->s = 0;
   n->front = n->back = 0;
-  n->ow = 0;
   if (isLeaf) {
     blc->is >> name;
     if (name != "subsector") throw std::runtime_error("subsector expected");
@@ -238,44 +237,6 @@ bspLoadNode(struct bsp_load_ctx * const blc, size_t level)
   return n;
 }
 
-static node_t *
-bspGetContSub(struct bsp_load_ctx * const blc, node_t *n, node_t *m)
-{
-  if (n->s != NULL) {
-    if (n->s->f() > n->s->c()) return 0;
-    for (node_t::const_iterator i(m->begin()); i != m->end(); ++i) {
-      if (n->bb.inside(Vec3d(vc[i->a()].x(), vc[i->a()].y(), m->s->c())) ||
-          n->bb.inside(Vec3d(vc[i->a()].x(), vc[i->a()].y(), m->s->f()))) {
-        return n;
-      }
-    }
-  }
-  if (n->front != NULL) {
-    node_t *result = bspGetContSub(blc, n->front, m);
-    if (result) return result;
-  }
-  if (n->back != NULL) return bspGetContSub(blc, n->back, m);
-  return 0;
-}
-
-static node_t *
-bspGetContainerNode(struct bsp_load_ctx * const blc, node_t *m)
-{
-  return root ? bspGetContSub(blc, root, m) : 0;
-}
-
-static void
-bspSearchOutsiders(struct bsp_load_ctx * const blc, node_t *n)
-{
-  if (n->s != NULL && n->s->f() < n->s->c()) return;
-  if (n->front != NULL) bspSearchOutsiders(blc, n->front);
-  if (n->back != NULL) bspSearchOutsiders(blc, n->back);
-  if (!n->ls.empty()) {
-    n->ow = bspGetContainerNode(blc, n);
-//    cmsg(MLINFO, "outsider! %d %d", n->ow->s - sc.p, n->ow->n);
-  }
-}
-
 static void
 bspLoadTree(std::istream& is) {
   struct bsp_load_ctx blc(is);
@@ -303,7 +264,6 @@ bspLoadTree(std::istream& is) {
   bspLoadNode(&blc, 0);
   cmsg(MLINFO, "really %d nodes", blc.np - root); // TODO: count lines and print!
   cmsg(MLINFO, "%d textures", texGetNofTextures());
-  bspSearchOutsiders(&blc, root);
 }
 
 void bspFreeMap() {
