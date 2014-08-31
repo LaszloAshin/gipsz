@@ -31,7 +31,7 @@ rDrawWall(const line_t& l, float f, float c, unsigned t)
   texSelectTexture(0xc);
   glActiveTexture(GL_TEXTURE0);*/
   glBegin(GL_QUADS);
-  glNormal3f(l.nx, l.ny, 0.0);
+  glNormal3f(l.n.x(), l.n.y(), 0.0);
   glTexCoord2f(l.u1, v);
 //  glMultiTexCoord2f(GL_TEXTURE1, 0.0, 0.0);
   glVertex3f(a.x(), a.y(), c);

@@ -49,7 +49,7 @@ typedef struct {
   unsigned a, b;
   float u1, u2, v;
   LineFlag::Type flags;
-  float nx, ny;
+  Vec2d n;
   unsigned t;
   int backSectorId;
 } line_t;

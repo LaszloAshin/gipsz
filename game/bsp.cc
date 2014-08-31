@@ -218,8 +218,7 @@ bspLoadNode(struct bsp_load_ctx * const blc, size_t level)
         const float y = vc[n->p[i].b].x() - vc[n->p[i].a].x();
         float l = 1 / sqrtf(x * x + y * y);
         if (n->s->c() < n->s->f()) l = -l; // XXX: outsider
-        n->p[i].nx = x * l;
-        n->p[i].ny = y * l;
+        n->p[i].n = Vec2d(x * l, y * l);
       }
     }
   } else {
