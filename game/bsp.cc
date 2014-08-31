@@ -39,11 +39,11 @@ nearestWallPoint(const line_t& l, const Vec2d& pm)
 }
 
 static bool
-onBadSide(const line_t& l, const Vec2d& pm)
+onBadSide(const line_t& l, const Vec2d& p0)
 {
   const Vec2d p1(vc.p[l.a].x, vc.p[l.a].y);
   const Vec2d p2(vc.p[l.b].x, vc.p[l.b].y);
-  return wedge(p2 - p1, pm - p1) < 0.0f;
+  return wedge(p2 - p1, p0 - p1) < 0.0f;
 }
 
 static bool
@@ -56,75 +56,46 @@ crossable(const line_t& l)
 }
 
 static void
-bspCollideNode(node_t* n, MassPoint3d& mp)
+bspCollideNode(const node_t* n, MassPoint3d& mp)
 {
-  // XXX: bounding box testing can be skipped: walls of neighbour subsectors need to be examined
-  if (!n || !n->bb.inside(mp.pos(), Vec3d(48.0f, 48.0f, 48.0f))) return;
   const Vec3d newPos(mp.pos() + mp.velo());
-  if (n->n) { // leaf
-    bool inside = true;
-    bool near = false;
-    for (line_t* l = n->p; l < n->p + n->n; ++l) {
-      if (onBadSide(*l, newPos.xy())) inside = false;
-      const Vec2d pm(nearestWallPoint(*l, newPos.xy()));
-      const Vec2d n2d(norm(newPos.xy() - pm));
-      const Vec3d n3d(n2d.x(), n2d.y(), 0.0f);
-      const double d = len(newPos.xy() - pm) - 16.0f;
-      if (d < 0.0f) {
-        if (!crossable(*l)) {
-          mp.velo(mp.velo() - d * n3d);
-        } else {
-          near = true;
-        }
+  for (line_t* l = n->p; l < n->p + n->n; ++l) {
+    const Vec2d pm(nearestWallPoint(*l, newPos.xy()));
+    const Vec2d n2d(norm(newPos.xy() - pm));
+    const Vec3d n3d(n2d.x(), n2d.y(), 0.0f);
+    const double d = len(newPos.xy() - pm) - 16.0f;
+    if (d < 0.0f) {
+      if (!crossable(*l)) {
+        mp.velo(mp.velo() - d * n3d);
       }
     }
-    if (inside) near = true;
-    if (near) {
-      const double df = newPos.z() - n->s->f - 48.0f;
-      if (df < 0.0f) {
-        mp.velo(mp.velo() - df * Vec3d(0.0f, 0.0f, 1.0f) / 10);
-      }
-    }
-  } else {
-    bspCollideNode(n->r, mp);
-    bspCollideNode(n->l, mp);
+  }
+  const double df = newPos.z() - n->s->f - 48.0f;
+  if (df < 0.0f) {
+    mp.velo(mp.velo() - df * Vec3d(0.0f, 0.0f, 1.0f) / 10);
   }
 }
 
 void bspCollideTree(MassPoint3d& mp) {
-  if (root) bspCollideNode(root, mp);
+  if (!root) return;
+  if (const node_t* n = bspGetNodeForCoords(mp.pos())) {
+    bspCollideNode(n, mp);
+  }
 }
 
 static node_t *
 bspGetNodeForCoordsSub(node_t *n, const Vec3d& p)
 {
-  if (n->l == NULL && n->r == NULL && n->n && n->s->f < n->s->c && n->bb.inside(p)) {
-    int bo = 0;
-    vertex_t *b = vc.p + n->p[0].a;
-    for (line_t *l = n->p; l < n->p + n->n; ++l) {
-      vertex_t *a = b;
-      b = vc.p + l->b;
-      const float dx1 = b->x - a->x;
-      const float dy1 = b->y - a->y;
-      const float dx2 = b->x - p.x();
-      const float dy2 = b->y - p.y();
-      if (dx1 * dy2 > dy1 * dx2) {
-        ++bo;
-        break;
-      }
+  if (n->n) { // leaf
+    if (p.z() < n->s->f || n->s->c < p.z()) return 0;
+    for (line_t* l = n->p; l < n->p + n->n; ++l) {
+      if (onBadSide(*l, p.xy())) return 0;
     }
-    if (!bo) {
-      return n;
-    }
+    return n;
+  } else {
+    const int det = n->div.determine(p);
+    return bspGetNodeForCoordsSub((det < 0.0f) ? n->r : n->l, p);
   }
-  if (n->l != NULL) {
-    node_t *result = bspGetNodeForCoordsSub(n->l, p);
-    if (result) return result;
-  }
-  if (n->r != NULL) {
-    return bspGetNodeForCoordsSub(n->r, p);
-  }
-  return 0;
 }
 
 node_t *bspGetNodeForCoords(const Vec3d& p) {
