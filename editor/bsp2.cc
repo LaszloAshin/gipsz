@@ -5,6 +5,7 @@
 
 #include <lib/persistency.hh>
 #include <lib/plane.hh>
+#include <lib/surface.hh>
 
 #include <vector>
 #include <memory>
@@ -78,35 +79,16 @@ inline bool operator!=(const Vertex& lhs, const Vertex& rhs) { return !(lhs == r
 
 typedef std::vector<Vertex> Vertexes;
 
-class Surface {
-public:
-	Surface() : textureId_(0), u1_(), u2_(), v_() {}
-	Surface(int textureId, int u1, int u2, int v) : textureId_(textureId), u1_(u1), u2_(u2), v_(v) {}
-
-	void save(std::ostream& os) const;
-	void cropLeft(double q) { u1_ = (1.0f - q) * u1_ + q * u2_; }
-	void cropRight(double q) { u2_ = q * u1_ + (1.0f - q) * u2_; }
-
-private:
-	unsigned textureId_;
-	unsigned short u1_, u2_;
-	unsigned short v_;
-};
-
-void Surface::save(std::ostream& os) const {
-	os << "surface " << u1_ << ' ' << u2_ << ' ' << v_ << ' ' << textureId_ << std::endl;
-}
-
 class Wall {
 public:
-	Wall(const Vertex& a, const Vertex& b, int backSectorId = 0, const Surface& surface = Surface(), int flags = Line::Flag::TWOSIDED)
+	Wall(const Vertex& a, const Vertex& b, int backSectorId = 0, const Surfaced& surface = Surfaced(), int flags = Line::Flag::TWOSIDED)
 	: a_(a), b_(b), backSectorId_(backSectorId), surface_(surface), flags_(flags)
 	{}
 
 	Vertex a() const { return a_; }
 	Vertex b() const { return b_; }
 	int backSectorId() const { return backSectorId_; }
-	Surface surface() const { return surface_; }
+	Surfaced surface() const { return surface_; }
 	int flags() const { return flags_; }
 
 	void save(std::ostream& os, const Vertexes& vs) const;
@@ -114,7 +96,7 @@ public:
 private:
 	Vertex a_, b_;
 	int backSectorId_;
-	Surface surface_;
+	Surfaced surface_;
 	int flags_;
 };
 
@@ -132,7 +114,7 @@ void Wall::save(std::ostream& os, const Vertexes& vs) const {
 	os << getVertexIndex(vs, b()) << ' ';
 	os << flags() << ' ';
 	os << backSectorId() << std::endl;
-	surface().save(os);
+	os << surface() << std::endl;
 }
 
 class Sector;
@@ -314,7 +296,7 @@ Sector Sector::partition(const Plane2d& plane) const {
 			if (di > thickness / 2.0f || di < -thickness / 2.0f) throw std::runtime_error("intersection point is not on the intersection plane");
 			Vertex a(i->a());
 			Vertex b(i->b());
-			Surface sface(i->surface());
+			Surfaced sface(i->surface());
 			if (ia < 0) {
 				a = isp;
 				sface.cropLeft(da / (da - db));
@@ -611,7 +593,7 @@ bspAddLine(int sf, int sb, int x1, int y1, int x2, int y2, int u, int v, int fla
 {
 	const Vertex a(x1, y1);
 	const Vertex b(x2, y2);
-	tree.add(sf, Wall(a, b, sb, Surface(tex, u, u + (b - a).length() + du, v), flags));
+	tree.add(sf, Wall(a, b, sb, Surfaced(tex, u / 64.0f, (u + (b - a).length() + du) / 64.0f, v / 64.0f), flags));
 	return 0;
 }
 

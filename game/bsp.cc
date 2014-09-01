@@ -137,13 +137,10 @@ bspReadLine(std::istream& is)
   if (name != "wall") throw std::runtime_error("wall expected");
   unsigned a, b, flags;
   int backSectorId;
-  double u1, u2, v;
-  unsigned t;
   is >> a >> b >> flags >> backSectorId;
-  is >> name;
-  if (name != "surface") throw std::runtime_error("surface expected");
-  is >> u1 >> u2 >> v >> t;
-  return Line(a, b, u1 / 64.0f, u2 / 64.0f, v, flags, t, backSectorId);
+  Surfaced s;
+  is >> s;
+  return Line(a, b, flags, backSectorId, s);
 }
 
 struct bsp_load_ctx {
@@ -191,9 +188,9 @@ bspLoadNode(struct bsp_load_ctx * const blc, size_t level)
       n->ls.reserve(lineCount);
       for (size_t i = 0; i < lineCount; ++i) {
         Line l(bspReadLine(blc->is));
-        texLoadTexture(GET_TEXTURE(l.t(), 0), 0);
-        texLoadTexture(GET_TEXTURE(l.t(), 1), 0);
-        texLoadTexture(GET_TEXTURE(l.t(), 2), 0);
+        texLoadTexture(GET_TEXTURE(l.s().textureId(), 0), 0);
+        texLoadTexture(GET_TEXTURE(l.s().textureId(), 1), 0);
+        texLoadTexture(GET_TEXTURE(l.s().textureId(), 2), 0);
         const float x = vc[l.a()].y() - vc[l.b()].y();
         const float y = vc[l.b()].x() - vc[l.a()].x();
         float len = 1 / sqrtf(x * x + y * y);

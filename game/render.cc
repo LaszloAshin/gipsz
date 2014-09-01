@@ -25,26 +25,26 @@ rDrawWall(const Line& l, float f, float c, unsigned t)
 {
   const Vertex a(vc[l.a()]);
   const Vertex b(vc[l.b()]);
-  float v = (l.v() - c) * 0.015625;
+  float v = (l.s().v() - c) * 0.015625;
   texSelectTexture(t);
 /*  glActiveTexture(GL_TEXTURE1);
   texSelectTexture(0xc);
   glActiveTexture(GL_TEXTURE0);*/
   glBegin(GL_QUADS);
   glNormal3f(l.n().x(), l.n().y(), 0.0);
-  glTexCoord2f(l.u1(), v);
+  glTexCoord2f(l.s().u1(), v);
 //  glMultiTexCoord2f(GL_TEXTURE1, 0.0, 0.0);
   glVertex3f(a.x(), a.y(), c);
 
-  glTexCoord2f(l.u2(), v);
+  glTexCoord2f(l.s().u2(), v);
 //  glMultiTexCoord2f(GL_TEXTURE1, 1.0, 0.0);
   glVertex3f(b.x(), b.y(), c);
-  v = (l.v() - f) * 0.015625;
-  glTexCoord2f(l.u2(), v);
+  v = (l.s().v() - f) * 0.015625;
+  glTexCoord2f(l.s().u2(), v);
 //  glMultiTexCoord2f(GL_TEXTURE1, 1.0, 1.0);
   glVertex3f(b.x(), b.y(), f);
 
-  glTexCoord2f(l.u1(), v);
+  glTexCoord2f(l.s().u1(), v);
 //  glMultiTexCoord2f(GL_TEXTURE1, 0.0, 1.0);
   glVertex3f(a.x(), a.y(), f);
   glEnd();
@@ -62,14 +62,14 @@ rDrawWalls(node_t *n)
     if (n->s->f() < n->s->c()) {
       if (wedge(b - cam.pos().xy(), b - a) < 0.0f) continue;
       if (ns != NULL) {
-        if (ns->f() > n->s->f() && (t = GET_TEXTURE(i->t(), 0))) {
+        if (ns->f() > n->s->f() && (t = GET_TEXTURE(i->s().textureId(), 0))) {
           rDrawWall(*i, n->s->f(), ns->f(), t);
         }
-        if (ns->c() < n->s->c() && (t = GET_TEXTURE(i->t(), 2))) {
+        if (ns->c() < n->s->c() && (t = GET_TEXTURE(i->s().textureId(), 2))) {
           rDrawWall(*i, ns->c(), n->s->c(), t);
         }
       }
-      t = GET_TEXTURE(i->t(), 1);
+      t = GET_TEXTURE(i->s().textureId(), 1);
       if (t) {
         float x = n->s->f();
         float y = n->s->c();

@@ -5,6 +5,7 @@
 #include <lib/vec.hh>
 #include <lib/plane.hh>
 #include <lib/masspoint.hh>
+#include <lib/surface.hh>
 
 #include <cstdio>
 #include <istream>
@@ -49,36 +50,30 @@ class Line {
 public:
   Line(
     unsigned a, unsigned b,
-    float u1, float u2, float v,
     unsigned flags,
-    unsigned t,
-    int backSectorId
+    int backSectorId,
+    const Surfaced& s
   )
   : a_(a), b_(b)
-  , u1_(u1), u2_(u2), v_(v)
   , flags_(flags)
-  , t_(t)
   , backSectorId_(backSectorId)
+  , s_(s)
   {}
 
   unsigned a() const { return a_; }
   unsigned b() const { return b_; }
-  float u1() const { return u1_; }
-  float u2() const { return u2_; }
-  float v() const { return v_; }
   Vec2d n() const { return n_; }
-  unsigned t() const { return t_; }
   int backSectorId() const { return backSectorId_; }
+  Surfaced s() const { return s_; }
 
   void n(const Vec2d& value) { n_ = value; }
 
 private:
   unsigned a_, b_;
-  float u1_, u2_, v_;
   unsigned flags_;
   Vec2d n_;
-  unsigned t_;
   int backSectorId_;
+  Surfaced s_;
 };
 
 typedef std::vector<Line> Lines;
