@@ -10,6 +10,7 @@
 #include <cstdio>
 #include <istream>
 #include <vector>
+#include <memory>
 
 typedef Vec2d Vertex;
 typedef std::vector<Vertex> Vertexes;
@@ -93,8 +94,8 @@ public:
   bool empty() const { return ls_.empty(); }
   const Sector* s() const { return s_; }
   Plane2d div() const { return div_; }
-  Node* front() const { return front_; }
-  Node* back() const { return back_; }
+  const std::auto_ptr<Node>& front() const { return front_; }
+  const std::auto_ptr<Node>& back() const { return back_; }
   BBox3d bb() const { return bb_; }
   BBox3d& bb() { return bb_; }
 
@@ -102,8 +103,8 @@ public:
   Lines& ls() { return ls_; }
   const Lines& ls() const { return ls_; }
   void div(const Plane2d& p) { div_ = p; }
-  void front(Node* value) { front_ = value; }
-  void back(Node* value) { back_ = value; }
+  void front(std::auto_ptr<Node> value) { front_ = value; }
+  void back(std::auto_ptr<Node> value) { back_ = value; }
   void bb(const BBox3d& value) { bb_ = value; }
 
 private:
@@ -113,12 +114,11 @@ private:
   Lines ls_;
   BBox3d bb_;
   Sector* s_;
-  Node* front_;
-  Node* back_;
+  std::auto_ptr<Node> front_, back_;
   Plane2d div_;
 };
 
-extern Node* root;
+extern std::auto_ptr<Node> root;
 extern Vertexes vc;
 extern Sectors sc;
 

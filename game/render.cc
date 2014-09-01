@@ -128,9 +128,9 @@ rDrawNode(const Node& n)
   if (!visibleByCamFrustum(n.bb())) return;
   const int det = n.div().determine(Vec2d(cam.pos().x(), cam.pos().y()));
   if (det > 0) {
-    if (n.back()) rDrawNode(*n.back());
+    if (n.back().get()) rDrawNode(*n.back());
   } else {
-    if (n.front()) rDrawNode(*n.front());
+    if (n.front().get()) rDrawNode(*n.front());
   }
   if (n.s() && !n.empty()) {
     glColor3ub(n.s()->l(), n.s()->l(), n.s()->l());
@@ -149,16 +149,16 @@ rDrawNode(const Node& n)
     ++visnodes;
   }
   if (det > 0) {
-    if (n.front()) rDrawNode(*n.front());
+    if (n.front().get()) rDrawNode(*n.front());
   } else {
-    if (n.back()) rDrawNode(*n.back());
+    if (n.back().get()) rDrawNode(*n.back());
   }
 }
 
 static void
 rDrawTree()
 {
-  if (root) rDrawNode(*root);
+  if (root.get()) rDrawNode(*root.get());
 }
 
 //extern char texdbg[8192];

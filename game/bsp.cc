@@ -23,7 +23,7 @@ static const double thickness = 0.1f;
 Vertexes vc;
 Sectors sc;
 
-Node* root = 0;
+std::auto_ptr<Node> root;
 
 static int bspLoaded = 0;
 int bspIsLoaded() { return bspLoaded; }
@@ -79,7 +79,7 @@ bspCollideNode(const Node& n, MassPoint3d& mp)
 }
 
 void bspCollideTree(MassPoint3d& mp) {
-  if (!root) return;
+  if (!root.get()) return;
   if (const Node* n = bspGetNodeForCoords(mp.pos())) {
     bspCollideNode(*n, mp);
   }
@@ -96,19 +96,18 @@ bspGetNodeForCoordsSub(Node* n, const Vec3d& p)
     return n;
   } else {
     if (n->div().determine(p) < thickness) {
-      if (Node* result = bspGetNodeForCoordsSub(n->back(), p)) return result;
+      if (Node* result = bspGetNodeForCoordsSub(n->back().get(), p)) return result;
     }
-    return bspGetNodeForCoordsSub(n->front(), p);
+    return bspGetNodeForCoordsSub(n->front().get(), p);
   }
 }
 
 Node* bspGetNodeForCoords(const Vec3d& p) {
-  return root ? bspGetNodeForCoordsSub(root, p) : 0;
+  return root.get() ? bspGetNodeForCoordsSub(root.get(), p) : 0;
 }
 
 static void bspFreeTree() {
-  delete root;
-  root = 0;
+  root.reset();
   vc.clear();
 }
 
@@ -140,7 +139,7 @@ bspReadLine(std::istream& is)
   return Line(a, b, flags, backSectorId, s);
 }
 
-static Node*
+static std::auto_ptr<Node>
 bspLoadNode(std::istream& is)
 {
   std::string name;
@@ -150,7 +149,7 @@ bspLoadNode(std::istream& is)
   is >> branchOrLeaf;
   if (branchOrLeaf != "branch" && branchOrLeaf != "leaf") throw std::runtime_error("node is not branch nor leaf");
   const int isLeaf = (branchOrLeaf == "leaf");
-  Node* n = new Node();
+  std::auto_ptr<Node> n(new Node());
   if (isLeaf) {
     is >> name;
     if (name != "subsector") throw std::runtime_error("subsector expected");
