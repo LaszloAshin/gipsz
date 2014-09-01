@@ -132,7 +132,6 @@ void plUpdate() {
   else
     cam.da = 0;
   plRotateCam(mouse_sensitivity * mx, mouse_sensitivity * my);
-  cn = bspGetNodeForCoords(cam.pos());
   cam.sumForces = Vec3d();
 }
 

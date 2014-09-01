@@ -23,7 +23,7 @@ static const double thickness = 0.1f;
 Vertexes vc;
 Sectors sc;
 
-node_t *root = NULL, *cn = NULL;
+node_t *root = NULL;
 
 static int bspLoaded = 0;
 int bspIsLoaded() { return bspLoaded; }
@@ -111,7 +111,6 @@ static void bspFreeTree() {
     mmFree(root);
     root = NULL;
   }
-  cn = NULL;
   vc.clear();
 }
 

@@ -94,7 +94,7 @@ typedef struct node_s {
   const_reverse_iterator rend() const { return ls.rend(); }
 } node_t;
 
-extern node_t *root, *cn;
+extern node_t *root;
 extern Vertexes vc;
 extern Sectors sc;
 
