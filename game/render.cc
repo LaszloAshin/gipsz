@@ -52,27 +52,27 @@ rDrawWall(const Line& l, float f, float c, unsigned t)
 }
 
 static void
-rDrawWalls(node_t *n)
+rDrawWalls(const Node& n)
 {
-  for (node_t::const_iterator i(n->begin()); i != n->end(); ++i) {
+  for (Node::const_iterator i(n.begin()); i != n.end(); ++i) {
     const Vertex a(vc[i->a()]);
     const Vertex b(vc[i->b()]);
     const Sector* const ns = i->backSectorId() ? (&sc.at(i->backSectorId())) : 0;
     unsigned t;
-    if (n->s->f() < n->s->c()) {
+    if (n.s()->f() < n.s()->c()) {
       if (wedge(b - cam.pos().xy(), b - a) < 0.0f) continue;
       if (ns != NULL) {
-        if (ns->f() > n->s->f() && (t = GET_TEXTURE(i->s().textureId(), 0))) {
-          rDrawWall(*i, n->s->f(), ns->f(), t);
+        if (ns->f() > n.s()->f() && (t = GET_TEXTURE(i->s().textureId(), 0))) {
+          rDrawWall(*i, n.s()->f(), ns->f(), t);
         }
-        if (ns->c() < n->s->c() && (t = GET_TEXTURE(i->s().textureId(), 2))) {
-          rDrawWall(*i, ns->c(), n->s->c(), t);
+        if (ns->c() < n.s()->c() && (t = GET_TEXTURE(i->s().textureId(), 2))) {
+          rDrawWall(*i, ns->c(), n.s()->c(), t);
         }
       }
       t = GET_TEXTURE(i->s().textureId(), 1);
       if (t) {
-        float x = n->s->f();
-        float y = n->s->c();
+        float x = n.s()->f();
+        float y = n.s()->c();
         if (ns != NULL) {
           if (ns->f() > x) x = ns->f();
           if (ns->c() < y) y = ns->c();
@@ -84,38 +84,38 @@ rDrawWalls(node_t *n)
 }
 
 static void
-rDrawPlanes(node_t *n)
+rDrawPlanes(const Node& n)
 {
-  if (n->ls.size() < 3) return;
+  if (n.ls().size() < 3) return;
   unsigned t;
-  if (n->s->f() < cam.pos().z() && (t = GET_TEXTURE(n->s->t(), 0))) {
+  if (n.s()->f() < cam.pos().z() && (t = GET_TEXTURE(n.s()->t(), 0))) {
     texSelectTexture(t);
     glBegin(GL_POLYGON);
     glNormal3f(0.0, 0.0, 1.0);
-    for (node_t::const_iterator i(n->begin()); i != n->end(); ++i) {
+    for (Node::const_iterator i(n.begin()); i != n.end(); ++i) {
       const float x = vc[i->a()].x();
       const float y = vc[i->a()].y();
 //      const float u = (x - n->bb.x1) / (n->bb.x2 - n->bb.x1);
 //      const float v = (y - n->bb.y1) / (n->bb.y2 - n->bb.y1);
-      glTexCoord2f((x + n->s->u()) * 0.015625, (y + n->s->v()) * 0.015625);
+      glTexCoord2f((x + n.s()->u()) * 0.015625, (y + n.s()->v()) * 0.015625);
 //      glMultiTexCoord2f(GL_TEXTURE1, u, v);
-      glVertex3f(x, y, n->s->f());
+      glVertex3f(x, y, n.s()->f());
     }
     glEnd();
     ++visfaces;
   }
-  if (n->s->c() > cam.pos().z() && (t = GET_TEXTURE(n->s->t(), 1))) {
+  if (n.s()->c() > cam.pos().z() && (t = GET_TEXTURE(n.s()->t(), 1))) {
     texSelectTexture(t);
     glBegin(GL_POLYGON);
     glNormal3f(0.0, 0.0, -1.0);
-    for (node_t::const_reverse_iterator i(n->rbegin()); i != n->rend(); ++i) {
+    for (Node::const_reverse_iterator i(n.rbegin()); i != n.rend(); ++i) {
       const float x = vc[i->a()].x();
       const float y = vc[i->a()].y();
 //      const float u = (x - n->bb.x1) / (n->bb.x2 - n->bb.x1);
 //      const float v = (y - n->bb.y1) / (n->bb.y2 - n->bb.y1);
-      glTexCoord2f((x + n->s->u()) * 0.015625, (y + n->s->v()) * 0.015625);
+      glTexCoord2f((x + n.s()->u()) * 0.015625, (y + n.s()->v()) * 0.015625);
 //      glMultiTexCoord2f(GL_TEXTURE1, u, v);
-      glVertex3f(x, y, n->s->c());
+      glVertex3f(x, y, n.s()->c());
     }
     glEnd();
     ++visfaces;
@@ -123,17 +123,17 @@ rDrawPlanes(node_t *n)
 }
 
 static void
-rDrawNode(node_t *n)
+rDrawNode(const Node& n)
 {
-  if (!visibleByCamFrustum(n->bb)) return;
-  const int det = n->div.determine(Vec2d(cam.pos().x(), cam.pos().y()));
+  if (!visibleByCamFrustum(n.bb())) return;
+  const int det = n.div().determine(Vec2d(cam.pos().x(), cam.pos().y()));
   if (det > 0) {
-    if (n->back) rDrawNode(n->back);
+    if (n.back()) rDrawNode(*n.back());
   } else {
-    if (n->front) rDrawNode(n->front);
+    if (n.front()) rDrawNode(*n.front());
   }
-  if (n->s && !n->ls.empty()) {
-    glColor3ub(n->s->l(), n->s->l(), n->s->l());
+  if (n.s() && !n.empty()) {
+    glColor3ub(n.s()->l(), n.s()->l(), n.s()->l());
 //  glColor3f(1.0, 1.0, 1.0);
 /*  texLoadTexture(0xc, 0);
     glActiveTexture(GL_TEXTURE1);
@@ -149,16 +149,16 @@ rDrawNode(node_t *n)
     ++visnodes;
   }
   if (det > 0) {
-    if (n->front) rDrawNode(n->front);
+    if (n.front()) rDrawNode(*n.front());
   } else {
-    if (n->back) rDrawNode(n->back);
+    if (n.back()) rDrawNode(*n.back());
   }
 }
 
 static void
 rDrawTree()
 {
-  if (root != NULL) rDrawNode(root);
+  if (root) rDrawNode(*root);
 }
 
 //extern char texdbg[8192];

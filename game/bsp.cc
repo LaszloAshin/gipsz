@@ -23,7 +23,7 @@ static const double thickness = 0.1f;
 Vertexes vc;
 Sectors sc;
 
-node_t *root = NULL;
+Node* root = 0;
 
 static int bspLoaded = 0;
 int bspIsLoaded() { return bspLoaded; }
@@ -58,10 +58,10 @@ crossable(const Line& l)
 }
 
 static void
-bspCollideNode(const node_t* n, MassPoint3d& mp)
+bspCollideNode(const Node& n, MassPoint3d& mp)
 {
   const Vec3d newPos(mp.pos() + mp.velo());
-  for (node_t::const_iterator i(n->begin()); i != n->end(); ++i) {
+  for (Node::const_iterator i(n.begin()); i != n.end(); ++i) {
     const Vec2d pm(nearestWallPoint(*i, newPos.xy()));
     const Vec2d n2d(norm(newPos.xy() - pm));
     const Vec3d n3d(n2d.x(), n2d.y(), 0.0f);
@@ -72,7 +72,7 @@ bspCollideNode(const node_t* n, MassPoint3d& mp)
       }
     }
   }
-  const double df = newPos.z() - n->s->f() - 48.0f;
+  const double df = newPos.z() - n.s()->f() - 48.0f;
   if (df < 0.0f) {
     mp.velo(mp.velo() - df * Vec3d(0.0f, 0.0f, 1.0f) / 10);
   }
@@ -80,37 +80,35 @@ bspCollideNode(const node_t* n, MassPoint3d& mp)
 
 void bspCollideTree(MassPoint3d& mp) {
   if (!root) return;
-  if (const node_t* n = bspGetNodeForCoords(mp.pos())) {
-    bspCollideNode(n, mp);
+  if (const Node* n = bspGetNodeForCoords(mp.pos())) {
+    bspCollideNode(*n, mp);
   }
 }
 
-static node_t *
-bspGetNodeForCoordsSub(node_t *n, const Vec3d& p)
+static Node*
+bspGetNodeForCoordsSub(Node* n, const Vec3d& p)
 {
-  if (!n->ls.empty()) { // leaf
-    if (p.z() < n->s->f() || n->s->c() < p.z()) return 0;
-    for (node_t::const_iterator i(n->begin()); i != n->end(); ++i) {
+  if (!n->empty()) { // leaf
+    if (p.z() < n->s()->f() || n->s()->c() < p.z()) return 0;
+    for (Node::const_iterator i(n->begin()); i != n->end(); ++i) {
       if (pointBehindLine(*i, p.xy())) return 0;
     }
     return n;
   } else {
-    if (n->div.determine(p) < thickness) {
-      if (node_t* result = bspGetNodeForCoordsSub(n->back, p)) return result;
+    if (n->div().determine(p) < thickness) {
+      if (Node* result = bspGetNodeForCoordsSub(n->back(), p)) return result;
     }
-    return bspGetNodeForCoordsSub(n->front, p);
+    return bspGetNodeForCoordsSub(n->front(), p);
   }
 }
 
-node_t *bspGetNodeForCoords(const Vec3d& p) {
+Node* bspGetNodeForCoords(const Vec3d& p) {
   return root ? bspGetNodeForCoordsSub(root, p) : 0;
 }
 
 static void bspFreeTree() {
-  if (root != NULL) {
-    mmFree(root);
-    root = NULL;
-  }
+  delete root;
+  root = 0;
   vc.clear();
 }
 
@@ -142,51 +140,35 @@ bspReadLine(std::istream& is)
   return Line(a, b, flags, backSectorId, s);
 }
 
-struct bsp_load_ctx {
-  std::istream& is;
-  unsigned rn;
-  node_t *np;
-
-  bsp_load_ctx(std::istream& is0) : is(is0), rn(0), np(0) {}
-};
-
-static node_t *
-bspLoadNode(struct bsp_load_ctx * const blc, size_t level)
+static Node*
+bspLoadNode(std::istream& is)
 {
   std::string name;
-  blc->is >> name;
+  is >> name;
   if (name != "node") throw std::runtime_error("node expected");
   std::string branchOrLeaf;
-  blc->is >> branchOrLeaf;
+  is >> branchOrLeaf;
   if (branchOrLeaf != "branch" && branchOrLeaf != "leaf") throw std::runtime_error("node is not branch nor leaf");
   const int isLeaf = (branchOrLeaf == "leaf");
-  for (size_t i = 0; i < level * 2; ++i) putchar(' ');
-  printf("## node is %s\n", isLeaf ? "leaf" : "not leaf");
-  if (!blc->rn) throw std::runtime_error("out of preallocated nodes");
-  --blc->rn;
-  node_t* n = blc->np++;
-  n->ls.clear();
-  n->bb = BBox3d();
-  n->s = 0;
-  n->front = n->back = 0;
+  Node* n = new Node();
   if (isLeaf) {
-    blc->is >> name;
+    is >> name;
     if (name != "subsector") throw std::runtime_error("subsector expected");
     unsigned sectorId;
-    blc->is >> sectorId;
+    is >> sectorId;
     printf("sectorId: %u\n", sectorId);
     if (sectorId) {
-      n->s = &sc.at(sectorId);
-      texLoadTexture(GET_TEXTURE(n->s->t(), 0), 0);
-      texLoadTexture(GET_TEXTURE(n->s->t(), 1), 0);
+      n->s(&sc.at(sectorId));
+      texLoadTexture(GET_TEXTURE(n->s()->t(), 0), 0);
+      texLoadTexture(GET_TEXTURE(n->s()->t(), 1), 0);
     }
     size_t lineCount;
-    blc->is >> lineCount;
+    is >> lineCount;
     assert(lineCount);
     if (lineCount) { // leaf
-      n->ls.reserve(lineCount);
+      n->ls().reserve(lineCount);
       for (size_t i = 0; i < lineCount; ++i) {
-        Line l(bspReadLine(blc->is));
+        Line l(bspReadLine(is));
         texLoadTexture(GET_TEXTURE(l.s().textureId(), 0), 0);
         texLoadTexture(GET_TEXTURE(l.s().textureId(), 1), 0);
         texLoadTexture(GET_TEXTURE(l.s().textureId(), 2), 0);
@@ -194,48 +176,23 @@ bspLoadNode(struct bsp_load_ctx * const blc, size_t level)
         const float y = vc[l.b()].x() - vc[l.a()].x();
         float len = 1 / sqrtf(x * x + y * y);
         l.n(Vec2d(x * len, y * len));
-        n->ls.push_back(l);
+        n->bb().add(Vec3d(vc[l.a()].x(), vc[l.a()].y(), n->s()->f()));
+        n->bb().add(Vec3d(vc[l.a()].x(), vc[l.a()].y(), n->s()->c()));
+        n->ls().push_back(l);
       }
     }
   } else {
-    n->div = Plane2d::read(blc->is);
-    n->front = bspLoadNode(blc, level + 1);
-    n->back = bspLoadNode(blc, level + 1);
-  }
-
-
-
-  int j = 0;
-  if (n->front) {
-    n->bb = n->front->bb;
-    j = 1;
-  } else if (n->back) {
-    n->bb = n->back->bb;
-    j = 2;
-  } else if (!n->ls.empty()) {
-    n->bb.add(Vec3d(vc[n->ls.front().a()].x(), vc[n->ls.front().a()].y(), n->s->f()));
-    j = 2;
-  }
-  switch (j) {
-    case 1:
-      if (n->back) n->bb.add(n->back->bb);
-      /* intentionally no break here */
-    case 2:
-      for (node_t::const_iterator i(n->begin()); i != n->end(); ++i) {
-        n->bb.add(Vec3d(vc[i->a()].x(), vc[i->a()].y(), n->s->f()));
-        n->bb.add(Vec3d(vc[i->a()].x(), vc[i->a()].y(), n->s->c()));
-      }
-      break;
-    default:
-      cmsg(MLERR, "bspLoadNode: unable to initialize bounding boxes");
-      break;
+    n->div(Plane2d::read(is));
+    n->front(bspLoadNode(is));
+    n->back(bspLoadNode(is));
+    n->bb().add(n->front()->bb());
+    n->bb().add(n->back()->bb());
   }
   return n;
 }
 
 static void
 bspLoadTree(std::istream& is) {
-  struct bsp_load_ctx blc(is);
   std::string name;
   is >> name;
   if (name != "vertex-count") throw std::runtime_error("vertex-count expected");
@@ -249,16 +206,15 @@ bspLoadTree(std::istream& is) {
   cmsg(MLINFO, "%zu verteces", vc.size());
   is >> name;
   if (name != "node-count") throw std::runtime_error("node-count expected");
-  is >> blc.rn;
+  size_t nodeCount;
+  is >> nodeCount;
   is >> name;
   if (name != "line-count") throw std::runtime_error("line-count expected");
   size_t lineCount;
   is >> lineCount;
-  cmsg(MLINFO, "%d nodes, %zu lines", blc.rn, lineCount);
-  blc.np = root = (node_t *)mmAlloc(blc.rn * sizeof(node_t));
-  if (!root) throw std::runtime_error("memory");
-  bspLoadNode(&blc, 0);
-  cmsg(MLINFO, "really %d nodes", blc.np - root); // TODO: count lines and print!
+  cmsg(MLINFO, "%zu nodes, %zu lines", nodeCount, lineCount);
+  root = bspLoadNode(is);
+  // TODO: count lines and nodes and print!
   cmsg(MLINFO, "%d textures", texGetNofTextures());
 }
 

@@ -78,28 +78,52 @@ private:
 
 typedef std::vector<Line> Lines;
 
-typedef struct node_s {
-  Lines ls;
-  BBox3d bb;
-  Sector* s;
-  struct node_s *front, *back;
-  Plane2d div;
+class Node {
+public:
+  Node() : s_(0), front_(0), back_(0) {}
 
   typedef Lines::const_iterator const_iterator;
   typedef Lines::const_reverse_iterator const_reverse_iterator;
 
-  const_iterator begin() const { return ls.begin(); }
-  const_iterator end() const { return ls.end(); }
-  const_reverse_iterator rbegin() const { return ls.rbegin(); }
-  const_reverse_iterator rend() const { return ls.rend(); }
-} node_t;
+  const_iterator begin() const { return ls_.begin(); }
+  const_iterator end() const { return ls_.end(); }
+  const_reverse_iterator rbegin() const { return ls_.rbegin(); }
+  const_reverse_iterator rend() const { return ls_.rend(); }
 
-extern node_t *root;
+  bool empty() const { return ls_.empty(); }
+  const Sector* s() const { return s_; }
+  Plane2d div() const { return div_; }
+  Node* front() const { return front_; }
+  Node* back() const { return back_; }
+  BBox3d bb() const { return bb_; }
+  BBox3d& bb() { return bb_; }
+
+  void s(Sector* value) { s_ = value; }
+  Lines& ls() { return ls_; }
+  const Lines& ls() const { return ls_; }
+  void div(const Plane2d& p) { div_ = p; }
+  void front(Node* value) { front_ = value; }
+  void back(Node* value) { back_ = value; }
+  void bb(const BBox3d& value) { bb_ = value; }
+
+private:
+  Node(const Node&);
+  Node& operator=(const Node&);
+
+  Lines ls_;
+  BBox3d bb_;
+  Sector* s_;
+  Node* front_;
+  Node* back_;
+  Plane2d div_;
+};
+
+extern Node* root;
 extern Vertexes vc;
 extern Sectors sc;
 
 void bspCollideTree(MassPoint3d& mp);
-node_t *bspGetNodeForCoords(const Vec3d& p);
+Node* bspGetNodeForCoords(const Vec3d& p);
 void bspFreeMap();
 int bspLoadMap(const char *fname);
 void bspInit();
