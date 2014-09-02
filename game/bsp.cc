@@ -15,7 +15,6 @@
 
 static const double thickness = 0.1f;
 
-Vertexes vc;
 Sectors sc;
 
 std::auto_ptr<Node> root;
@@ -28,19 +27,15 @@ double clamp(double value, double low, double high) { return (value < low) ? low
 static Vec2d
 nearestWallPoint(const Line& l, const Vec2d& pm)
 {
-  const Vec2d p1(vc[l.a()]);
-  const Vec2d p2(vc[l.b()]);
-  const Vec2d d(p2 - p1);
-  const double t = clamp(dot(pm - p1, d) / dot(d, d), 0.0f, 1.0f);
-  return p1 + t * d;
+  const Vec2d d(l.b() - l.a());
+  const double t = clamp(dot(pm - l.a(), d) / dot(d, d), 0.0f, 1.0f);
+  return l.a() + t * d;
 }
 
 static bool
 pointBehindLine(const Line& l, const Vec2d& p0)
 {
-  const Vec2d p1(vc[l.a()]);
-  const Vec2d p2(vc[l.b()]);
-  return wedge(p2 - p1, p0 - p1) < 0.0f;
+  return wedge(l.b() - l.a(), p0 - l.a()) < 0.0f;
 }
 
 static bool
@@ -105,22 +100,20 @@ const Node* bspGetNodeForCoords(const Vec3d& p) {
 
 static void bspFreeTree() {
   root.reset();
-  vc.clear();
 }
 
-static Vertex
-bspReadVertex(std::istream& is, size_t expectedIndex)
+namespace {
+
+std::istream&
+operator>>(std::istream& is, Vec2d& v)
 {
-  std::string name;
-  is >> name;
-  if (name != "vertex") throw std::runtime_error("vertex expected");
-  size_t index;
-  is >> index;
-  if (index != expectedIndex) throw std::runtime_error("unexpected index");
-  float x, y;
+  double x, y;
   is >> x >> y;
-  return Vertex(x, y);
+  v = Vec2d(x, y);
+  return is;
 }
+
+} // anonymous namespace
 
 static Line
 bspReadLine(std::istream& is)
@@ -128,7 +121,8 @@ bspReadLine(std::istream& is)
   std::string name;
   is >> name;
   if (name != "wall") throw std::runtime_error("wall expected");
-  unsigned a, b, flags;
+  Vec2d a, b;
+  unsigned flags;
   int backSectorId;
   is >> a >> b >> flags >> backSectorId;
   Surfaced s;
@@ -168,12 +162,12 @@ bspLoadNode(std::istream& is)
         texLoadTexture(GET_TEXTURE(l.s().textureId(), 0), 0);
         texLoadTexture(GET_TEXTURE(l.s().textureId(), 1), 0);
         texLoadTexture(GET_TEXTURE(l.s().textureId(), 2), 0);
-        const float x = vc[l.a()].y() - vc[l.b()].y();
-        const float y = vc[l.b()].x() - vc[l.a()].x();
+        const float x = l.a().y() - l.b().y();
+        const float y = l.b().x() - l.a().x();
         float len = 1 / sqrtf(x * x + y * y);
         l.n(Vec2d(x * len, y * len));
-        n->bb().add(Vec3d(vc[l.a()].x(), vc[l.a()].y(), n->s()->f()));
-        n->bb().add(Vec3d(vc[l.a()].x(), vc[l.a()].y(), n->s()->c()));
+        n->bb().add(Vec3d(l.a().x(), l.a().y(), n->s()->f()));
+        n->bb().add(Vec3d(l.a().x(), l.a().y(), n->s()->c()));
         n->ls().push_back(l);
       }
     }
@@ -189,26 +183,6 @@ bspLoadNode(std::istream& is)
 
 static void
 bspLoadTree(std::istream& is) {
-  std::string name;
-  is >> name;
-  if (name != "vertex-count") throw std::runtime_error("vertex-count expected");
-  size_t vertexCount;
-  is >> vertexCount;
-  Vertexes().swap(vc);
-  vc.reserve(vertexCount);
-  for (size_t i = 0; i < vertexCount; ++i) {
-    vc.push_back(bspReadVertex(is, i));
-  }
-  cmsg(MLINFO, "%zu verteces", vc.size());
-  is >> name;
-  if (name != "node-count") throw std::runtime_error("node-count expected");
-  size_t nodeCount;
-  is >> nodeCount;
-  is >> name;
-  if (name != "line-count") throw std::runtime_error("line-count expected");
-  size_t lineCount;
-  is >> lineCount;
-  cmsg(MLINFO, "%zu nodes, %zu lines", nodeCount, lineCount);
   root = bspLoadNode(is);
   // TODO: count lines and nodes and print!
   cmsg(MLINFO, "%d textures", texGetNofTextures());
@@ -246,7 +220,7 @@ int bspLoadMap(const char *fname) {
   std::string magic, version;
   f >> magic >> version;
   if (magic != "bsp") throw std::runtime_error("invalid magic");
-  if (version != "v0.1") throw std::runtime_error("invalid version");
+  if (version != "v0.2") throw std::runtime_error("invalid version");
   cmsg(MLINFO, "Loading map %s", fname);
   bspFreeMap();
   std::string name;
@@ -294,7 +268,6 @@ cmd_leavemap(int argc, char **argv)
 
 void bspInit() {
   sc.clear();
-  vc.clear();
   cmdAddCommand("map", cmd_map);
   cmdAddCommand("devmap", cmd_map);
   cmdAddCommand("leavemap", cmd_leavemap);

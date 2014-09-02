@@ -13,7 +13,6 @@
 #include <memory>
 
 typedef Vec2d Vertex;
-typedef std::vector<Vertex> Vertexes;
 
 class Sector {
 public:
@@ -50,7 +49,7 @@ struct LineFlag {
 class Line {
 public:
   Line(
-    unsigned a, unsigned b,
+    const Vec2d& a, const Vec2d& b,
     unsigned flags,
     int backSectorId,
     const Surfaced& s
@@ -61,8 +60,8 @@ public:
   , s_(s)
   {}
 
-  unsigned a() const { return a_; }
-  unsigned b() const { return b_; }
+  Vec2d a() const { return a_; }
+  Vec2d b() const { return b_; }
   Vec2d n() const { return n_; }
   int backSectorId() const { return backSectorId_; }
   Surfaced s() const { return s_; }
@@ -70,7 +69,7 @@ public:
   void n(const Vec2d& value) { n_ = value; }
 
 private:
-  unsigned a_, b_;
+  Vec2d a_, b_;
   unsigned flags_;
   Vec2d n_;
   int backSectorId_;
@@ -122,7 +121,6 @@ private:
 };
 
 extern std::auto_ptr<Node> root;
-extern Vertexes vc;
 extern Sectors sc;
 
 void bspCollideTree(MassPoint3d& mp);

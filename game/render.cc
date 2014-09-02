@@ -23,8 +23,6 @@ static int visfaces, visnodes;
 static void
 rDrawWall(const Line& l, float f, float c, unsigned t)
 {
-  const Vertex a(vc[l.a()]);
-  const Vertex b(vc[l.b()]);
   float v = (l.s().v() - c) * 0.015625;
   texSelectTexture(t);
 /*  glActiveTexture(GL_TEXTURE1);
@@ -34,19 +32,19 @@ rDrawWall(const Line& l, float f, float c, unsigned t)
   glNormal3f(l.n().x(), l.n().y(), 0.0);
   glTexCoord2f(l.s().u1(), v);
 //  glMultiTexCoord2f(GL_TEXTURE1, 0.0, 0.0);
-  glVertex3f(a.x(), a.y(), c);
+  glVertex3f(l.a().x(), l.a().y(), c);
 
   glTexCoord2f(l.s().u2(), v);
 //  glMultiTexCoord2f(GL_TEXTURE1, 1.0, 0.0);
-  glVertex3f(b.x(), b.y(), c);
+  glVertex3f(l.b().x(), l.b().y(), c);
   v = (l.s().v() - f) * 0.015625;
   glTexCoord2f(l.s().u2(), v);
 //  glMultiTexCoord2f(GL_TEXTURE1, 1.0, 1.0);
-  glVertex3f(b.x(), b.y(), f);
+  glVertex3f(l.b().x(), l.b().y(), f);
 
   glTexCoord2f(l.s().u1(), v);
 //  glMultiTexCoord2f(GL_TEXTURE1, 0.0, 1.0);
-  glVertex3f(a.x(), a.y(), f);
+  glVertex3f(l.a().x(), l.a().y(), f);
   glEnd();
   ++visfaces;
 }
@@ -55,12 +53,10 @@ static void
 rDrawWalls(const Node& n)
 {
   for (Node::const_iterator i(n.begin()); i != n.end(); ++i) {
-    const Vertex a(vc[i->a()]);
-    const Vertex b(vc[i->b()]);
     const Sector* const ns = i->backSectorId() ? (&sc.at(i->backSectorId())) : 0;
     unsigned t;
     if (n.s()->f() < n.s()->c()) {
-      if (wedge(b - cam.pos().xy(), b - a) < 0.0f) continue;
+      if (wedge(i->b() - cam.pos().xy(), i->b() - i->a()) < 0.0f) continue;
       if (ns != NULL) {
         if (ns->f() > n.s()->f() && (t = GET_TEXTURE(i->s().textureId(), 0))) {
           rDrawWall(*i, n.s()->f(), ns->f(), t);
@@ -93,8 +89,8 @@ rDrawPlanes(const Node& n)
     glBegin(GL_POLYGON);
     glNormal3f(0.0, 0.0, 1.0);
     for (Node::const_iterator i(n.begin()); i != n.end(); ++i) {
-      const float x = vc[i->a()].x();
-      const float y = vc[i->a()].y();
+      const float x = i->a().x();
+      const float y = i->a().y();
 //      const float u = (x - n->bb.x1) / (n->bb.x2 - n->bb.x1);
 //      const float v = (y - n->bb.y1) / (n->bb.y2 - n->bb.y1);
       glTexCoord2f((x + n.s()->u()) * 0.015625, (y + n.s()->v()) * 0.015625);
@@ -109,8 +105,8 @@ rDrawPlanes(const Node& n)
     glBegin(GL_POLYGON);
     glNormal3f(0.0, 0.0, -1.0);
     for (Node::const_reverse_iterator i(n.rbegin()); i != n.rend(); ++i) {
-      const float x = vc[i->a()].x();
-      const float y = vc[i->a()].y();
+      const float x = i->a().x();
+      const float y = i->a().y();
 //      const float u = (x - n->bb.x1) / (n->bb.x2 - n->bb.x1);
 //      const float v = (y - n->bb.y1) / (n->bb.y2 - n->bb.y1);
       glTexCoord2f((x + n.s()->u()) * 0.015625, (y + n.s()->v()) * 0.015625);

@@ -44,20 +44,11 @@ public:
 	Vertex& operator-=(const Vertex& rhs) {  return operator+=(-rhs); }
 	double length() const { return sqrtf(dot(*this, *this)); }
 
-	void saveText(std::ostream& os, size_t index) const;
-
 private:
 	double x_, y_;
 };
 
-void
-Vertex::saveText(std::ostream& os, size_t index)
-const
-{
-  os << "vertex " << index << ' ' << short(x()) << ' ' << short(y()) << std::endl;
-}
-
-std::ostream& operator<<(std::ostream& os, const Vertex& v) { return os << "(" << v.x() << ", " << v.y() << ")"; }
+std::ostream& operator<<(std::ostream& os, const Vertex& v) { return os << v.x() << ' ' << v.y(); }
 Vertex operator+(Vertex lhs, const Vertex& rhs) { return lhs += rhs; }
 Vertex operator-(Vertex lhs, const Vertex& rhs) { return lhs -= rhs; }
 
@@ -77,8 +68,6 @@ inline bool operator<(const Vertex& lhs, Vertex d) {
 
 inline bool operator!=(const Vertex& lhs, const Vertex& rhs) { return !(lhs == rhs); }
 
-typedef std::vector<Vertex> Vertexes;
-
 class Wall {
 public:
 	Wall(const Vertex& a, const Vertex& b, int backSectorId = 0, const Surfaced& surface = Surfaced(), int flags = Line::Flag::TWOSIDED)
@@ -91,7 +80,7 @@ public:
 	Surfaced surface() const { return surface_; }
 	int flags() const { return flags_; }
 
-	void save(std::ostream& os, const Vertexes& vs) const;
+	void save(std::ostream& os) const;
 
 private:
 	Vertex a_, b_;
@@ -102,16 +91,10 @@ private:
 
 std::ostream& operator<<(std::ostream& os, const Wall& w) { return os << "Wall(" << w.a() << ", " << w.b() << ")"; }
 
-int getVertexIndex(const Vertexes& vs, const Vertex& v) {
-	Vertexes::const_iterator i(std::find(vs.begin(), vs.end(), v));
-	assert(i != vs.end());
-	return std::distance(vs.begin(), i);
-}
-
-void Wall::save(std::ostream& os, const Vertexes& vs) const {
+void Wall::save(std::ostream& os) const {
 	os << "wall ";
-	os << getVertexIndex(vs, a()) << ' ';
-	os << getVertexIndex(vs, b()) << ' ';
+	os << a() << ' ';
+	os << b() << ' ';
 	os << flags() << ' ';
 	os << backSectorId() << std::endl;
 	os << surface() << std::endl;
@@ -192,27 +175,15 @@ public:
 	void print(std::ostream& os) const;
 	size_t countWalls() const { return walls_.size(); }
 	bool empty() const { return walls_.empty(); }
-	void collect(Vertexes& vs) const;
-	void save(std::ostream& os, const Vertexes& vs) const;
+	void save(std::ostream& os) const;
 
 private:
 	void checkWallsSub() const;
-	void saveSorted(std::ostream& os, const Vertexes& vs) const;
+	void saveSorted(std::ostream& os) const;
 
 	int id_;
 	Walls walls_;
 };
-
-void add(Vertexes& vs, const Vertex& v) {
-	if (std::find(vs.begin(), vs.end(), v) == vs.end()) vs.push_back(v);
-}
-
-void Sector::collect(Vertexes& vs) const {
-	for (Walls::const_iterator i(walls_.begin()); i != walls_.end(); ++i) {
-		::bsp::add(vs, i->a());
-		::bsp::add(vs, i->b());
-	}
-}
 
 template <class T>
 T pick(std::vector<T>& v, typename std::vector<T>::iterator i) {
@@ -222,7 +193,7 @@ T pick(std::vector<T>& v, typename std::vector<T>::iterator i) {
 	return result;
 }
 
-void Sector::saveSorted(std::ostream& os, const Vertexes& vs) const {
+void Sector::saveSorted(std::ostream& os) const {
 	if (walls_.size() < 3) {
 		std::cerr << walls_.size() << std::endl;
 		throw std::runtime_error("too few walls in a sector");
@@ -235,7 +206,7 @@ void Sector::saveSorted(std::ostream& os, const Vertexes& vs) const {
 		if (!open) {
 			assert(ws.size() >= 3);
 			Wall w(pick(ws, ws.begin()));
-			w.save(os, vs);
+			w.save(os);
 			first = w.a();
 			last = w.b();
 			open = true;
@@ -245,7 +216,7 @@ void Sector::saveSorted(std::ostream& os, const Vertexes& vs) const {
 		for (Walls::iterator i(ws.begin()); i != ws.end(); ++i) {
 			if (i->a() == last) {
 				Wall w(pick(ws, i));
-				w.save(os, vs);
+				w.save(os);
 				last = w.b();
 				if (last == first) open = false;
 				found = true;
@@ -257,9 +228,9 @@ void Sector::saveSorted(std::ostream& os, const Vertexes& vs) const {
 	if (open) throw std::runtime_error("open sector at the end");
 }
 
-void Sector::save(std::ostream& os, const Vertexes& vs) const {
+void Sector::save(std::ostream& os) const {
 	os << "subsector " << id() << ' ' << countWalls() << std::endl;
-	saveSorted(os, vs);
+	saveSorted(os);
 }
 
 SplitStats Sector::computeStats(const Plane2d& plane) const {
@@ -405,13 +376,11 @@ public:
 	const Node& back() const{ return *back_; }
 
 	void build();
-	void save(std::ostream& os, const Vertexes& vs) const;
+	void save(std::ostream& os) const;
 	void add(int sectorId, const Wall& w);
 	Plane2d plane() const { return plane_; }
 	size_t countWalls() const;
 	void print(std::ostream& os) const;
-	void collect(Vertexes& vs) const;
-	size_t countNodes() const { return 1 + (front_.get() ? front_->countNodes() : 0) + (back_.get() ? back_->countNodes() : 0); }
 
 private:
 	Node(const Node&);
@@ -425,14 +394,6 @@ private:
 	Plane2d plane_;
 	std::auto_ptr<Node> front_, back_;
 };
-
-void Node::collect(Vertexes& vs) const {
-	for (Sectors::const_iterator i(sectors_.begin()); i != sectors_.end(); ++i) {
-		i->collect(vs);
-	}
-	if (front_.get()) front_->collect(vs);
-	if (back_.get()) back_->collect(vs);
-}
 
 void
 Renderer::draw(const Node& n)
@@ -536,22 +497,22 @@ void Node::print(std::ostream& os) const {
 	}
 }
 
-void Node::save(std::ostream& os, const Vertexes& vs) const {
+void Node::save(std::ostream& os) const {
 	const int isLeaf = !sectors_.empty();
 	if (isLeaf) {
 		os << "node leaf" << std::endl;
 		assert(!front_.get());
 		assert(!back_.get());
 		if (sectors_.size() != 1) throw std::runtime_error("no single sector in node");
-		sectors_.front().save(os, vs);
+		sectors_.front().save(os);
 	} else {
 		os << "node branch" << std::endl;
 		assert(front_.get());
 		assert(back_.get());
 		assert(sectors_.empty());
 		plane_.write(os);
-		front_->save(os, vs);
-		back_->save(os, vs);
+		front_->save(os);
+		back_->save(os);
 	}
 }
 
@@ -572,12 +533,7 @@ private:
 
 void Tree::trySave(std::ostream& os) const {
 	assert(root_.get());
-	Vertexes vertexes;
-	root_->collect(vertexes);
-	saveAllText("vertex", vertexes.begin(), vertexes.end(), os);
-	os << "node-count " << root_->countNodes() << std::endl;
-	os << "line-count " << root_->countWalls() << std::endl;
-	root_->save(os, vertexes);
+	root_->save(os);
 }
 
 namespace { Tree tree; }

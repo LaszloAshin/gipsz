@@ -278,7 +278,7 @@ void edBuildBSP() {
   bsp::bspBuildTree();
   std::ofstream f("map.bsp");
   f.exceptions(std::ios::failbit | std::ios::badbit);
-  f << "bsp v0.1" << std::endl;
+  f << "bsp v0.2" << std::endl;
   ++s;
   saveAllText("sector", sc.begin(), sc.end(), f);
   bsp::bspSave(f);
