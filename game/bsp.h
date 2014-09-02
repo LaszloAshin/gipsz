@@ -107,6 +107,9 @@ public:
   void back(std::auto_ptr<Node> value) { back_ = value; }
   void bb(const BBox3d& value) { bb_ = value; }
 
+  void collide(MassPoint3d& mp) const;
+  const Node* findNode(const Vec3d& p) const;
+
 private:
   Node(const Node&);
   Node& operator=(const Node&);
@@ -123,7 +126,7 @@ extern Vertexes vc;
 extern Sectors sc;
 
 void bspCollideTree(MassPoint3d& mp);
-Node* bspGetNodeForCoords(const Vec3d& p);
+const Node* bspGetNodeForCoords(const Vec3d& p);
 void bspFreeMap();
 int bspLoadMap(const char *fname);
 void bspInit();

@@ -57,11 +57,12 @@ crossable(const Line& l)
   return true;
 }
 
-static void
-bspCollideNode(const Node& n, MassPoint3d& mp)
+void
+Node::collide(MassPoint3d& mp)
+const
 {
   const Vec3d newPos(mp.pos() + mp.velo());
-  for (Node::const_iterator i(n.begin()); i != n.end(); ++i) {
+  for (Node::const_iterator i(begin()); i != end(); ++i) {
     const Vec2d pm(nearestWallPoint(*i, newPos.xy()));
     const Vec2d n2d(norm(newPos.xy() - pm));
     const Vec3d n3d(n2d.x(), n2d.y(), 0.0f);
@@ -72,7 +73,7 @@ bspCollideNode(const Node& n, MassPoint3d& mp)
       }
     }
   }
-  const double df = newPos.z() - n.s()->f() - 48.0f;
+  const double df = newPos.z() - s()->f() - 48.0f;
   if (df < 0.0f) {
     mp.velo(mp.velo() - df * Vec3d(0.0f, 0.0f, 1.0f) / 10);
   }
@@ -81,29 +82,30 @@ bspCollideNode(const Node& n, MassPoint3d& mp)
 void bspCollideTree(MassPoint3d& mp) {
   if (!root.get()) return;
   if (const Node* n = bspGetNodeForCoords(mp.pos())) {
-    bspCollideNode(*n, mp);
+    n->collide(mp);
   }
 }
 
-static Node*
-bspGetNodeForCoordsSub(Node* n, const Vec3d& p)
+const Node*
+Node::findNode(const Vec3d& p)
+const
 {
-  if (!n->empty()) { // leaf
-    if (p.z() < n->s()->f() || n->s()->c() < p.z()) return 0;
-    for (Node::const_iterator i(n->begin()); i != n->end(); ++i) {
+  if (!empty()) { // leaf
+    if (p.z() < s()->f() || s()->c() < p.z()) return 0;
+    for (Node::const_iterator i(begin()); i != end(); ++i) {
       if (pointBehindLine(*i, p.xy())) return 0;
     }
-    return n;
+    return this;
   } else {
-    if (n->div().determine(p) < thickness) {
-      if (Node* result = bspGetNodeForCoordsSub(n->back().get(), p)) return result;
+    if (div().determine(p) < thickness) {
+      if (const Node* result = back()->findNode(p)) return result;
     }
-    return bspGetNodeForCoordsSub(n->front().get(), p);
+    return front()->findNode(p);
   }
 }
 
-Node* bspGetNodeForCoords(const Vec3d& p) {
-  return root.get() ? bspGetNodeForCoordsSub(root.get(), p) : 0;
+const Node* bspGetNodeForCoords(const Vec3d& p) {
+  return root.get() ? root->findNode(p) : 0;
 }
 
 static void bspFreeTree() {
