@@ -24,18 +24,19 @@ int bspIsLoaded() { return bspLoaded; }
 
 double clamp(double value, double low, double high) { return (value < low) ? low : ((value > high) ? high : value); }
 
-static Vec2d
-nearestWallPoint(const Line& l, const Vec2d& pm)
+Vec2d
+Line::nearestPoint(const Vec2d& pm)
+const
 {
-  const Vec2d d(l.b() - l.a());
-  const double t = clamp(dot(pm - l.a(), d) / dot(d, d), 0.0f, 1.0f);
-  return l.a() + t * d;
+  const Vec2d d(b() - a());
+  const double t = clamp(dot(pm - a(), d) / dot(d, d), 0.0f, 1.0f);
+  return a() + t * d;
 }
 
-static bool
-pointBehindLine(const Line& l, const Vec2d& p0)
+bool
+isBehind(const Vec2d& p, const Line& l)
 {
-  return wedge(l.b() - l.a(), p0 - l.a()) < 0.0f;
+  return wedge(l.b() - l.a(), p - l.a()) < 0.0f;
 }
 
 static bool
@@ -53,7 +54,7 @@ const
 {
   const Vec3d newPos(mp.pos() + mp.velo());
   for (Node::const_iterator i(begin()); i != end(); ++i) {
-    const Vec2d pm(nearestWallPoint(*i, newPos.xy()));
+    const Vec2d pm(i->nearestPoint(newPos.xy()));
     const Vec2d n2d(norm(newPos.xy() - pm));
     const Vec3d n3d(n2d.x(), n2d.y(), 0.0f);
     const double d = len(newPos.xy() - pm) - 16.0f;
@@ -83,7 +84,7 @@ const
   if (!empty()) { // leaf
     if (p.z() < s()->f() || s()->c() < p.z()) return 0;
     for (Node::const_iterator i(begin()); i != end(); ++i) {
-      if (pointBehindLine(*i, p.xy())) return 0;
+      if (isBehind(p.xy(), *i)) return 0;
     }
     return this;
   } else {

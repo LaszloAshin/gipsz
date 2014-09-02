@@ -68,6 +68,8 @@ public:
 
   void n(const Vec2d& value) { n_ = value; }
 
+  Vec2d nearestPoint(const Vec2d& pm) const;
+
 private:
   Vec2d a_, b_;
   unsigned flags_;
@@ -75,6 +77,8 @@ private:
   int backSectorId_;
   Surfaced s_;
 };
+
+bool isBehind(const Vec2d& p, const Line& l);
 
 typedef std::vector<Line> Lines;
 
