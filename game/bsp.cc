@@ -1,9 +1,5 @@
 /* vim: set ts=2 sw=8 tw=0 et :*/
-#include <stdlib.h>
-#include <math.h>
 #include "bsp.h"
-#include "player.h"
-#include "mm.h"
 #include "console.h"
 #include "tex.h"
 #include "render.h"
@@ -14,7 +10,6 @@
 #include "obj.h"
 
 #include <cassert>
-#include <istream>
 #include <fstream>
 #include <stdexcept>
 
