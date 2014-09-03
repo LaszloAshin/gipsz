@@ -52,6 +52,8 @@ public:
 	template <class U>
 	friend T wedge(const Vec& lhs, const U& rhs) { return lhs.x() * rhs.y() - lhs.y() * rhs.x(); }
 
+	friend Vec perpendicular(const Vec& v) { return Vec(v.y(), -v.x()); }
+
 private:
 	T x_, y_;
 };

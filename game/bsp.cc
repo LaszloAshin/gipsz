@@ -163,10 +163,7 @@ bspLoadNode(std::istream& is)
         texLoadTexture(GET_TEXTURE(l.s().textureId(), 0), 0);
         texLoadTexture(GET_TEXTURE(l.s().textureId(), 1), 0);
         texLoadTexture(GET_TEXTURE(l.s().textureId(), 2), 0);
-        const float x = l.a().y() - l.b().y();
-        const float y = l.b().x() - l.a().x();
-        float len = 1 / sqrtf(x * x + y * y);
-        l.n(Vec2d(x * len, y * len));
+        l.n(norm(perpendicular(l.b() - l.a())));
         n->bb().add(Vec3d(l.a().x(), l.a().y(), n->s()->f()));
         n->bb().add(Vec3d(l.a().x(), l.a().y(), n->s()->c()));
         n->ls().push_back(l);
