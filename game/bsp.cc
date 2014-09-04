@@ -15,7 +15,7 @@
 
 static const double thickness = 0.1f;
 
-Sectors sc;
+typedef std::vector<std::tr1::shared_ptr<Sector> > Sectors;
 
 std::auto_ptr<Node> root;
 
@@ -39,12 +39,12 @@ isBehind(const Vec2d& p, const Line& l)
   return wedge(l.b() - l.a(), p - l.a()) < 0.0f;
 }
 
-static bool
-crossable(const Line& l)
+bool
+Line::crossable()
+const
 {
-  if (!l.backSectorId()) return false;
-  const Sector neighSector(sc[l.backSectorId()]);
-  if (neighSector.height() < 64) return false;
+  if (!sectorBehind()) return false;
+  if (sectorBehind()->height() < 64) return false;
   return true;
 }
 
@@ -59,7 +59,7 @@ const
     const Vec3d n3d(n2d.x(), n2d.y(), 0.0f);
     const double d = len(newPos.xy() - pm) - 16.0f;
     if (d < 0.0f) {
-      if (!crossable(*i)) {
+      if (!i->crossable()) {
         mp.velo(mp.velo() - d * n3d);
       }
     }
@@ -117,7 +117,7 @@ operator>>(std::istream& is, Vec2d& v)
 } // anonymous namespace
 
 static Line
-bspReadLine(std::istream& is)
+bspReadLine(std::istream& is, const Sectors& sectors)
 {
   std::string name;
   is >> name;
@@ -126,13 +126,15 @@ bspReadLine(std::istream& is)
   unsigned flags;
   int backSectorId;
   is >> a >> b >> flags >> backSectorId;
+  std::tr1::shared_ptr<Sector> sectorBehind;
+  if (backSectorId) sectorBehind = sectors.at(backSectorId);
   Surfaced s;
   is >> s;
-  return Line(a, b, flags, backSectorId, s);
+  return Line(a, b, flags, sectorBehind, s);
 }
 
 static std::auto_ptr<Node>
-bspLoadNode(std::istream& is)
+bspLoadNode(std::istream& is, const Sectors& sectors)
 {
   std::string name;
   is >> name;
@@ -149,7 +151,7 @@ bspLoadNode(std::istream& is)
     is >> sectorId;
     printf("sectorId: %u\n", sectorId);
     if (sectorId) {
-      n->s(&sc.at(sectorId));
+      n->s(sectors.at(sectorId));
       texLoadTexture(GET_TEXTURE(n->s()->t(), 0), 0);
       texLoadTexture(GET_TEXTURE(n->s()->t(), 1), 0);
     }
@@ -159,7 +161,7 @@ bspLoadNode(std::istream& is)
     if (lineCount) { // leaf
       n->ls().reserve(lineCount);
       for (size_t i = 0; i < lineCount; ++i) {
-        Line l(bspReadLine(is));
+        Line l(bspReadLine(is, sectors));
         texLoadTexture(GET_TEXTURE(l.s().textureId(), 0), 0);
         texLoadTexture(GET_TEXTURE(l.s().textureId(), 1), 0);
         texLoadTexture(GET_TEXTURE(l.s().textureId(), 2), 0);
@@ -171,19 +173,12 @@ bspLoadNode(std::istream& is)
     }
   } else {
     n->div(Plane2d::read(is));
-    n->front(bspLoadNode(is));
-    n->back(bspLoadNode(is));
+    n->front(bspLoadNode(is, sectors));
+    n->back(bspLoadNode(is, sectors));
     n->bb().add(n->front()->bb());
     n->bb().add(n->back()->bb());
   }
   return n;
-}
-
-static void
-bspLoadTree(std::istream& is) {
-  root = bspLoadNode(is);
-  // TODO: count lines and nodes and print!
-  cmsg(MLINFO, "%d textures", texGetNofTextures());
 }
 
 void bspFreeMap() {
@@ -192,12 +187,11 @@ void bspFreeMap() {
   bspLoaded = 0;
   modelFlush();
   bspFreeTree();
-  sc.clear();
   texFlush();
   gDisable();
 }
 
-static Sector
+static std::tr1::shared_ptr<Sector>
 bspLoadSector(std::istream& is, size_t expectedIndex)
 {
   std::string name;
@@ -209,7 +203,7 @@ bspLoadSector(std::istream& is, size_t expectedIndex)
   short f, c, u, v;
   unsigned l, t;
   is >> f >> c >> l >> u >> v >> t;
-  return Sector(f, c, l, u, v, t);
+  return std::tr1::shared_ptr<Sector>(new Sector(f, c, l, u, v, t));
 }
 
 int bspLoadMap(const char *fname) {
@@ -226,13 +220,15 @@ int bspLoadMap(const char *fname) {
   if (name != "sector-count") throw std::runtime_error("sector-count expected");
   size_t sectorCount;
   f >> sectorCount;
-  Sectors().swap(sc);
-  sc.reserve(sectorCount);
+  Sectors sectors;
+  sectors.reserve(sectorCount);
   for (size_t i = 0; i < sectorCount; ++i) {
-    sc.push_back(bspLoadSector(f, i));
+    sectors.push_back(bspLoadSector(f, i));
   }
-  cmsg(MLINFO, "%zu sectors", sc.size());
-  bspLoadTree(f);
+  cmsg(MLINFO, "%zu sectors", sectors.size());
+  root = bspLoadNode(f, sectors);
+  // TODO: count lines and nodes and print!
+  cmsg(MLINFO, "%d textures", texGetNofTextures());
   objLoad(f);
   cmsg(MLINFO, "Map successfuly loaded");
   bspLoaded = 1;
@@ -265,7 +261,6 @@ cmd_leavemap(int argc, char **argv)
 }
 
 void bspInit() {
-  sc.clear();
   cmdAddCommand("map", cmd_map);
   cmdAddCommand("devmap", cmd_map);
   cmdAddCommand("leavemap", cmd_leavemap);

@@ -11,6 +11,7 @@
 #include <istream>
 #include <vector>
 #include <memory>
+#include <tr1/memory>
 
 typedef Vec2d Vertex;
 
@@ -34,8 +35,6 @@ private:
   unsigned t_;
 };
 
-typedef std::vector<Sector> Sectors;
-
 struct LineFlag {
   enum Type {
     NOTHING = 0x00,
@@ -51,30 +50,31 @@ public:
   Line(
     const Vec2d& a, const Vec2d& b,
     unsigned flags,
-    int backSectorId,
+    std::tr1::shared_ptr<Sector> sectorBehind,
     const Surfaced& s
   )
   : a_(a), b_(b)
   , flags_(flags)
-  , backSectorId_(backSectorId)
+  , sectorBehind_(sectorBehind)
   , s_(s)
   {}
 
   Vec2d a() const { return a_; }
   Vec2d b() const { return b_; }
   Vec2d n() const { return n_; }
-  int backSectorId() const { return backSectorId_; }
+  std::tr1::shared_ptr<const Sector> sectorBehind() const { return sectorBehind_; }
   Surfaced s() const { return s_; }
 
   void n(const Vec2d& value) { n_ = value; }
 
   Vec2d nearestPoint(const Vec2d& pm) const;
+  bool crossable() const;
 
 private:
   Vec2d a_, b_;
   unsigned flags_;
   Vec2d n_;
-  int backSectorId_;
+  std::tr1::shared_ptr<Sector> sectorBehind_;
   Surfaced s_;
 };
 
@@ -84,7 +84,7 @@ typedef std::vector<Line> Lines;
 
 class Node {
 public:
-  Node() : s_(0), front_(0), back_(0) {}
+  Node() : front_(0), back_(0) {}
 
   typedef Lines::const_iterator const_iterator;
   typedef Lines::const_reverse_iterator const_reverse_iterator;
@@ -95,14 +95,14 @@ public:
   const_reverse_iterator rend() const { return ls_.rend(); }
 
   bool empty() const { return ls_.empty(); }
-  const Sector* s() const { return s_; }
+  std::tr1::shared_ptr<const Sector> s() const { return s_; }
   Plane2d div() const { return div_; }
   const std::auto_ptr<Node>& front() const { return front_; }
   const std::auto_ptr<Node>& back() const { return back_; }
   BBox3d bb() const { return bb_; }
   BBox3d& bb() { return bb_; }
 
-  void s(Sector* value) { s_ = value; }
+  void s(std::tr1::shared_ptr<Sector> value) { s_ = value; }
   Lines& ls() { return ls_; }
   const Lines& ls() const { return ls_; }
   void div(const Plane2d& p) { div_ = p; }
@@ -119,13 +119,12 @@ private:
 
   Lines ls_;
   BBox3d bb_;
-  Sector* s_;
+  std::tr1::shared_ptr<Sector> s_;
   std::auto_ptr<Node> front_, back_;
   Plane2d div_;
 };
 
 extern std::auto_ptr<Node> root;
-extern Sectors sc;
 
 void bspCollideTree(MassPoint3d& mp);
 const Node* bspGetNodeForCoords(const Vec3d& p);

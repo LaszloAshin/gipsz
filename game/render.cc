@@ -52,29 +52,22 @@ rDrawWall(const Line& l, float f, float c, unsigned t)
 static void
 rDrawWalls(const Node& n)
 {
+  const std::tr1::shared_ptr<const Sector> s(n.s());
+  if (s->height() < std::numeric_limits<double>::epsilon()) return;
   for (Node::const_iterator i(n.begin()); i != n.end(); ++i) {
-    const Sector* const ns = i->backSectorId() ? (&sc.at(i->backSectorId())) : 0;
-    unsigned t;
-    if (n.s()->f() < n.s()->c()) {
-      if (wedge(i->b() - cam.pos().xy(), i->b() - i->a()) < 0.0f) continue;
-      if (ns != NULL) {
-        if (ns->f() > n.s()->f() && (t = GET_TEXTURE(i->s().textureId(), 0))) {
-          rDrawWall(*i, n.s()->f(), ns->f(), t);
-        }
-        if (ns->c() < n.s()->c() && (t = GET_TEXTURE(i->s().textureId(), 2))) {
-          rDrawWall(*i, ns->c(), n.s()->c(), t);
-        }
-      }
-      t = GET_TEXTURE(i->s().textureId(), 1);
-      if (t) {
-        float x = n.s()->f();
-        float y = n.s()->c();
-        if (ns != NULL) {
-          if (ns->f() > x) x = ns->f();
-          if (ns->c() < y) y = ns->c();
-        }
-        rDrawWall(*i, x, y, t);
-      }
+    if (isBehind(cam.pos().xy(), *i)) continue;
+    const std::tr1::shared_ptr<const Sector> ns(i->sectorBehind());
+    if (const unsigned t = GET_TEXTURE(i->s().textureId(), 1)) {
+      const double f = ns ? std::max(s->f(), ns->f()) : s->f();
+      const double c = ns ? std::min(s->c(), ns->c()) : s->c();
+      rDrawWall(*i, f, c, t);
+    }
+    if (!ns) continue;
+    if (ns->f() > s->f()) {
+      if (const unsigned t = GET_TEXTURE(i->s().textureId(), 0)) rDrawWall(*i, s->f(), ns->f(), t);
+    }
+    if (ns->c() < s->c()) {
+      if (const unsigned t = GET_TEXTURE(i->s().textureId(), 2)) rDrawWall(*i, ns->c(), s->c(), t);
     }
   }
 }
