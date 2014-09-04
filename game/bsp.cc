@@ -15,8 +15,6 @@
 
 static const double thickness = 0.1f;
 
-typedef std::vector<std::tr1::shared_ptr<Sector> > Sectors;
-
 std::auto_ptr<Node> root;
 
 static int bspLoaded = 0;
@@ -49,11 +47,11 @@ const
 }
 
 void
-Node::collide(MassPoint3d& mp)
+Leaf::collide(MassPoint3d& mp)
 const
 {
   const Vec3d newPos(mp.pos() + mp.velo());
-  for (Node::const_iterator i(begin()); i != end(); ++i) {
+  for (const_iterator i(begin()); i != end(); ++i) {
     const Vec2d pm(i->nearestPoint(newPos.xy()));
     const Vec2d n2d(norm(newPos.xy() - pm));
     const Vec3d n3d(n2d.x(), n2d.y(), 0.0f);
@@ -66,37 +64,40 @@ const
   }
   const double df = newPos.z() - s()->f() - 48.0f;
   if (df < 0.0f) {
-    mp.velo(mp.velo() - df * Vec3d(0.0f, 0.0f, 1.0f) / 10);
+    mp.velo(mp.velo() - Vec3d(0.0f, 0.0f, df * 0.1f));
   }
 }
 
 void bspCollideTree(MassPoint3d& mp) {
   if (!root.get()) return;
-  if (const Node* n = bspGetNodeForCoords(mp.pos())) {
-    n->collide(mp);
+  if (const Leaf* l = bspGetLeafForCoords(mp.pos())) {
+    l->collide(mp);
   }
 }
 
-const Node*
-Node::findNode(const Vec3d& p)
+const Leaf*
+Node::findLeaf(const Vec3d& p)
 const
 {
-  if (!empty()) { // leaf
-    if (p.z() < s()->f() || s()->c() < p.z()) return 0;
-    for (Node::const_iterator i(begin()); i != end(); ++i) {
-      if (isBehind(p.xy(), *i)) return 0;
-    }
-    return this;
-  } else {
-    if (div().determine(p) < thickness) {
-      if (const Node* result = back()->findNode(p)) return result;
-    }
-    return front()->findNode(p);
+  if (div().determine(p) < thickness) {
+    if (const Leaf* result = back()->findLeaf(p)) return result;
   }
+  return front()->findLeaf(p);
 }
 
-const Node* bspGetNodeForCoords(const Vec3d& p) {
-  return root.get() ? root->findNode(p) : 0;
+const Leaf*
+Leaf::findLeaf(const Vec3d& p)
+const
+{
+  if (p.z() < s()->f() || s()->c() < p.z()) return 0;
+  for (const_iterator i(begin()); i != end(); ++i) {
+    if (isBehind(p.xy(), *i)) return 0;
+  }
+  return this;
+}
+
+const Leaf* bspGetLeafForCoords(const Vec3d& p) {
+  return root.get() ? root->findLeaf(p) : 0;
 }
 
 static void bspFreeTree() {
@@ -133,6 +134,38 @@ bspReadLine(std::istream& is, const Sectors& sectors)
   return Line(a, b, flags, sectorBehind, s);
 }
 
+std::auto_ptr<Node>
+Leaf::create(std::istream& is, const Sectors& sectors)
+{
+  std::string name;
+  is >> name;
+  if (name != "subsector") throw std::runtime_error("subsector expected");
+  unsigned sectorId;
+  is >> sectorId;
+  printf("sectorId: %u\n", sectorId);
+  assert(sectorId); // XXX
+  std::auto_ptr<Leaf> result(new Leaf(sectors.at(sectorId)));
+  texLoadTexture(GET_TEXTURE(result->s()->t(), 0), 0);
+  texLoadTexture(GET_TEXTURE(result->s()->t(), 1), 0);
+  size_t lineCount;
+  is >> lineCount;
+  assert(lineCount);
+  if (lineCount) { // leaf
+    result->ls().reserve(lineCount);
+    for (size_t i = 0; i < lineCount; ++i) {
+      Line l(bspReadLine(is, sectors));
+      texLoadTexture(GET_TEXTURE(l.s().textureId(), 0), 0);
+      texLoadTexture(GET_TEXTURE(l.s().textureId(), 1), 0);
+      texLoadTexture(GET_TEXTURE(l.s().textureId(), 2), 0);
+      l.n(norm(perpendicular(l.b() - l.a())));
+      result->bb().add(Vec3d(l.a().x(), l.a().y(), result->s()->f()));
+      result->bb().add(Vec3d(l.a().x(), l.a().y(), result->s()->c()));
+      result->ls().push_back(l);
+    }
+  }
+  return std::auto_ptr<Node>(result.release());
+}
+
 static std::auto_ptr<Node>
 bspLoadNode(std::istream& is, const Sectors& sectors)
 {
@@ -142,36 +175,11 @@ bspLoadNode(std::istream& is, const Sectors& sectors)
   std::string branchOrLeaf;
   is >> branchOrLeaf;
   if (branchOrLeaf != "branch" && branchOrLeaf != "leaf") throw std::runtime_error("node is not branch nor leaf");
-  const int isLeaf = (branchOrLeaf == "leaf");
+  if (branchOrLeaf == "leaf") {
+    return Leaf::create(is, sectors);
+  }
   std::auto_ptr<Node> n(new Node());
-  if (isLeaf) {
-    is >> name;
-    if (name != "subsector") throw std::runtime_error("subsector expected");
-    unsigned sectorId;
-    is >> sectorId;
-    printf("sectorId: %u\n", sectorId);
-    if (sectorId) {
-      n->s(sectors.at(sectorId));
-      texLoadTexture(GET_TEXTURE(n->s()->t(), 0), 0);
-      texLoadTexture(GET_TEXTURE(n->s()->t(), 1), 0);
-    }
-    size_t lineCount;
-    is >> lineCount;
-    assert(lineCount);
-    if (lineCount) { // leaf
-      n->ls().reserve(lineCount);
-      for (size_t i = 0; i < lineCount; ++i) {
-        Line l(bspReadLine(is, sectors));
-        texLoadTexture(GET_TEXTURE(l.s().textureId(), 0), 0);
-        texLoadTexture(GET_TEXTURE(l.s().textureId(), 1), 0);
-        texLoadTexture(GET_TEXTURE(l.s().textureId(), 2), 0);
-        l.n(norm(perpendicular(l.b() - l.a())));
-        n->bb().add(Vec3d(l.a().x(), l.a().y(), n->s()->f()));
-        n->bb().add(Vec3d(l.a().x(), l.a().y(), n->s()->c()));
-        n->ls().push_back(l);
-      }
-    }
-  } else {
+  {
     n->div(Plane2d::read(is));
     n->front(bspLoadNode(is, sectors));
     n->back(bspLoadNode(is, sectors));

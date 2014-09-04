@@ -82,9 +82,42 @@ bool isBehind(const Vec2d& p, const Line& l);
 
 typedef std::vector<Line> Lines;
 
+class Leaf;
+
 class Node {
 public:
   Node() : front_(0), back_(0) {}
+  virtual ~Node() {}
+
+  Plane2d div() const { return div_; }
+  const std::auto_ptr<Node>& front() const { return front_; }
+  const std::auto_ptr<Node>& back() const { return back_; }
+  BBox3d bb() const { return bb_; }
+  BBox3d& bb() { return bb_; }
+
+  void div(const Plane2d& p) { div_ = p; }
+  void front(std::auto_ptr<Node> value) { front_ = value; }
+  void back(std::auto_ptr<Node> value) { back_ = value; }
+  void bb(const BBox3d& value) { bb_ = value; }
+
+  virtual const Leaf* findLeaf(const Vec3d& p) const;
+
+private:
+  Node(const Node&);
+  Node& operator=(const Node&);
+
+  BBox3d bb_;
+  std::auto_ptr<Node> front_, back_;
+  Plane2d div_;
+};
+
+typedef std::vector<std::tr1::shared_ptr<Sector> > Sectors;
+
+class Leaf : public Node {
+public:
+  static std::auto_ptr<Node> create(std::istream& is, const Sectors& sectors);
+
+  Leaf(const std::tr1::shared_ptr<Sector>& s) : s_(s) {}
 
   typedef Lines::const_iterator const_iterator;
   typedef Lines::const_reverse_iterator const_reverse_iterator;
@@ -94,40 +127,24 @@ public:
   const_reverse_iterator rbegin() const { return ls_.rbegin(); }
   const_reverse_iterator rend() const { return ls_.rend(); }
 
-  bool empty() const { return ls_.empty(); }
   std::tr1::shared_ptr<const Sector> s() const { return s_; }
-  Plane2d div() const { return div_; }
-  const std::auto_ptr<Node>& front() const { return front_; }
-  const std::auto_ptr<Node>& back() const { return back_; }
-  BBox3d bb() const { return bb_; }
-  BBox3d& bb() { return bb_; }
+  bool empty() const { return ls_.empty(); }
 
-  void s(std::tr1::shared_ptr<Sector> value) { s_ = value; }
   Lines& ls() { return ls_; }
   const Lines& ls() const { return ls_; }
-  void div(const Plane2d& p) { div_ = p; }
-  void front(std::auto_ptr<Node> value) { front_ = value; }
-  void back(std::auto_ptr<Node> value) { back_ = value; }
-  void bb(const BBox3d& value) { bb_ = value; }
 
   void collide(MassPoint3d& mp) const;
-  const Node* findNode(const Vec3d& p) const;
+  virtual const Leaf* findLeaf(const Vec3d& p) const;
 
 private:
-  Node(const Node&);
-  Node& operator=(const Node&);
-
   Lines ls_;
-  BBox3d bb_;
   std::tr1::shared_ptr<Sector> s_;
-  std::auto_ptr<Node> front_, back_;
-  Plane2d div_;
 };
 
 extern std::auto_ptr<Node> root;
 
 void bspCollideTree(MassPoint3d& mp);
-const Node* bspGetNodeForCoords(const Vec3d& p);
+const Leaf* bspGetLeafForCoords(const Vec3d& p);
 void bspFreeMap();
 int bspLoadMap(const char *fname);
 void bspInit();

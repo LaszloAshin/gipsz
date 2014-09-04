@@ -50,11 +50,11 @@ rDrawWall(const Line& l, float f, float c, unsigned t)
 }
 
 static void
-rDrawWalls(const Node& n)
+rDrawWalls(const Leaf& n)
 {
   const std::tr1::shared_ptr<const Sector> s(n.s());
   if (s->height() < std::numeric_limits<double>::epsilon()) return;
-  for (Node::const_iterator i(n.begin()); i != n.end(); ++i) {
+  for (Leaf::const_iterator i(n.begin()); i != n.end(); ++i) {
     if (isBehind(cam.pos().xy(), *i)) continue;
     const std::tr1::shared_ptr<const Sector> ns(i->sectorBehind());
     if (const unsigned t = GET_TEXTURE(i->s().textureId(), 1)) {
@@ -73,7 +73,7 @@ rDrawWalls(const Node& n)
 }
 
 static void
-rDrawPlanes(const Node& n)
+rDrawPlanes(const Leaf& n)
 {
   if (n.ls().size() < 3) return;
   unsigned t;
@@ -81,7 +81,7 @@ rDrawPlanes(const Node& n)
     texSelectTexture(t);
     glBegin(GL_POLYGON);
     glNormal3f(0.0, 0.0, 1.0);
-    for (Node::const_iterator i(n.begin()); i != n.end(); ++i) {
+    for (Leaf::const_iterator i(n.begin()); i != n.end(); ++i) {
       const float x = i->a().x();
       const float y = i->a().y();
 //      const float u = (x - n->bb.x1) / (n->bb.x2 - n->bb.x1);
@@ -97,7 +97,7 @@ rDrawPlanes(const Node& n)
     texSelectTexture(t);
     glBegin(GL_POLYGON);
     glNormal3f(0.0, 0.0, -1.0);
-    for (Node::const_reverse_iterator i(n.rbegin()); i != n.rend(); ++i) {
+    for (Leaf::const_reverse_iterator i(n.rbegin()); i != n.rend(); ++i) {
       const float x = i->a().x();
       const float y = i->a().y();
 //      const float u = (x - n->bb.x1) / (n->bb.x2 - n->bb.x1);
@@ -121,8 +121,8 @@ rDrawNode(const Node& n)
   } else {
     if (n.front().get()) rDrawNode(*n.front());
   }
-  if (n.s() && !n.empty()) {
-    glColor3ub(n.s()->l(), n.s()->l(), n.s()->l());
+  if (const Leaf* leaf = dynamic_cast<const Leaf*>(&n)) {
+    glColor3ub(leaf->s()->l(), leaf->s()->l(), leaf->s()->l());
 //  glColor3f(1.0, 1.0, 1.0);
 /*  texLoadTexture(0xc, 0);
     glActiveTexture(GL_TEXTURE1);
@@ -130,8 +130,8 @@ rDrawNode(const Node& n)
     texSelectTexture(0xc);
     glActiveTexture(GL_TEXTURE0);*/
     glDisable(GL_POLYGON_SMOOTH);
-    if (r_drawwalls) rDrawWalls(n);
-    rDrawPlanes(n);
+    if (r_drawwalls) rDrawWalls(*leaf);
+    rDrawPlanes(*leaf);
 /*    glActiveTexture(GL_TEXTURE1);
     glDisable(GL_TEXTURE_2D);
     glActiveTexture(GL_TEXTURE0);*/
