@@ -115,8 +115,8 @@ static void
 rDrawNode(const Node& n)
 {
   if (!visibleByCamFrustum(n.bb())) return;
-  const int det = n.div().determine(Vec2d(cam.pos().x(), cam.pos().y()));
-  if (det > 0) {
+  const double det = n.div().determine(cam.pos().xy());
+  if (det > 0.0f) {
     if (n.back().get()) rDrawNode(*n.back());
   } else {
     if (n.front().get()) rDrawNode(*n.front());
@@ -137,7 +137,7 @@ rDrawNode(const Node& n)
     glActiveTexture(GL_TEXTURE0);*/
     ++visnodes;
   }
-  if (det > 0) {
+  if (det > 0.0f) {
     if (n.front().get()) rDrawNode(*n.front());
   } else {
     if (n.back().get()) rDrawNode(*n.back());
