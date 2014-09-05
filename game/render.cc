@@ -115,32 +115,39 @@ static void
 rDrawNode(const Node& n)
 {
   if (!visibleByCamFrustum(n.bb())) return;
-  const double det = n.div().determine(cam.pos().xy());
-  if (det > 0.0f) {
-    if (n.back().get()) rDrawNode(*n.back());
+  n.render();
+}
+
+void
+Leaf::render()
+const
+{
+  glColor3ub(s()->l(), s()->l(), s()->l());
+//glColor3f(1.0, 1.0, 1.0);
+/*texLoadTexture(0xc, 0);
+  glActiveTexture(GL_TEXTURE1);
+  glEnable(GL_TEXTURE_2D);
+  texSelectTexture(0xc);
+  glActiveTexture(GL_TEXTURE0);*/
+  glDisable(GL_POLYGON_SMOOTH);
+  if (r_drawwalls) rDrawWalls(*this);
+  rDrawPlanes(*this);
+/*  glActiveTexture(GL_TEXTURE1);
+  glDisable(GL_TEXTURE_2D);
+  glActiveTexture(GL_TEXTURE0);*/
+  ++visnodes;
+}
+
+void
+Branch::render()
+const
+{
+  if (div().determine(cam.pos().xy()) > 0.0f) {
+    rDrawNode(*back());
+    rDrawNode(*front());
   } else {
-    if (n.front().get()) rDrawNode(*n.front());
-  }
-  if (const Leaf* leaf = dynamic_cast<const Leaf*>(&n)) {
-    glColor3ub(leaf->s()->l(), leaf->s()->l(), leaf->s()->l());
-//  glColor3f(1.0, 1.0, 1.0);
-/*  texLoadTexture(0xc, 0);
-    glActiveTexture(GL_TEXTURE1);
-    glEnable(GL_TEXTURE_2D);
-    texSelectTexture(0xc);
-    glActiveTexture(GL_TEXTURE0);*/
-    glDisable(GL_POLYGON_SMOOTH);
-    if (r_drawwalls) rDrawWalls(*leaf);
-    rDrawPlanes(*leaf);
-/*    glActiveTexture(GL_TEXTURE1);
-    glDisable(GL_TEXTURE_2D);
-    glActiveTexture(GL_TEXTURE0);*/
-    ++visnodes;
-  }
-  if (det > 0.0f) {
-    if (n.front().get()) rDrawNode(*n.front());
-  } else {
-    if (n.back().get()) rDrawNode(*n.back());
+    rDrawNode(*front());
+    rDrawNode(*back());
   }
 }
 

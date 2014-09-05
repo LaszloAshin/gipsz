@@ -76,7 +76,7 @@ void bspCollideTree(MassPoint3d& mp) {
 }
 
 const Leaf*
-Node::findLeaf(const Vec3d& p)
+Branch::findLeaf(const Vec3d& p)
 const
 {
   if (div().determine(p) < thickness) {
@@ -175,18 +175,25 @@ bspLoadNode(std::istream& is, const Sectors& sectors)
   std::string branchOrLeaf;
   is >> branchOrLeaf;
   if (branchOrLeaf != "branch" && branchOrLeaf != "leaf") throw std::runtime_error("node is not branch nor leaf");
-  if (branchOrLeaf == "leaf") {
-    return Leaf::create(is, sectors);
-  }
-  std::auto_ptr<Node> n(new Node());
-  {
-    n->div(Plane2d::read(is));
-    n->front(bspLoadNode(is, sectors));
-    n->back(bspLoadNode(is, sectors));
-    n->bb().add(n->front()->bb());
-    n->bb().add(n->back()->bb());
-  }
-  return n;
+  return (branchOrLeaf == "leaf") ? Leaf::create(is, sectors) : Branch::create(is, sectors);
+}
+
+Branch::Branch(const Plane2d& div, std::auto_ptr<Node>& front, std::auto_ptr<Node>& back)
+: div_(div)
+, front_(front)
+, back_(back)
+{
+  bb().add(front_->bb());
+  bb().add(back_->bb());
+}
+
+std::auto_ptr<Node>
+Branch::create(std::istream& is, const Sectors& sectors)
+{
+  const Plane2d plane(Plane2d::read(is));
+  std::auto_ptr<Node> front(bspLoadNode(is, sectors));
+  std::auto_ptr<Node> back(bspLoadNode(is, sectors));
+  return std::auto_ptr<Node>(new Branch(plane, front, back));
 }
 
 void bspFreeMap() {

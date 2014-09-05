@@ -86,32 +86,43 @@ class Leaf;
 
 class Node {
 public:
-  Node() : front_(0), back_(0) {}
+  Node() {}
   virtual ~Node() {}
 
-  Plane2d div() const { return div_; }
-  const std::auto_ptr<Node>& front() const { return front_; }
-  const std::auto_ptr<Node>& back() const { return back_; }
   BBox3d bb() const { return bb_; }
   BBox3d& bb() { return bb_; }
 
-  void div(const Plane2d& p) { div_ = p; }
-  void front(std::auto_ptr<Node> value) { front_ = value; }
-  void back(std::auto_ptr<Node> value) { back_ = value; }
   void bb(const BBox3d& value) { bb_ = value; }
 
-  virtual const Leaf* findLeaf(const Vec3d& p) const;
+  virtual const Leaf* findLeaf(const Vec3d& p) const = 0;
+  virtual void render() const = 0;
 
 private:
   Node(const Node&);
   Node& operator=(const Node&);
 
   BBox3d bb_;
-  std::auto_ptr<Node> front_, back_;
-  Plane2d div_;
 };
 
 typedef std::vector<std::tr1::shared_ptr<Sector> > Sectors;
+
+class Branch : public Node {
+public:
+  static std::auto_ptr<Node> create(std::istream& is, const Sectors& sectors);
+
+  Branch(const Plane2d& div, std::auto_ptr<Node>& front, std::auto_ptr<Node>& back);
+
+  Plane2d div() const { return div_; }
+  const std::auto_ptr<Node>& front() const { return front_; }
+  const std::auto_ptr<Node>& back() const { return back_; }
+
+  virtual const Leaf* findLeaf(const Vec3d& p) const;
+  virtual void render() const;
+
+private:
+  Plane2d div_;
+  std::auto_ptr<Node> front_, back_;
+};
 
 class Leaf : public Node {
 public:
@@ -135,6 +146,7 @@ public:
 
   void collide(MassPoint3d& mp) const;
   virtual const Leaf* findLeaf(const Vec3d& p) const;
+  virtual void render() const;
 
 private:
   Lines ls_;
