@@ -1,7 +1,7 @@
 #ifndef _BSP_H
 #define _BSP_H 1
 
-#include <game/bbox.hh>
+#include <game/aabb.hh>
 #include <lib/vec.hh>
 #include <lib/plane.hh>
 #include <lib/masspoint.hh>
@@ -88,20 +88,20 @@ public:
   Node() {}
   virtual ~Node() {}
 
-  const BBox3d bb() const { return bb_; }
+  const Aabb3d bb() const { return bb_; }
 
   virtual const Leaf* findLeaf(const Vec3d& p) const = 0;
   virtual void render() const = 0;
 
 protected:
   void addAabbPoint(const Vec3d& v) { bb_.add(v); }
-  void addAabb(const BBox3d& bb) { bb_.add(bb); }
+  void addAabb(const Aabb3d& bb) { bb_.add(bb); }
 
 private:
   Node(const Node&);
   Node& operator=(const Node&);
 
-  BBox3d bb_;
+  Aabb3d bb_;
 };
 
 typedef std::vector<std::tr1::shared_ptr<Sector> > Sectors;

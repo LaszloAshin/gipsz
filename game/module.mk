@@ -1,7 +1,7 @@
 # game/module.mk
 
 game_SOURCES := \
-	bbox.cc \
+	aabb.cc \
 	bsp.cc \
 	cmd.cc \
 	console.cc \

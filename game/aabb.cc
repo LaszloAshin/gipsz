@@ -1,8 +1,8 @@
-#include <game/bbox.hh>
+#include <game/aabb.hh>
 #include <game/player.h>
 
 bool
-visibleByCamFrustum(const BBox3d& bb)
+visibleByCamFrustum(const Aabb3d& bb)
 {
 	const Vec3d lo(bb.low() - cam.pos());
 	const Vec3d hi(bb.high() - cam.pos());

@@ -1,7 +1,7 @@
 /* vim: set ts=2 sw=8 tw=0 et :*/
 #include "render.h"
 #include "bsp.h"
-#include <game/bbox.hh>
+#include <game/aabb.hh>
 #include "player.h"
 #include "tex.h"
 #include "console.h"

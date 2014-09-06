@@ -4,9 +4,9 @@
 #include <lib/vec.hh>
 
 template <typename V>
-class BBox {
+class Aabb {
 public:
-	BBox() : empty_(true) {}
+	Aabb() : empty_(true) {}
 
 	bool empty() const { return empty_; }
 	V low() const { return low_; }
@@ -24,7 +24,7 @@ public:
 		}
 	}
 
-	void add(const BBox& other) { add(other.low()); add(other.high()); }
+	void add(const Aabb& other) { add(other.low()); add(other.high()); }
 
 	bool
 	inside(const V& v, const V& padding = V())
@@ -38,8 +38,8 @@ private:
 	bool empty_;
 };
 
-typedef BBox<Vec3d> BBox3d;
+typedef Aabb<Vec3d> Aabb3d;
 
-bool visibleByCamFrustum(const BBox3d& bb);
+bool visibleByCamFrustum(const Aabb3d& bb);
 
 #endif // GAME_BBOX_HEADER
