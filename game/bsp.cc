@@ -23,7 +23,7 @@ int bspIsLoaded() { return bspLoaded; }
 double clamp(double value, double low, double high) { return (value < low) ? low : ((value > high) ? high : value); }
 
 Vec2d
-Line::nearestPoint(const Vec2d& pm)
+Wall::nearestPoint(const Vec2d& pm)
 const
 {
   const Vec2d d(b() - a());
@@ -32,13 +32,13 @@ const
 }
 
 bool
-isBehind(const Vec2d& p, const Line& l)
+isBehind(const Vec2d& p, const Wall& w)
 {
-  return wedge(l.b() - l.a(), p - l.a()) < 0.0f;
+  return wedge(w.b() - w.a(), p - w.a()) < 0.0f;
 }
 
 bool
-Line::crossable()
+Wall::crossable()
 const
 {
   if (!sectorBehind()) return false;
@@ -117,7 +117,7 @@ operator>>(std::istream& is, Vec2d& v)
 
 } // anonymous namespace
 
-static Line
+static Wall
 bspReadLine(std::istream& is, const Sectors& sectors)
 {
   std::string name;
@@ -131,7 +131,7 @@ bspReadLine(std::istream& is, const Sectors& sectors)
   if (backSectorId) sectorBehind = sectors.at(backSectorId);
   Surfaced s;
   is >> s;
-  return Line(a, b, flags, sectorBehind, s);
+  return Wall(a, b, flags, sectorBehind, s);
 }
 
 std::auto_ptr<Node>
@@ -153,7 +153,7 @@ Leaf::create(std::istream& is, const Sectors& sectors)
   if (lineCount) { // leaf
     result->ls().reserve(lineCount);
     for (size_t i = 0; i < lineCount; ++i) {
-      Line l(bspReadLine(is, sectors));
+      Wall l(bspReadLine(is, sectors));
       texLoadTexture(GET_TEXTURE(l.s().textureId(), 0), 0);
       texLoadTexture(GET_TEXTURE(l.s().textureId(), 1), 0);
       texLoadTexture(GET_TEXTURE(l.s().textureId(), 2), 0);

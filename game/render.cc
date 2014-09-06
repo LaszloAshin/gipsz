@@ -21,7 +21,7 @@ static int r_drawwalls = 1;
 static int visfaces, visnodes;
 
 static void
-rDrawWall(const Line& l, float f, float c, unsigned t)
+rDrawWall(const Wall& l, float f, float c, unsigned t)
 {
   float v = (l.s().v() - c) * 0.015625;
   texSelectTexture(t);

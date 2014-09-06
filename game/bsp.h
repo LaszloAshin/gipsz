@@ -45,9 +45,9 @@ struct LineFlag {
   };
 };
 
-class Line {
+class Wall {
 public:
-  Line(
+  Wall(
     const Vec2d& a, const Vec2d& b,
     unsigned flags,
     std::tr1::shared_ptr<Sector> sectorBehind,
@@ -78,9 +78,9 @@ private:
   Surfaced s_;
 };
 
-bool isBehind(const Vec2d& p, const Line& l);
+bool isBehind(const Vec2d& p, const Wall& l);
 
-typedef std::vector<Line> Lines;
+typedef std::vector<Wall> Walls;
 
 class Leaf;
 
@@ -130,8 +130,8 @@ public:
 
   Leaf(const std::tr1::shared_ptr<Sector>& s) : s_(s) {}
 
-  typedef Lines::const_iterator const_iterator;
-  typedef Lines::const_reverse_iterator const_reverse_iterator;
+  typedef Walls::const_iterator const_iterator;
+  typedef Walls::const_reverse_iterator const_reverse_iterator;
 
   const_iterator begin() const { return ls_.begin(); }
   const_iterator end() const { return ls_.end(); }
@@ -141,15 +141,15 @@ public:
   std::tr1::shared_ptr<const Sector> s() const { return s_; }
   bool empty() const { return ls_.empty(); }
 
-  Lines& ls() { return ls_; }
-  const Lines& ls() const { return ls_; }
+  Walls& ls() { return ls_; }
+  const Walls& ls() const { return ls_; }
 
   void collide(MassPoint3d& mp) const;
   virtual const Leaf* findLeaf(const Vec3d& p) const;
   virtual void render() const;
 
 private:
-  Lines ls_;
+  Walls ls_;
   std::tr1::shared_ptr<Sector> s_;
 };
 
