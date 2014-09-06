@@ -75,7 +75,6 @@ rDrawWalls(const Leaf& n)
 static void
 rDrawPlanes(const Leaf& n)
 {
-  if (n.ls().size() < 3) return;
   unsigned t;
   if (n.s()->f() < cam.pos().z() && (t = GET_TEXTURE(n.s()->t(), 0))) {
     texSelectTexture(t);

@@ -55,6 +55,7 @@ public:
   )
   : a_(a), b_(b)
   , flags_(flags)
+  , n_(norm(perpendicular(b - a)))
   , sectorBehind_(sectorBehind)
   , s_(s)
   {}
@@ -64,8 +65,6 @@ public:
   Vec2d n() const { return n_; }
   std::tr1::shared_ptr<const Sector> sectorBehind() const { return sectorBehind_; }
   Surfaced s() const { return s_; }
-
-  void n(const Vec2d& value) { n_ = value; }
 
   Vec2d nearestPoint(const Vec2d& pm) const;
   bool crossable() const;
@@ -89,13 +88,14 @@ public:
   Node() {}
   virtual ~Node() {}
 
-  BBox3d bb() const { return bb_; }
-  BBox3d& bb() { return bb_; }
-
-  void bb(const BBox3d& value) { bb_ = value; }
+  const BBox3d bb() const { return bb_; }
 
   virtual const Leaf* findLeaf(const Vec3d& p) const = 0;
   virtual void render() const = 0;
+
+protected:
+  void addAabbPoint(const Vec3d& v) { bb_.add(v); }
+  void addAabb(const BBox3d& bb) { bb_.add(bb); }
 
 private:
   Node(const Node&);
@@ -139,14 +139,12 @@ public:
   const_reverse_iterator rend() const { return ls_.rend(); }
 
   std::tr1::shared_ptr<const Sector> s() const { return s_; }
-  bool empty() const { return ls_.empty(); }
-
-  Walls& ls() { return ls_; }
-  const Walls& ls() const { return ls_; }
 
   void collide(MassPoint3d& mp) const;
   virtual const Leaf* findLeaf(const Vec3d& p) const;
   virtual void render() const;
+  void reserve(size_t count) { ls_.reserve(count); }
+  void add(const Wall& w);
 
 private:
   Walls ls_;

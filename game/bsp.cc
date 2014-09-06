@@ -134,6 +134,14 @@ bspReadLine(std::istream& is, const Sectors& sectors)
   return Wall(a, b, flags, sectorBehind, s);
 }
 
+void
+Leaf::add(const Wall& w)
+{
+  addAabbPoint(Vec3d(w.a().x(), w.a().y(), s_->f()));
+  addAabbPoint(Vec3d(w.a().x(), w.a().y(), s_->c()));
+  ls_.push_back(w);
+}
+
 std::auto_ptr<Node>
 Leaf::create(std::istream& is, const Sectors& sectors)
 {
@@ -149,19 +157,14 @@ Leaf::create(std::istream& is, const Sectors& sectors)
   texLoadTexture(GET_TEXTURE(result->s()->t(), 1), 0);
   size_t lineCount;
   is >> lineCount;
-  assert(lineCount);
-  if (lineCount) { // leaf
-    result->ls().reserve(lineCount);
-    for (size_t i = 0; i < lineCount; ++i) {
-      Wall l(bspReadLine(is, sectors));
-      texLoadTexture(GET_TEXTURE(l.s().textureId(), 0), 0);
-      texLoadTexture(GET_TEXTURE(l.s().textureId(), 1), 0);
-      texLoadTexture(GET_TEXTURE(l.s().textureId(), 2), 0);
-      l.n(norm(perpendicular(l.b() - l.a())));
-      result->bb().add(Vec3d(l.a().x(), l.a().y(), result->s()->f()));
-      result->bb().add(Vec3d(l.a().x(), l.a().y(), result->s()->c()));
-      result->ls().push_back(l);
-    }
+  if (lineCount < 3) throw std::runtime_error("a subsector must contain at least 3 walls");
+  result->reserve(lineCount);
+  for (size_t i = 0; i < lineCount; ++i) {
+    const Wall w(bspReadLine(is, sectors));
+    texLoadTexture(GET_TEXTURE(w.s().textureId(), 0), 0);
+    texLoadTexture(GET_TEXTURE(w.s().textureId(), 1), 0);
+    texLoadTexture(GET_TEXTURE(w.s().textureId(), 2), 0);
+    result->add(w);
   }
   return std::auto_ptr<Node>(result.release());
 }
@@ -183,8 +186,8 @@ Branch::Branch(const Plane2d& div, std::auto_ptr<Node>& front, std::auto_ptr<Nod
 , front_(front)
 , back_(back)
 {
-  bb().add(front_->bb());
-  bb().add(back_->bb());
+  addAabb(front_->bb());
+  addAabb(back_->bb());
 }
 
 std::auto_ptr<Node>
