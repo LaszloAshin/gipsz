@@ -9,12 +9,13 @@ addons:
     - libsdl1.2-dev
     - libgl1-mesa-dev
 script:
+- sed -e "s/@VERSION@/`./version.sh | cut -c2-`/g" debian/changelog.in > debian/changelog
 - dpkg-buildpackage -us -uc -b
 deploy:
   provider: releases
   api_key:
     secure: VHOjFEEqJawbOINRY95OfsNo7Z5sQwHKUj/wsB2dNE3cAa52NgA6AokH77oUqYNe4lzrCDfQg13GjnPayw5zyKiv8l0Rc3xKCTSicK3VE/ckvi4eQzBNU1K2XEAduLaB7hhTPU7Bm5AVUfLY8FfVQjq8DACBoO2oNQdhU68IxoI=
-  file: ../gipsz_*.deb
+  file: ../gipsz*.deb
   file_glob: true
   skip_cleanup: true
   on:
