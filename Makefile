@@ -10,6 +10,7 @@ CPPFLAGS := -Wall -Wextra -pedantic
 CPPFLAGS += -O2 -g
 CPPFLAGS += -MD
 CPPFLAGS += -I.
+CPPFLAGS += -DVERSION='"$(shell ./version.sh)"'
 
 CPPFLAGS += $(shell sdl-config --cflags)
 LDLIBS += $(shell sdl-config --libs)

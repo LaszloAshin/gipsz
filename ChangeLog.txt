@@ -1,37 +1,41 @@
-0.07 alpha - 2014.07.06. 15:14
-  # reorganize files
+0.0.8 alpha - 2015.08.09. 19:10
+  + add: debian package building via travis-ci
 
-0.06 alpha - 2006.10.05. 16:25
-  + added: store objects in bsp file
-  + added: tx2 uses display lists
-  + added: configure script to create Makefile
-  + added: display lists for static models
+0.0.7 alpha - 2014.07.06. 15:14
+  # change: reorganize files after git import
+  # change: C++-ize C sources
 
-0.05 alpha - 2006.09.23. 12:56
-  + added: limited model and object support with predefined models (cube, torus, sphere)
-  + added: new tga loader based on gimp's tga.c
-  + added: automatic normal calculation for models
+0.0.6 alpha - 2006.10.05. 16:25
+  + add: store objects in bsp file
+  + add: tx2 uses display lists
+  + add: configure script to create Makefile
+  + add: display lists for static models
 
-0.04 alpha - 2006.09.16. 10:28
-  * fixed: clear cn on bspFreeTree
-  * fixed: relative mouse move query after load a map
-  # changed: callback control is replaced
-  # changed: module tx is replaced by tx2 which uses textures instead of bitmaps - speed improvement
-  # changed: opengl extension support (for example at multitexturing)
-  + added: alpha blending in fonts and mouse cursor
-  + added: grayscale texture support, further improvements on 2x2 mipmaps
-  + added: leavemap command for unloading maps
+0.0.5 alpha - 2006.09.23. 12:56
+  + add: limited model and object support with predefined models (cube, torus, sphere)
+  + add: new tga loader based on gimp's tga.c
+  + add: automatic normal calculation for models
 
-0.03 alpha - 2006.09.07. 14:52
-  * fixed: memleak in input bindings
-  # changed: sdlbsp is divided into bsp, render and player modules
-  # changed: con_cmd renamed to cmd
-  + added: test in mmDone for unfreed memory blocks
-  + added: map and devmap commands for loading maps from console
-  + added: show recent messages in the left upper corner
-  + added: console size can be adjusted
+0.0.4 alpha - 2006.09.16. 10:28
+  * fix: clear cn on bspFreeTree
+  * fix: relative mouse move query after load a map
+  # change: callback control is replaced
+  # change: module tx is replaced by tx2 which uses textures instead of bitmaps - speed improvement
+  # change: opengl extension support (for example at multitexturing)
+  + add: alpha blending in fonts and mouse cursor
+  + add: grayscale texture support, further improvements on 2x2 mipmaps
+  + add: leavemap command for unloading maps
 
-0.02 alpha - 2006.09.05.
-  * fixed: mysterious scrambled 2x2 mipmaps
-  * fixed: mem corruption in tgaFree
-  * fixed: certain interframe slideouts where bgcolor appeared
+0.0.3 alpha - 2006.09.07. 14:52
+  * fix: memleak in input bindings
+  # change: sdlbsp is divided into bsp, render and player modules
+  # change: con_cmd renamed to cmd
+  + add: test in mmDone for unfreed memory blocks
+  + add: map and devmap commands for loading maps from console
+  + add: show recent messages in the left upper corner
+  + add: console size can be adjusted
+
+0.0.2 alpha - 2006.09.05.
+  * fix: mysterious scrambled 2x2 mipmaps
+  * fix: mem corruption in tgaFree
+  * fix: certain interframe slideouts where bgcolor appeared

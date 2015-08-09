@@ -14,12 +14,12 @@
 #include "bsp.h"
 #include "ogl.h"
 
-static char version[] = "0.06 alpha";
+#include <iostream>
 
 static int cmd_version(int argc, char **argv) {
   (void)argc;
   (void)argv;
-  cmsg(MLINFO, "version %s", version);
+  cmsg(MLINFO, "version %s", VERSION);
   return 0;
 }
 
@@ -304,6 +304,10 @@ static void Done() {
 int main(int argc, char **argv) {
   (void)argc;
   (void)argv;
+  if (argv[1] && std::string(argv[1]) == "-V") {
+    std::cout << "gipsz " << VERSION << std::endl;
+    return EXIT_SUCCESS;
+  }
   Init();
   Run();
   Done();
