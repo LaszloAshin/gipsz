@@ -1,0 +1,8 @@
+files
+
+*.log
+*.debhelper
+*.substvars
+
+gipsz
+gipsz-dbg
