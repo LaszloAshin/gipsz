@@ -22,14 +22,14 @@ game_SOURCES := \
 game_OBJECTS := $(addprefix $Od/game/,$(addsuffix .o,$(basename $(game_SOURCES))))
 -include $(addsuffix .d,$(basename $(game_OBJECTS)))
 
-$Ogame: LDLIBS += -lGL
+$Ogipsz-game: LDLIBS += -lGL
 
-$Ogame: $(game_OBJECTS)
+$Ogipsz-game: $(game_OBJECTS)
 	$(call link-executable-steps)
 
 .PHONY: game
-game: $Ogame
+game: $Ogipsz-game
 
 all: game
 
-C += $Ogame* $Od/game
+C += $Ogipsz-game $Od/game

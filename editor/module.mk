@@ -14,12 +14,12 @@ editor_SOURCES := \
 editor_OBJECTS := $(addprefix $Od/editor/,$(addsuffix .o,$(basename $(editor_SOURCES))))
 -include $(addsuffix .d,$(basename $(editor_OBJECTS)))
 
-$Oeditor: $(editor_OBJECTS)
+$Ogipsz-editor: $(editor_OBJECTS)
 	$(call link-executable-steps)
 
 .PHONY: editor
-editor: $Oeditor
+editor: $Ogipsz-editor
 
 all: editor
 
-C += $Oeditor* $Od/editor
+C += $Ogipsz-editor $Od/editor

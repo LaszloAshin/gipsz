@@ -21,3 +21,11 @@ include editor/module.mk
 clean:
 	$(if $Q,@echo "  CLEAN $C")
 	$Qrm -rf $C
+
+.PHONY: test
+test:
+	@echo "TODO: implement test"
+
+.PHONY: distclean
+distclean:
+	rm -rf $O

@@ -1,0 +1,2 @@
+?package(gipsz):needs="X11" section="Games/Action"\
+  title="gipsz" command="/usr/bin/gipsz"

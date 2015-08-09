@@ -1,0 +1,25 @@
+Source: gipsz
+Section: games
+Priority: optional
+Maintainer: László ÁSHIN <laszlo@ashin.hu>
+Build-Depends: debhelper (>= 9)
+Standards-Version: 3.9.5
+Homepage: https://github.com/LaszloAshin/gipsz
+Vcs-Git: git@github.com:LaszloAshin/gipsz.git
+Vcs-Browser: https://github.com/LaszloAshin/gipsz
+
+Package: gipsz
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Laszlo's unfinished 3D FPS game
+ Laszlo's unfinished 3D first person shooter game.
+
+Package: gipsz-dbg
+Architecture: any
+Section: debug
+Priority: extra
+Depends: gipsz (= ${binary:Version}), ${misc:Depends}
+Description: debugging symbols for gipsz
+ Laszlo's unfinished 3D first person shooter game.
+ .
+ This package contains the debugging symbols for giblib1.
