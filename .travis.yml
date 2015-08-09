@@ -1,7 +1,7 @@
 language: cpp
 compiler:
-  - gcc
-  - clang
+- gcc
+- clang
 sudo: false
 addons:
   apt:
@@ -9,4 +9,15 @@ addons:
     - libsdl1.2-dev
     - libgl1-mesa-dev
 script:
-  - make
+- make
+deploy:
+  provider: releases
+  api_key:
+    secure: VHOjFEEqJawbOINRY95OfsNo7Z5sQwHKUj/wsB2dNE3cAa52NgA6AokH77oUqYNe4lzrCDfQg13GjnPayw5zyKiv8l0Rc3xKCTSicK3VE/ckvi4eQzBNU1K2XEAduLaB7hhTPU7Bm5AVUfLY8FfVQjq8DACBoO2oNQdhU68IxoI=
+  file:
+  - out/game
+  - out/editor
+  skip_cleanup: true
+  on:
+    tags: true
+    condition: "$CC = gcc"
