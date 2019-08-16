@@ -129,7 +129,7 @@ public:
 	const
 	{
 		if (!front() || !back()) return -1;
-		return abs(front() - back()) + splitted() * 10;
+		return abs(static_cast<ptrdiff_t>(front()) - static_cast<ptrdiff_t>(back())) + splitted() * 10;
 	}
 
 	SplitStats&
